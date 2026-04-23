@@ -1,5 +1,5 @@
 """
-preprocess - M03. Normalizaciones que todo el pipeline asume.
+M03_preprocess - Normalizaciones que todo el pipeline asume.
 
 Funciones nucleares:
   - attacking_direction(match_id) : (team_id, period) -> 'L' o 'R'
@@ -12,10 +12,17 @@ de la camara principal); 'L' = hacia x decreciente. Sistema de coordenadas
 PFF: metros, (0,0) = centro, x in [-L/2, L/2], y in [-W/2, W/2].
 
 Convencion de normalizacion de coordenadas post-flip: el equipo en posesion
-SIEMPRE ataca hacia x_norm > 0. Implementado en col `ball_x_norm`.
+SIEMPRE ataca hacia x_norm > 0. Implementado en cols `ball_x_norm`, `ball_y_norm`.
+
+Semantica del score state: asof BACKWARD por start_game_clock. Si un gol
+cae exactamente en el mismo segundo que un evento, el evento ya lo ve
+contado (interpretable como 'score AT event moment'). Para ventanas de 10 min
+esto es irrelevante.
 
 Cache idempotente en data/parquet/derived/preprocess/events_enriched/.
-Si el parquet existe y `cache=True`, se lee en vez de recomputar.
+Si el parquet existe y cache=True, se lee en vez de recomputar.
+
+Depende de M01 (loader PFF). M02 publicos no se tocan aqui.
 """
 
 from __future__ import annotations
@@ -25,7 +32,7 @@ from pathlib import Path
 
 import polars as pl
 
-# Permite tanto `python src/preprocess.py` como `from src.preprocess import ...`
+# Permite tanto `python src/M03_preprocess.py` como `from src.M03_preprocess import ...`
 _SRC_DIR = Path(__file__).resolve().parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
@@ -79,8 +86,9 @@ def goals_timeline(match_id: int) -> pl.DataFrame:
     """Goles validos del partido ordenados con cum_home / cum_away.
 
     Excluye goles anulados (disallowed) y penaltis de tanda (shootout).
-    Own-goals se resuelven comparando el team del shooter con el team del keeper:
-    el equipo QUE MARCA es el del keeper (portero sufrido).
+    Own-goal: shooter_team == keeper_team (el rematador y el portero son del
+    mismo equipo, el remate entra en su propia porteria). En ese caso
+    scoring_team = el equipo rival. En goles normales scoring_team = shooter_team.
 
     Returns:
         DataFrame: match_id, period, start_game_clock, minute, scoring_team_id,
@@ -131,17 +139,14 @@ def score_state_before(
     score_diff se expresa desde la perspectiva del equipo en posesion
     (positivo = equipo en posesion por delante).
     """
-    # Tomar goles ordenados; para cada evento, filtrar goals strict-before
-    # por start_game_clock. Asof join.
+    # asof BACKWARD: para cada evento toma el ultimo gol con g_sgc <= sgc evento.
+    # Si un gol cae en el mismo segundo que el evento, el evento lo ve contado.
+    # Semantica: 'score AT event moment'. Suficiente para ventanas de 10 min.
     g = goals_df.sort("start_game_clock").select([
         pl.col("start_game_clock").alias("g_sgc"),
         "cum_home", "cum_away",
     ])
     ev = events_df.sort("start_game_clock")
-    # asof en start_game_clock con estrictamente menor:
-    # (goal en start_sgc es post-evento en ese mismo segundo? safer: strict <)
-    # polars join_asof usa 'backward' = <= por defecto. Usamos < shifting g_sgc+1e-9:
-    # mas simple: despues del join_asof, si g_sgc == sgc retroceder 1.
     ev = ev.join_asof(g, left_on="start_game_clock", right_on="g_sgc",
                       strategy="backward")
     ev = ev.with_columns([
@@ -310,7 +315,7 @@ if __name__ == "__main__":
     import time
     from M01_loader_pff import list_matches, list_event_match_ids
 
-    print("=== preprocess sanity ===")
+    print("=== M03_preprocess sanity ===")
     inv = list_matches()
     gid = int(inv.filter(pl.col("has_tracking"))["match_id"][0])
 

@@ -1,9 +1,9 @@
 """
-loader_public - M02. API de lectura de los parquets publicos (Wyscout + StatsBomb).
+M02_loader_public - API de lectura de los parquets publicos (Wyscout + StatsBomb).
 
 polars nativo, sin socceraction. I/O puro + normalizacion de tipos + helpers
-por competicion. Sustituye funcionalmente a `src/loaders.py` (que queda solo
-si algun training externo exige la API socceraction).
+por competicion. Sustituye funcionalmente a `src/Z00_loaders_legacy.py` (que
+queda solo si algun training externo exige la API socceraction).
 
 Wyscout 2017/18 — corpus base de training (Big 5 + WC18 + Euro16):
     7 parquets de events (uno por competicion), 1.941 matches, 3.25M eventos,
@@ -14,7 +14,7 @@ StatsBomb open subset (200 partidos para PSxG + cross-val):
     653k freeze-frames 360, 400 lineups (2 por partido).
 
 Uso rapido:
-    from src.loader_public import (
+    from src.M02_loader_public import (
         scan_wyscout_events, load_wyscout_matches,
         list_statsbomb_competitions, load_statsbomb_events, load_statsbomb_360,
     )
@@ -203,7 +203,7 @@ def load_statsbomb_360(match_id: int) -> pl.DataFrame:
 if __name__ == "__main__":
     import time
 
-    print("=== loader_public sanity ===")
+    print("=== M02_loader_public sanity ===")
 
     # --- Wyscout ---
     t0 = time.time()
