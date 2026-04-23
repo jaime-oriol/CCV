@@ -30,7 +30,7 @@ _SRC_DIR = Path(__file__).resolve().parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
-from loader_pff import (
+from M01_loader_pff import (
     load_metadata, load_rosters, load_events, list_goals, list_subs, scan_events,
 )
 
@@ -292,7 +292,7 @@ def enrich_events(match_id: int, cache: bool = True) -> pl.DataFrame:
 
 def cache_all_enriched(overwrite: bool = False) -> dict:
     """Precomputa enrich_events de los 64 partidos y cachea a parquet."""
-    from loader_pff import list_event_match_ids
+    from M01_loader_pff import list_event_match_ids
     out = {}
     for mid in list_event_match_ids():
         p = _DERIVED / "events_enriched" / f"{mid}.parquet"
@@ -308,7 +308,7 @@ def cache_all_enriched(overwrite: bool = False) -> dict:
 
 if __name__ == "__main__":
     import time
-    from loader_pff import list_matches, list_event_match_ids
+    from M01_loader_pff import list_matches, list_event_match_ids
 
     print("=== preprocess sanity ===")
     inv = list_matches()
