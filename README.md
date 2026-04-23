@@ -10,10 +10,14 @@ Output: ranking bidireccional de jugadores clutch (Indice Remontador + Indice Ce
 
 ```text
 src/
-├── extract/            # extractores raw JSON -> parquet (lossless)
-├── vaep.py             # B01 atomic-VAEP (building block)
-├── pitch_control.py    # B02 PPCF (building block)
-└── (M01-M16)           # pipeline modular del PCJ
+├── extract/                # extractores raw JSON -> parquet (lossless)
+├── M01_loader_pff.py       # API PFF (events, tracking, metadata, rosters + vistas)
+├── M02_loader_public.py    # API Wyscout + StatsBomb (polars nativo)
+├── M03_preprocess.py       # direction, score state, minutos, enrich_events
+├── (M04-M16)               # pipeline restante (ver docs/ARCHITECTURE.md)
+├── Z00_loaders_legacy.py   # wrappers socceraction legacy
+├── Z01_vaep.py             # B01 atomic-VAEP (building block)
+└── Z02_pitch_control.py    # B02 PPCF (building block)
 ```
 
 Datos, documentacion interna del proyecto y outputs intermedios estan fuera del repo (`.gitignore`).
