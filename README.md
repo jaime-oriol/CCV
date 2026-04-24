@@ -20,7 +20,8 @@ src/
 ├── M07_shocks.py           # Shocks emocionales (goles) + ventanas ±10min por jugador
 ├── M08_ataque.py           # Canal Empuje Ofensivo via atomic-VAEP (CatBoost)
 ├── M09_defensa.py          # Canal Solidez Defensiva via VDEP-style atomic-VAEP
-├── (M10-M16)               # pipeline restante (ver docs/ARCHITECTURE.md)
+├── M10_offball.py          # Canal Off-ball via OBSO + C-OBSO (xG grid + tracking)
+├── (M11-M16)               # pipeline restante (ver docs/ARCHITECTURE.md)
 ├── Z01_vaep.py             # B01 atomic-VAEP (building block)
 └── Z02_pitch_control.py    # B02 PPCF (building block)
 ```
