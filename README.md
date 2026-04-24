@@ -18,7 +18,8 @@ src/
 ├── M05_psxg.py             # Post-shot xG (LightGBM + Optuna, AUC 0.976)
 ├── M06_nearmiss.py         # Near-miss identification (5 tipos, specification curve)
 ├── M07_shocks.py           # Shocks emocionales (goles) + ventanas ±10min por jugador
-├── (M08-M16)               # pipeline restante (ver docs/ARCHITECTURE.md)
+├── M08_ataque.py           # Canal Empuje Ofensivo via atomic-VAEP (CatBoost)
+├── (M09-M16)               # pipeline restante (ver docs/ARCHITECTURE.md)
 ├── Z01_vaep.py             # B01 atomic-VAEP (building block)
 └── Z02_pitch_control.py    # B02 PPCF (building block)
 ```
