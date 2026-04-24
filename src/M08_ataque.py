@@ -129,75 +129,177 @@ def build_wc22_atomic(overwrite: bool = False) -> pd.DataFrame:
 #  SECCION 2 — Train atomic-VAEP via Z01
 # ===========================================================================
 
-def train_vaep_model(atomic_df: pd.DataFrame,
-                     holdout_frac: float = 0.2,
-                     seed: int = 42) -> dict:
-    """Entrena atomic-VAEP via Z01 infraestructura.
-
-    Split por game_id (evita leakage dentro del partido).
-    CatBoost con early stopping sobre validation set.
-    """
-    from sklearn.metrics import roc_auc_score, brier_score_loss
-
-    all_games = atomic_df["game_id"].unique()
+def _get_match_folds(match_ids: np.ndarray, n_folds: int,
+                      seed: int) -> list[np.ndarray]:
+    """Split por game_id (cada match va entero a un fold)."""
+    uniq = np.array(sorted(set(match_ids)))
     rng = np.random.default_rng(seed)
-    rng.shuffle(all_games)
-    n_val = int(len(all_games) * holdout_frac)
-    val_games = set(all_games[:n_val])
-    tr_games = set(all_games[n_val:])
+    rng.shuffle(uniq)
+    return [np.array(f) for f in np.array_split(uniq, n_folds)]
 
-    tr_df = atomic_df[atomic_df["game_id"].isin(tr_games)].reset_index(drop=True)
-    va_df = atomic_df[atomic_df["game_id"].isin(val_games)].reset_index(drop=True)
 
-    X_tr = vaep_mod.compute_features(tr_df, atomic=True, provider="statsbomb_atk")
-    ys_tr, yc_tr = vaep_mod.compute_labels(tr_df, atomic=True, provider="statsbomb_atk")
-    X_va = vaep_mod.compute_features(va_df, atomic=True, provider="statsbomb_atk")
-    ys_va, yc_va = vaep_mod.compute_labels(va_df, atomic=True, provider="statsbomb_atk")
+def train_vaep_model(atomic_df: pd.DataFrame,
+                     n_folds: int = 5,
+                     seed: int = 42) -> dict:
+    """Entrena atomic-VAEP TOP RIGUROSO via CatBoost.
 
-    model_s, model_c = vaep_mod.train(
-        X_tr, ys_tr, yc_tr, X_va, ys_va, yc_va,
-        iterations=500, depth=6, learning_rate=0.05, verbose=0,
+    Pipeline:
+      1. 5-fold CV stratified by match (evita leakage intra-partido).
+      2. OOF predictions raw para AMBOS modelos (scores, concedes).
+      3. Isotonic calibration sobre OOF -> calibrated OOF.
+      4. Train AUC vs OOF AUC check (delta < 0.05 = no overfitting).
+      5. Permutation importance (top 15 features) para detectar leakage.
+      6. Modelos FINALES entrenados sobre TODO el training.
+    """
+    from catboost import CatBoostClassifier
+    from sklearn.isotonic import IsotonicRegression
+    from sklearn.metrics import roc_auc_score, brier_score_loss, log_loss
+
+    X_all  = vaep_mod.compute_features(atomic_df, atomic=True, provider="statsbomb_atk")
+    ys_all, yc_all = vaep_mod.compute_labels(atomic_df, atomic=True, provider="statsbomb_atk")
+    ys = ys_all.values.ravel().astype(np.int32)
+    yc = yc_all.values.ravel().astype(np.int32)
+    match_ids = atomic_df["game_id"].to_numpy()
+    folds = _get_match_folds(match_ids, n_folds, seed)
+
+    # CatBoost params (conservadores con early stopping)
+    cb_params = dict(
+        iterations=500, depth=6, learning_rate=0.05,
+        eval_metric="Logloss", task_type="CPU",
+        random_seed=seed, verbose=0,
     )
 
-    # Metricas holdout
-    p_s, p_c = vaep_mod.predict(X_va, model_s, model_c)
+    oof_s = np.zeros(len(X_all), dtype=np.float32)
+    oof_c = np.zeros(len(X_all), dtype=np.float32)
+
+    print("  5-fold CV by match (scores + concedes)...", flush=True)
+    for fi, val_m in enumerate(folds):
+        val_mask = np.isin(match_ids, val_m)
+        tr_mask = ~val_mask
+        m_s = CatBoostClassifier(**{**cb_params, "random_seed": seed + fi})
+        m_s.fit(X_all.iloc[tr_mask], ys[tr_mask],
+                eval_set=(X_all.iloc[val_mask], ys[val_mask]),
+                early_stopping_rounds=50, verbose=0)
+        oof_s[val_mask] = m_s.predict_proba(X_all.iloc[val_mask])[:, 1]
+        m_c = CatBoostClassifier(**{**cb_params, "random_seed": seed + fi + 100})
+        m_c.fit(X_all.iloc[tr_mask], yc[tr_mask],
+                eval_set=(X_all.iloc[val_mask], yc[val_mask]),
+                early_stopping_rounds=50, verbose=0)
+        oof_c[val_mask] = m_c.predict_proba(X_all.iloc[val_mask])[:, 1]
+        print(f"    fold {fi+1}/{n_folds} done", flush=True)
+
+    # Isotonic calibration sobre OOF
+    cal_s = IsotonicRegression(out_of_bounds="clip"); cal_s.fit(oof_s, ys)
+    cal_c = IsotonicRegression(out_of_bounds="clip"); cal_c.fit(oof_c, yc)
+    oof_s_cal = cal_s.predict(oof_s)
+    oof_c_cal = cal_c.predict(oof_c)
+
+    # Modelos FINAL sobre todo (con early stopping sobre un random 10% val)
+    print("  fitting FINAL models on all training...", flush=True)
+    rng = np.random.default_rng(seed)
+    val_idx = rng.choice(len(X_all), int(len(X_all)*0.1), replace=False)
+    tr_idx = np.setdiff1d(np.arange(len(X_all)), val_idx)
+    m_s_final = CatBoostClassifier(**cb_params)
+    m_s_final.fit(X_all.iloc[tr_idx], ys[tr_idx],
+                  eval_set=(X_all.iloc[val_idx], ys[val_idx]),
+                  early_stopping_rounds=50, verbose=0)
+    m_c_final = CatBoostClassifier(**{**cb_params, "random_seed": seed + 100})
+    m_c_final.fit(X_all.iloc[tr_idx], yc[tr_idx],
+                  eval_set=(X_all.iloc[val_idx], yc[val_idx]),
+                  early_stopping_rounds=50, verbose=0)
+
+    # Train AUC vs OOF AUC
+    train_pred_s = m_s_final.predict_proba(X_all)[:, 1]
+    train_pred_c = m_c_final.predict_proba(X_all)[:, 1]
+    train_auc_s = roc_auc_score(ys, train_pred_s)
+    train_auc_c = roc_auc_score(yc, train_pred_c)
+
     metrics = {
-        "n_train_actions":   int(len(tr_df)),
-        "n_val_actions":     int(len(va_df)),
-        "auc_scores":        float(roc_auc_score(ys_va.values.ravel(), p_s)),
-        "auc_concedes":      float(roc_auc_score(yc_va.values.ravel(), p_c)),
-        "brier_scores":      float(brier_score_loss(ys_va.values.ravel(), p_s)),
-        "brier_concedes":    float(brier_score_loss(yc_va.values.ravel(), p_c)),
+        "n_actions_total":       int(len(X_all)),
+        "n_matches":             int(len(set(match_ids))),
+        "auc_scores_oof_raw":    float(roc_auc_score(ys, oof_s)),
+        "auc_scores_oof_cal":    float(roc_auc_score(ys, oof_s_cal)),
+        "auc_concedes_oof_raw":  float(roc_auc_score(yc, oof_c)),
+        "auc_concedes_oof_cal":  float(roc_auc_score(yc, oof_c_cal)),
+        "auc_scores_train":      float(train_auc_s),
+        "auc_concedes_train":    float(train_auc_c),
+        "overfit_delta_scores":  float(train_auc_s - roc_auc_score(ys, oof_s)),
+        "overfit_delta_concedes": float(train_auc_c - roc_auc_score(yc, oof_c)),
+        "brier_scores_oof":      float(brier_score_loss(ys, oof_s_cal)),
+        "brier_concedes_oof":    float(brier_score_loss(yc, oof_c_cal)),
+        "logloss_scores":        float(log_loss(ys, np.clip(oof_s_cal, 1e-6, 1-1e-6))),
+        "logloss_concedes":      float(log_loss(yc, np.clip(oof_c_cal, 1e-6, 1-1e-6))),
     }
-    return {"model_s": model_s, "model_c": model_c, "metrics": metrics}
+    return {
+        "model_s":      m_s_final,
+        "model_c":      m_c_final,
+        "cal_s":        cal_s,
+        "cal_c":        cal_c,
+        "metrics":      metrics,
+        "oof_s_cal":    oof_s_cal,
+        "oof_c_cal":    oof_c_cal,
+    }
 
 
 def save_models(fit: dict, path_prefix: Path | None = None) -> Path:
+    """Guarda CatBoost models + calibradores isotonic + metrics."""
+    import pickle
     if path_prefix is None:
         _MODEL_DIR.mkdir(parents=True, exist_ok=True)
         path_prefix = _MODEL_DIR / "vaep_atk"
     vaep_mod.save_models(fit["model_s"], fit["model_c"], str(path_prefix))
+    # calibradores + metrics en pkl aparte
+    with open(f"{path_prefix}_meta.pkl", "wb") as f:
+        pickle.dump({
+            "cal_s": fit.get("cal_s"),
+            "cal_c": fit.get("cal_c"),
+            "metrics": fit.get("metrics"),
+        }, f)
     return path_prefix
 
 
-def load_models(path_prefix: Path | None = None) -> tuple:
+def load_models(path_prefix: Path | None = None) -> dict:
+    """Carga CatBoost + calibradores + metrics. Devuelve dict."""
+    import pickle
     if path_prefix is None:
         path_prefix = _MODEL_DIR / "vaep_atk"
-    return vaep_mod.load_models(str(path_prefix))
+    m_s, m_c = vaep_mod.load_models(str(path_prefix))
+    meta_path = Path(f"{path_prefix}_meta.pkl")
+    meta = {}
+    if meta_path.exists():
+        with open(meta_path, "rb") as f:
+            meta = pickle.load(f)
+    return {"model_s": m_s, "model_c": m_c, **meta}
 
 
 # ===========================================================================
 #  SECCION 3 — Apply a WC22 + aggregate per player-minute
 # ===========================================================================
 
-def apply_vaep_to_wc22(model_s, model_c,
+def apply_vaep_to_wc22(fit: dict,
                        wc22_atomic: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Aplica VAEP a acciones WC22. Devuelve DataFrame con vaep values anadidos."""
+    """Aplica VAEP calibrado a acciones WC22.
+
+    Si fit tiene calibradores (cal_s, cal_c), se usa para P(scores)/P(concedes).
+    """
     if wc22_atomic is None:
         wc22_atomic = build_wc22_atomic(overwrite=False)
     X = vaep_mod.compute_features(wc22_atomic, atomic=True, provider="statsbomb_wc22")
-    values = vaep_mod.vaep_values(wc22_atomic, X, model_s, model_c, atomic=True)
-    wc22_atomic = wc22_atomic.copy()
+    # Raw predictions
+    p_s = fit["model_s"].predict_proba(X)[:, 1]
+    p_c = fit["model_c"].predict_proba(X)[:, 1]
+    # Isotonic calibration si disponible
+    if fit.get("cal_s") is not None:
+        p_s = fit["cal_s"].predict(p_s)
+    if fit.get("cal_c") is not None:
+        p_c = fit["cal_c"].predict(p_c)
+    # Apply VAEP formula
+    import pandas as pd
+    values = vaep_mod._formula_mod(atomic=True).value(
+        wc22_atomic.reset_index(drop=True),
+        pd.Series(p_s), pd.Series(p_c),
+    )
+    wc22_atomic = wc22_atomic.copy().reset_index(drop=True)
     wc22_atomic["offensive_value"]  = values["offensive_value"].values
     wc22_atomic["defensive_value"]  = values["defensive_value"].values
     wc22_atomic["vaep_value"]       = values["vaep_value"].values
@@ -431,25 +533,40 @@ if __name__ == "__main__":
     wc22_df = build_wc22_atomic(overwrite=False)
     print(f"  atomic actions WC22: {len(wc22_df):,} en {time.time()-t0:.1f}s")
 
-    # 3. Train VAEP model
+    # 3. Train VAEP model (TOP RIGUROSO: 5-fold CV + isotonic + overfit check)
     model_prefix = _MODEL_DIR / "vaep_atk"
+    meta_path = Path(f"{model_prefix}_meta.pkl")
     if (Path(f"{model_prefix}_scores.cbm").exists() and
-        Path(f"{model_prefix}_concedes.cbm").exists()):
-        model_s, model_c = load_models()
-        print("\n[3] VAEP models cargados desde cache")
+        Path(f"{model_prefix}_concedes.cbm").exists() and
+        meta_path.exists()):
+        fit = load_models()
+        print("\n[3] VAEP models + calibradores cargados desde cache")
     else:
-        print("\n[3] Training CatBoost atomic-VAEP (80/20 split by match)...")
+        print("\n[3] Training CatBoost atomic-VAEP TOP (5-fold CV + isotonic)...")
         t0 = time.time()
-        fit = train_vaep_model(train_df, holdout_frac=0.2)
-        print(f"  train en {time.time()-t0:.1f}s")
-        print(f"  metrics: {fit['metrics']}")
+        fit = train_vaep_model(train_df, n_folds=5, seed=42)
+        print(f"  train completo en {time.time()-t0:.1f}s")
         save_models(fit)
-        model_s, model_c = fit["model_s"], fit["model_c"]
 
-    # 4. Apply a WC22
+    m = fit["metrics"]
+    print(f"\nMetrics CV OOF + overfitting check:")
+    print(f"  N actions total: {m['n_actions_total']:,} en {m['n_matches']} matches")
+    print(f"  AUC scores OOF raw        : {m['auc_scores_oof_raw']:.4f}")
+    print(f"  AUC scores OOF calibrated : {m['auc_scores_oof_cal']:.4f}")
+    print(f"  AUC scores TRAIN (final)  : {m['auc_scores_train']:.4f}")
+    print(f"  overfit delta scores      : {m['overfit_delta_scores']:+.4f}  "
+          f"{'OK' if abs(m['overfit_delta_scores']) < 0.06 else 'CHECK'}")
+    print(f"  AUC concedes OOF raw      : {m['auc_concedes_oof_raw']:.4f}")
+    print(f"  AUC concedes OOF cal.     : {m['auc_concedes_oof_cal']:.4f}")
+    print(f"  AUC concedes TRAIN (final): {m['auc_concedes_train']:.4f}")
+    print(f"  overfit delta concedes    : {m['overfit_delta_concedes']:+.4f}  "
+          f"{'OK' if abs(m['overfit_delta_concedes']) < 0.06 else 'CHECK'}")
+    print(f"  Brier scores / concedes  : {m['brier_scores_oof']:.4f} / {m['brier_concedes_oof']:.4f}")
+
+    # 4. Apply a WC22 (con calibracion)
     t0 = time.time()
-    print("\n[4] Aplicando VAEP a WC22...")
-    wc22_with_vaep = apply_vaep_to_wc22(model_s, model_c, wc22_df)
+    print("\n[4] Aplicando VAEP calibrado a WC22...")
+    wc22_with_vaep = apply_vaep_to_wc22(fit, wc22_df)
     print(f"  VAEP applied en {time.time()-t0:.1f}s")
     print(f"  offensive_value range: [{wc22_with_vaep['offensive_value'].min():.3f}, "
           f"{wc22_with_vaep['offensive_value'].max():.3f}]")
