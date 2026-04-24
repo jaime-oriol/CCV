@@ -52,7 +52,6 @@ from M01_loader_pff import load_rosters, load_metadata, scan_tracking
 from M03_preprocess import attacking_direction
 from M07_shocks import build_shocks_table
 import M08_ataque as atk
-import numpy as np
 
 
 # -- Rutas ------------------------------------------------------------------

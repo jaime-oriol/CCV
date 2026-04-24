@@ -29,7 +29,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import numpy as np
 import polars as pl
 
 _SRC_DIR = Path(__file__).resolve().parent
