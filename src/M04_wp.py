@@ -74,31 +74,62 @@ _WYSCOUT_PERIOD_OFFSET = {"1H": 0, "2H": 45, "E1": 90, "E2": 105, "P": 120}
 # ===========================================================================
 
 def _wyscout_goals_timeline() -> pl.DataFrame:
-    """Timeline de goles Wyscout: (match_id, minute_abs, team_id, is_own_goal).
+    """Timeline de goles Wyscout: (match_id, minute_abs, scoring_team_id, is_own_goal).
 
-    Regla: eventName in (Shot, Free Kick) + tag 101 = gol normal.
-    Own goals (tag 102) se omiten — Wyscout marca el tag en varios events
-    de la misma jugada y genera ~5% ruido; descartarlos pierde ~3% precision
-    en score_diff pero mantiene el corpus limpio.
+    Dos fuentes de goles:
+      (A) Goles normales: eventName in (Shot, Free Kick) + tag 101
+          scoring_team = event.teamId
+      (B) Own goals: CUALQUIER event con tag 102
+          scoring_team = OPP del event.teamId (el equipo que comete propia
+          es el event_team; el beneficiario es el rival).
+          Dedupe por (matchId, minute_abs, teamId) para evitar que PFF marque
+          tag 102 en varios eventos de la misma jugada.
+
+    Para derivar el OPP en (B), join con metadata matches por matchId + side.
     """
     ev = scan_wyscout_events().with_columns(
-        pl.col("tags").list.eval(pl.element().struct.field("id")).alias("tag_ids")
-    )
-    g = ev.filter(
-        pl.col("eventName").is_in(["Shot", "Free Kick"]) &
-        pl.col("tag_ids").list.contains(101)
-    ).with_columns([
+        pl.col("tags").list.eval(pl.element().struct.field("id")).alias("tag_ids"),
         pl.col("matchPeriod").replace_strict(_WYSCOUT_PERIOD_OFFSET, default=0)
                               .cast(pl.Int64).alias("period_offset"),
         (pl.col("eventSec") / 60.0).alias("sec_min"),
-    ]).with_columns(
+    ).with_columns(
         (pl.col("period_offset") + pl.col("sec_min")).cast(pl.Int64).alias("minute_abs")
+    )
+
+    # (A) goles normales
+    g_norm = ev.filter(
+        pl.col("eventName").is_in(["Shot", "Free Kick"]) &
+        pl.col("tag_ids").list.contains(101)
     ).select([
         pl.col("matchId").alias("match_id"),
         pl.col("teamId").alias("scoring_team_id"),
         "minute_abs",
-    ])
-    return g.collect().with_columns(pl.lit("wyscout").alias("source"))
+    ]).with_columns(pl.lit(False).alias("is_own_goal"))
+
+    # (B) own-goals: evento con tag 102. Scoring_team es el OPP.
+    og = ev.filter(pl.col("tag_ids").list.contains(102)).select([
+        pl.col("matchId").alias("match_id"),
+        pl.col("teamId").alias("event_team_id"),
+        "minute_abs",
+    ]).collect().unique(subset=["match_id", "minute_abs", "event_team_id"])
+
+    # Mapear event_team_id a OPP: para cada matchId sacar los 2 teamIds
+    teams_per_match = scan_wyscout_events().select(["matchId","teamId"]).unique().collect()
+    teams_per_match = teams_per_match.group_by("matchId").agg(
+        pl.col("teamId").alias("teams")
+    ).rename({"matchId": "match_id"})
+    og = og.join(teams_per_match, on="match_id", how="left").with_columns(
+        pl.struct(["teams", "event_team_id"]).map_elements(
+            lambda r: [t for t in r["teams"] if t != r["event_team_id"]][0]
+                      if r["teams"] is not None and len(r["teams"]) >= 2 else None,
+            return_dtype=pl.Int64,
+        ).alias("scoring_team_id")
+    ).filter(pl.col("scoring_team_id").is_not_null()).select([
+        "match_id", "scoring_team_id", "minute_abs",
+    ]).with_columns(pl.lit(True).alias("is_own_goal"))
+
+    out = pl.concat([g_norm.collect(), og], how="diagonal_relaxed")
+    return out.with_columns(pl.lit("wyscout").alias("source"))
 
 
 def _wyscout_reds_timeline() -> pl.DataFrame:
@@ -873,7 +904,9 @@ def compute_wp_per_minute(match_id: int, fit_result: dict,
                           comp_tier: int = 3,
                           lam_et_h: float | None = None,
                           lam_et_a: float | None = None,
-                          prob_shootout_home: float = 0.5) -> pl.DataFrame:
+                          prob_shootout_home: float = 0.5,
+                          group_ctx: dict | None = None,
+                          n_sim_groups: int = 1500) -> pl.DataFrame:
     """WP por minuto para 1 partido PFF: 0-90 bayesiano + 91-120 Poisson ET.
 
     Al final de ET (si empate persiste) aplica prob_shootout_home.
@@ -937,29 +970,315 @@ def compute_wp_per_minute(match_id: int, fit_result: dict,
             })
 
     df = pl.DataFrame(rows)
-    # elimination_proximity para torneo KO: P(equipo home sera eliminado)
-    # Approx: 1 - wp_home si home necesita ganar (KO). Para empate es ambiguo;
-    # aqui usamos una metrica simple: max(wp_away, 0.5 * wp_draw).
-    df = df.with_columns(
-        (pl.col("wp_away") + 0.5 * pl.col("wp_draw")).alias("elim_prox_home")
-    ).with_columns(
-        (pl.col("wp_home") + 0.5 * pl.col("wp_draw")).alias("elim_prox_away")
-    )
+
+    # Elimination proximity:
+    #  - Partidos de GRUPOS (match_id < 10500): Monte Carlo del grupo, considera
+    #    standings reales, partidos simultaneos J3 y goles restantes a simular.
+    #  - Partidos KO (match_id >= 10500): formula analitica P(no ganar).
+    is_group_stage = (group_ctx is not None
+                      and match_id in group_ctx["match_to_group"])
+
+    if is_group_stage:
+        ep = _compute_group_elim_prox_for_match(
+            match_id, group_ctx, n_sim=n_sim_groups
+        )
+        # Para minutos de ET (no aplicable en grupos) rellena con NaN-like.
+        df = df.join(ep, on="minute", how="left")
+    else:
+        df = df.with_columns([
+            (pl.col("wp_away") + 0.5 * pl.col("wp_draw")).alias("elim_prox_home"),
+            (pl.col("wp_home") + 0.5 * pl.col("wp_draw")).alias("elim_prox_away"),
+        ])
     return df
 
 
-def cache_all_wp(fit_result: dict, overwrite: bool = False) -> Path:
-    """Aplica compute_wp_per_minute a los 64 PFF y persiste tabla unificada."""
+def cache_all_wp(fit_result: dict, overwrite: bool = False,
+                 group_ctx: dict | None = None) -> Path:
+    """Aplica compute_wp_per_minute a los 64 PFF y persiste tabla unificada.
+
+    Si group_ctx se pasa, los 48 partidos de fase de grupos reciben elim_prox
+    via Monte Carlo del grupo (considerando simultaneos J3 y standings en vivo).
+    Los 16 KO usan formula analitica simple (1 - wp_ganar).
+    """
     out_path = _DERIVED / "per_minute.parquet"
     if out_path.exists() and not overwrite:
         return out_path
+    if group_ctx is None:
+        group_ctx = build_wc22_group_context()
     dfs = []
     for mid in list_event_match_ids():
-        dfs.append(compute_wp_per_minute(mid, fit_result))
+        dfs.append(compute_wp_per_minute(mid, fit_result, group_ctx=group_ctx))
     big = pl.concat(dfs)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     big.write_parquet(out_path, compression="snappy", statistics=True)
     return out_path
+
+
+# ===========================================================================
+#  SECCION 8 — Elimination proximity via Monte Carlo del grupo (WC22)
+# ===========================================================================
+#
+#  Operacional: para cada (match_id, minute) de fase de grupos, P(equipo
+#  clasifica como top-2 del grupo) se estima por simulacion. Tiene en cuenta:
+#    - Resultados FINALES de partidos completados antes de la hora actual.
+#    - Score PARCIAL del propio partido en curso.
+#    - Score PARCIAL del partido SIMULTANEO (jornada 3, misma fecha+hora).
+#    - Simulacion Poisson de los goles restantes en partidos en vivo + futuros.
+#    - Criterios FIFA: pts -> GD -> GF. Head-to-head se ignora (edge case raro;
+#      documentado como limitacion menor).
+#  elim_prox_{home,away} = 1 - P(clasifica).
+#
+#  Caso icónico cubierto: ESP-JPN 2022-12-01 19:00 con GER-CRC en paralelo
+#  (ambos grupo E). En el min 70, ESP perdia 1-2 y GER ganaba 2-1 a CRC:
+#  P(ESP clasifica) cae a ~0.3, P(JPN clasifica) sube a ~0.8, P(GER) a ~0.55.
+
+_WC22_GROUPS: dict[str, list[str]] = {
+    "A": ["Qatar", "Ecuador", "Senegal", "Netherlands"],
+    "B": ["England", "Iran", "United States", "Wales"],
+    "C": ["Argentina", "Saudi Arabia", "Mexico", "Poland"],
+    "D": ["France", "Australia", "Denmark", "Tunisia"],
+    "E": ["Spain", "Costa Rica", "Germany", "Japan"],
+    "F": ["Belgium", "Canada", "Morocco", "Croatia"],
+    "G": ["Brazil", "Serbia", "Switzerland", "Cameroon"],
+    "H": ["Portugal", "Ghana", "Uruguay", "South Korea"],
+}
+
+
+def build_wc22_group_context() -> dict:
+    """Construye contexto fijo del torneo para simular eliminacion por grupos.
+
+    Returns dict:
+      - team_id_to_group : {int -> 'A'..'H'}
+      - team_id_to_name  : {int -> str}
+      - group_teams      : {'A'..'H' -> [team_id, team_id, team_id, team_id]}
+      - group_matches    : {'A'..'H' -> [{match_id, home_id, away_id,
+                                         date, home_final, away_final, week}, ...]}
+      - match_to_group   : {match_id -> 'A'..'H'}
+      - match_dates      : {match_id -> str ISO date}
+      - goals_by_match   : {match_id -> list[(minute, 'H'|'A')]}
+    """
+    md = pff_meta()
+    name_to_group = {name: g for g, team_names in _WC22_GROUPS.items()
+                     for name in team_names}
+    team_id_to_name: dict[int, str] = {}
+    team_id_to_group: dict[int, str] = {}
+    for r in md.iter_rows(named=True):
+        team_id_to_name[r["home_team_id"]] = r["home_team_name"]
+        team_id_to_name[r["away_team_id"]] = r["away_team_name"]
+        for tid, tname in [(r["home_team_id"], r["home_team_name"]),
+                            (r["away_team_id"], r["away_team_name"])]:
+            if tname in name_to_group:
+                team_id_to_group[tid] = name_to_group[tname]
+
+    group_teams: dict[str, list[int]] = {g: [] for g in _WC22_GROUPS}
+    for tid, g in team_id_to_group.items():
+        if tid not in group_teams[g]:
+            group_teams[g].append(tid)
+    for g in group_teams:
+        group_teams[g].sort()   # orden determinista
+
+    # Resultados FINALES de los 48 partidos de fase grupos (week 1-3)
+    # Derivar de list_goals validos (no disallowed, no shootout) por match.
+    from M01_loader_pff import list_goals
+    g_all = list_goals().filter(~pl.col("disallowed") & ~pl.col("shootout"))
+
+    # Necesitamos resolver own goals: scoring_team real del gol
+    # Usamos M03 goals_timeline (que ya resuelve own-goals por keeper team)
+    group_matches: dict[str, list[dict]] = {g: [] for g in _WC22_GROUPS}
+    match_to_group: dict[int, str] = {}
+    match_dates: dict[int, str] = {}
+    goals_by_match: dict[int, list[tuple[int, str]]] = {}
+
+    md_filtered = md.filter(pl.col("match_id").is_in(
+        [mid for mid in md["match_id"].to_list() if mid < 10500]
+    ))
+
+    for r in md_filtered.iter_rows(named=True):
+        mid = r["match_id"]
+        home_id = r["home_team_id"]
+        away_id = r["away_team_id"]
+        g = pff_goals_timeline(mid)
+        # Goles: para H/A perspectiva (lado de home team)
+        home_final = int(g.filter(pl.col("scoring_team_id") == home_id).height)
+        away_final = int(g.filter(pl.col("scoring_team_id") == away_id).height)
+        grp = team_id_to_group.get(home_id)
+        if grp is None:
+            continue   # KO o no-grupo
+        match_to_group[mid] = grp
+        match_dates[mid] = r["date"]
+        group_matches[grp].append({
+            "match_id": mid, "home_id": home_id, "away_id": away_id,
+            "date": r["date"], "home_final": home_final, "away_final": away_final,
+            "week": r["week"],
+        })
+        # timeline de goles con side H/A para score_at_minute lookups
+        goals_by_match[mid] = [
+            (int(row["minute"]),
+             "H" if row["scoring_team_id"] == home_id else "A")
+            for row in g.iter_rows(named=True)
+        ]
+
+    # Orden cronologico dentro de cada grupo
+    for g in group_matches:
+        group_matches[g].sort(key=lambda m: m["date"])
+
+    return {
+        "team_id_to_group": team_id_to_group,
+        "team_id_to_name": team_id_to_name,
+        "group_teams": group_teams,
+        "group_matches": group_matches,
+        "match_to_group": match_to_group,
+        "match_dates": match_dates,
+        "goals_by_match": goals_by_match,
+    }
+
+
+def _score_at_minute(match_id: int, minute: int, group_ctx: dict) -> tuple[int, int]:
+    """(score_home, score_away) del partido `match_id` en el minuto `minute`."""
+    goals = group_ctx["goals_by_match"].get(match_id, [])
+    sh = sum(1 for (m, s) in goals if m < minute and s == "H")
+    sa = sum(1 for (m, s) in goals if m < minute and s == "A")
+    return sh, sa
+
+
+# Tasa empirica goles/min fase de grupos WC22 (se computa on-demand).
+_WC22_LAM_CACHE: dict[str, float] = {}
+
+
+def _wc22_group_goal_rate(group_ctx: dict) -> float:
+    """goles/min/equipo empirico de los 48 partidos de fase grupos WC22."""
+    if "rate" in _WC22_LAM_CACHE:
+        return _WC22_LAM_CACHE["rate"]
+    total_goals = 0
+    n_matches = 0
+    for g in group_ctx["group_matches"].values():
+        for m in g:
+            total_goals += m["home_final"] + m["away_final"]
+            n_matches += 1
+    # rate por equipo por minuto: total_goles / (n_matches * 90 * 2)
+    rate = total_goals / (n_matches * REG_MINUTES * 2) if n_matches > 0 else 0.015
+    _WC22_LAM_CACHE["rate"] = rate
+    return rate
+
+
+def p_qualifies(team_id: int, match_id: int, minute: int,
+                score_now_home: int, score_now_away: int,
+                group_ctx: dict,
+                n_sim: int = 2000, seed: int | None = None,
+                rng: np.random.Generator | None = None) -> float:
+    """P(team_id clasifica top-2 del grupo) via Monte Carlo del grupo entero.
+
+    Args:
+        team_id         : equipo a evaluar.
+        match_id        : partido en curso (contiene al team_id).
+        minute          : minuto actual (1..90).
+        score_now_home  : goles del equipo local del match_id al minuto.
+        score_now_away  : goles del equipo visitante al minuto.
+        group_ctx       : estructura de build_wc22_group_context().
+        n_sim           : simulaciones Monte Carlo (default 2000).
+        rng             : numpy Generator (para evitar overhead init).
+
+    Returns:
+        Float en [0, 1]. 1.0 = clasifica seguro; 0.0 = eliminado.
+    """
+    group = group_ctx["team_id_to_group"][team_id]
+    teams_in_group = group_ctx["group_teams"][group]
+    team_to_idx = {t: i for i, t in enumerate(teams_in_group)}
+    my_idx = team_to_idx[team_id]
+
+    current_date = group_ctx["match_dates"][match_id]
+    lam = _wc22_group_goal_rate(group_ctx)
+    if rng is None:
+        rng = np.random.default_rng(seed)
+
+    # Partials: uno por cada uno de los 6 partidos del grupo
+    # (h_idx, a_idx, base_h, base_a, min_to_sim)
+    partials = []
+    for m in group_ctx["group_matches"][group]:
+        h_idx = team_to_idx[m["home_id"]]
+        a_idx = team_to_idx[m["away_id"]]
+        if m["match_id"] == match_id:
+            partials.append((h_idx, a_idx,
+                             int(score_now_home), int(score_now_away),
+                             REG_MINUTES - minute))
+        elif m["date"] < current_date:
+            partials.append((h_idx, a_idx,
+                             m["home_final"], m["away_final"], 0))
+        elif m["date"] == current_date:
+            # Simultaneo J3: score parcial en ese mismo minuto
+            sh, sa = _score_at_minute(m["match_id"], minute, group_ctx)
+            partials.append((h_idx, a_idx, sh, sa, REG_MINUTES - minute))
+        else:
+            partials.append((h_idx, a_idx, 0, 0, REG_MINUTES))   # futuro
+
+    n_m = len(partials)
+    bases = np.array([[p[2], p[3]] for p in partials], dtype=np.int32)  # (6, 2)
+    mins_left = np.array([p[4] for p in partials], dtype=np.int32)     # (6,)
+    h_arr = np.array([p[0] for p in partials], dtype=np.int32)
+    a_arr = np.array([p[1] for p in partials], dtype=np.int32)
+
+    # Extras: (n_sim, 6, 2)
+    lams = (mins_left * lam).astype(np.float32)                         # (6,)
+    lams_3d = np.broadcast_to(lams[None, :, None], (n_sim, n_m, 2))
+    extras = rng.poisson(lams_3d)
+    finals = bases[None, :, :] + extras                                  # (n_sim, 6, 2)
+    fh = finals[:, :, 0]; fa = finals[:, :, 1]
+
+    # Tabla por sim
+    pts = np.zeros((n_sim, 4), dtype=np.int32)
+    gd  = np.zeros((n_sim, 4), dtype=np.int32)
+    gf  = np.zeros((n_sim, 4), dtype=np.int32)
+    home_win = fh > fa; away_win = fa > fh; draw = ~(home_win | away_win)
+    for mi in range(n_m):
+        h, a = h_arr[mi], a_arr[mi]
+        pts[home_win[:, mi], h] += 3
+        pts[away_win[:, mi], a] += 3
+        pts[draw[:, mi], h] += 1
+        pts[draw[:, mi], a] += 1
+        gd[:, h] += fh[:, mi] - fa[:, mi]
+        gd[:, a] += fa[:, mi] - fh[:, mi]
+        gf[:, h] += fh[:, mi]
+        gf[:, a] += fa[:, mi]
+
+    # Ranking: score = pts*10000 + (gd+50)*100 + (gf+50) para single-sort desc
+    score = pts * 10000 + (gd + 50) * 100 + (gf + 50)                    # (n_sim, 4)
+    order = np.argsort(-score, axis=1)                                   # desc
+    in_top2 = (order[:, 0] == my_idx) | (order[:, 1] == my_idx)
+    return float(in_top2.mean())
+
+
+# ===========================================================================
+#  Integracion en compute_wp_per_minute (override para grupos)
+# ===========================================================================
+
+def _compute_group_elim_prox_for_match(match_id: int, group_ctx: dict,
+                                       n_sim: int = 1500,
+                                       seed: int = 42) -> pl.DataFrame:
+    """Devuelve (minute, elim_prox_home, elim_prox_away) para los 90 min del partido.
+
+    Solo para partidos de fase de grupos WC22 (match_id en group_ctx).
+    """
+    grp = group_ctx["match_to_group"][match_id]
+    # home_id y away_id del partido:
+    m_entry = next(m for m in group_ctx["group_matches"][grp]
+                   if m["match_id"] == match_id)
+    home_id = m_entry["home_id"]
+    away_id = m_entry["away_id"]
+    goals = group_ctx["goals_by_match"][match_id]
+    rng = np.random.default_rng(seed)
+
+    rows = []
+    for m in range(1, REG_MINUTES + 1):
+        sh = sum(1 for (mm, s) in goals if mm < m and s == "H")
+        sa = sum(1 for (mm, s) in goals if mm < m and s == "A")
+        p_home = p_qualifies(home_id, match_id, m, sh, sa, group_ctx,
+                             n_sim=n_sim, rng=rng)
+        p_away = p_qualifies(away_id, match_id, m, sh, sa, group_ctx,
+                             n_sim=n_sim, rng=rng)
+        rows.append({"minute": m,
+                     "elim_prox_home": 1.0 - p_home,
+                     "elim_prox_away": 1.0 - p_away})
+    return pl.DataFrame(rows)
 
 
 # -- Sanity inline ---------------------------------------------------------

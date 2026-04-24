@@ -199,6 +199,13 @@ def list_goals(match_id: int | None = None) -> pl.DataFrame:
         pl.col("possessionEvents").struct.field("bodyType").alias("body_part"),
         pl.col("gameEvents").struct.field("setpieceType").alias("setpiece_type"),
         pl.col("gameEvents").struct.field("initialNonEvent").alias("disallowed"),
+        # Outcome-specific por tipo de event (necesario para resolver own-goals
+        # inadvertentes de CR/PA/CL/RE/TC/IT donde shooter_id es null):
+        pl.col("possessionEvents").struct.field("passOutcomeType").alias("pass_outcome"),
+        pl.col("possessionEvents").struct.field("crossOutcomeType").alias("cross_outcome"),
+        pl.col("possessionEvents").struct.field("clearanceOutcomeType").alias("clearance_outcome"),
+        pl.col("possessionEvents").struct.field("reboundOutcomeType").alias("rebound_outcome"),
+        pl.col("possessionEvents").struct.field("touchOutcomeType").alias("touch_outcome"),
     ]).with_columns(
         ((pl.col("period") == 4) & (pl.col("start_game_clock") > 7200)).alias("shootout"),
     )
@@ -209,6 +216,8 @@ def list_goals(match_id: int | None = None) -> pl.DataFrame:
         "keeper_id", "keeper_name",
         "body_part", "setpiece_type",
         "possession_event_type",
+        "pass_outcome", "cross_outcome", "clearance_outcome",
+        "rebound_outcome", "touch_outcome",
         "disallowed", "shootout",
     ]).sort(["match_id", "start_game_clock"]).collect()
 

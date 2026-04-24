@@ -39,7 +39,9 @@ if str(_SRC_DIR) not in sys.path:
 
 from M01_loader_pff import (
     load_metadata, load_rosters, load_events, list_goals, list_subs, scan_events,
+    list_event_match_ids,
 )
+from M02_loader_public import load_statsbomb_matches, load_statsbomb_events
 
 
 # -- Rutas ------------------------------------------------------------------
@@ -82,50 +84,128 @@ def attacking_direction(match_id: int) -> pl.DataFrame:
 
 # -- Score state ------------------------------------------------------------
 
-def goals_timeline(match_id: int) -> pl.DataFrame:
-    """Goles validos del partido ordenados con cum_home / cum_away.
+_PFF_SB_MATCH_CACHE: dict[int, int] | None = None
 
-    Excluye goles anulados (disallowed) y penaltis de tanda (shootout).
-    Own-goal: shooter_team == keeper_team (el rematador y el portero son del
-    mismo equipo, el remate entra en su propia porteria). En ese caso
-    scoring_team = el equipo rival. En goles normales scoring_team = shooter_team.
+
+def _pff_to_sb_match_id() -> dict[int, int]:
+    """Mapea PFF match_id -> SB match_id para WC22 via (home, away, date)."""
+    global _PFF_SB_MATCH_CACHE
+    if _PFF_SB_MATCH_CACHE is not None:
+        return _PFF_SB_MATCH_CACHE
+    sb = load_statsbomb_matches(comp_id=43, season_id=106).with_columns(
+        pl.col("match_date").str.slice(0, 10).alias("date")
+    )
+    pff_meta = load_metadata().with_columns(
+        pl.col("date").str.slice(0, 10).alias("day")
+    )
+    joined = pff_meta.join(
+        sb.select(["match_id", "home_team_name", "away_team_name", "date"])
+          .rename({"match_id": "sb_match_id"}),
+        left_on=["home_team_name", "away_team_name", "day"],
+        right_on=["home_team_name", "away_team_name", "date"],
+        how="inner",
+    )
+    mapping = dict(zip(joined["match_id"].to_list(),
+                       joined["sb_match_id"].to_list()))
+    _PFF_SB_MATCH_CACHE = mapping
+    return mapping
+
+
+def goals_timeline(match_id: int) -> pl.DataFrame:
+    """Goles validos del partido con cum_home / cum_away.
+
+    Fuente: StatsBomb WC22 events como ground truth (scores finales publicos,
+    no rompe sacralidad — el WC22 sigue sagrado SOLO para training predictivo).
+    PFF events tiene falsos positivos y atribuciones erroneas en shotOutcome='G'
+    (crosses de asistencia duplicados, goles anulados no marcados, keeper mal
+    asignado). Ejemplo verificado: BEL-MAR reporta 4 events con shotOutcome='G'
+    pero solo hubo 2 goles (Saiss 73', Aboukhlal 90+2').
+
+    Captura goles normales (`shot.outcome.name == 'Goal'`) y own-goals
+    (`type.name == 'Own Goal For'`, que ya apunta al equipo BENEFICIARIO).
+
+    Excluye tandas de penaltis (period 5 en SB).
 
     Returns:
         DataFrame: match_id, period, start_game_clock, minute, scoring_team_id,
                    is_own_goal, cum_home, cum_away.
+        Schema estable para que el resto del pipeline no cambie.
     """
     md = load_metadata(match_id).row(0, named=True)
     home_id = md["home_team_id"]
     away_id = md["away_team_id"]
-    g = list_goals(match_id).filter(
-        ~pl.col("disallowed") & ~pl.col("shootout")
-    )
-    # Resolver scoring_team_id:
-    #   keeper_team = equipo del keeper (encaja el gol)
-    #   shooter_team = team_id del evento (= equipo en posesion cuando se remata)
-    #   si shooter_team == keeper_team -> own goal -> scoring_team = el OTRO
-    #   si shooter_team != keeper_team -> gol normal -> scoring_team = shooter_team
-    ro = load_rosters(match_id).select(["player_id", "team_id"]).rename(
-        {"player_id": "keeper_id", "team_id": "keeper_team_id"}
-    )
-    g = g.join(ro, on="keeper_id", how="left").with_columns([
-        (pl.col("team_id") == pl.col("keeper_team_id")).alias("is_own_goal"),
-    ]).with_columns(
-        pl.when(pl.col("is_own_goal"))
-          .then(
-              pl.when(pl.col("team_id") == home_id)
-                .then(pl.lit(away_id))
-                .otherwise(pl.lit(home_id))
-          )
-          .otherwise(pl.col("team_id"))
-          .alias("scoring_team_id")
-    ).sort(["start_game_clock"])
-    # Acumulados
-    g = g.with_columns([
+    home_name = md["home_team_name"]
+    away_name = md["away_team_name"]
+
+    mapping = _pff_to_sb_match_id()
+    sb_mid = mapping.get(match_id)
+    if sb_mid is None:
+        # Partido sin SB correspondencia: devolver schema vacio
+        return pl.DataFrame(schema={
+            "match_id": pl.Int64, "period": pl.Int64,
+            "start_game_clock": pl.Int64, "minute": pl.Int64,
+            "scoring_team_id": pl.Int64, "is_own_goal": pl.Boolean,
+            "cum_home": pl.Int64, "cum_away": pl.Int64,
+        })
+
+    ev = load_statsbomb_events(sb_mid)
+    rows: list[dict] = []
+
+    # Goles normales: shot.outcome.name == 'Goal'. SB 'minute' es minutos
+    # absolutos DENTRO de la mitad (reinicia en period 2,3,4). Total abs:
+    # period 1: [0,45), period 2: [45,90), period 3: [90,105), period 4: [105,120).
+    if "shot" in ev.columns:
+        goals = ev.filter(
+            pl.col("shot").struct.field("outcome").struct.field("name") == "Goal"
+        )
+        for r in goals.iter_rows(named=True):
+            p = int(r["period"])
+            if p >= 5:
+                continue   # excluir tandas
+            m = int(r["minute"])
+            s = int(r["second"])
+            team_name = r["team"]["name"]
+            scoring_team_id = home_id if team_name == home_name else away_id
+            # start_game_clock equivalente: segundos absolutos
+            sgc = m * 60 + s
+            rows.append({
+                "match_id": match_id, "period": p,
+                "start_game_clock": sgc, "minute": m,
+                "scoring_team_id": scoring_team_id,
+                "is_own_goal": False,
+            })
+    # Own goals: type.name == 'Own Goal For' -> event.team es el BENEFICIARIO
+    if "type" in ev.columns:
+        og = ev.filter(pl.col("type").struct.field("name") == "Own Goal For")
+        for r in og.iter_rows(named=True):
+            p = int(r["period"])
+            if p >= 5:
+                continue
+            m = int(r["minute"])
+            s = int(r["second"])
+            team_name = r["team"]["name"]
+            scoring_team_id = home_id if team_name == home_name else away_id
+            sgc = m * 60 + s
+            rows.append({
+                "match_id": match_id, "period": p,
+                "start_game_clock": sgc, "minute": m,
+                "scoring_team_id": scoring_team_id,
+                "is_own_goal": True,
+            })
+
+    if not rows:
+        return pl.DataFrame(schema={
+            "match_id": pl.Int64, "period": pl.Int64,
+            "start_game_clock": pl.Int64, "minute": pl.Int64,
+            "scoring_team_id": pl.Int64, "is_own_goal": pl.Boolean,
+            "cum_home": pl.Int64, "cum_away": pl.Int64,
+        })
+
+    df = pl.DataFrame(rows).sort("start_game_clock").with_columns([
         (pl.col("scoring_team_id") == home_id).cast(pl.Int64).cum_sum().alias("cum_home"),
         (pl.col("scoring_team_id") == away_id).cast(pl.Int64).cum_sum().alias("cum_away"),
     ])
-    return g.select([
+    return df.select([
         "match_id", "period", "start_game_clock", "minute",
         "scoring_team_id", "is_own_goal", "cum_home", "cum_away",
     ])
