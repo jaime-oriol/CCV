@@ -391,7 +391,7 @@ def aggregate_per_player_minute(wc22_with_vaep: pd.DataFrame,
     agg = df.group_by(["game_id", "player_id", "minute"]).agg([
         pl.col("offensive_value").sum().alias("score_atk_minute"),
         pl.col("vaep_value").sum().alias("vaep_minute"),
-        pl.len().alias("n_actions"),
+        pl.len().cast(pl.Int64).alias("n_actions"),
     ]).rename({"game_id": "sb_match_id", "player_id": "sb_player_id"})
 
     if cache:
@@ -579,14 +579,14 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
         (pl.col("min_sec") < pl.col("window_pre_end"))
     ).group_by(["match_id","shock_id","pff_player_id","shock_type"]).agg([
         pl.col("score_atk_minute").sum().alias("score_atk_pre"),
-        pl.col("n_actions").sum().alias("n_actions_pre"),
+        pl.col("n_actions").sum().cast(pl.Int64).alias("n_actions_pre"),
     ])
     post = joined.filter(
         (pl.col("min_sec") >= pl.col("window_post_start")) &
         (pl.col("min_sec") <= pl.col("window_post_end"))
     ).group_by(["match_id","shock_id","pff_player_id","shock_type"]).agg([
         pl.col("score_atk_minute").sum().alias("score_atk_post"),
-        pl.col("n_actions").sum().alias("n_actions_post"),
+        pl.col("n_actions").sum().cast(pl.Int64).alias("n_actions_post"),
     ])
 
     # Full list de (match_id, shock_id, player_id, shock_type) desde shocks

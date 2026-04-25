@@ -161,8 +161,8 @@ def _def_third_pct_match(match_id: int) -> pl.DataFrame:
         pl.col("game_event").struct.field("home_ball").alias("home_has_ball"),
         pl.col("homePlayersSmoothed").alias("home_players"),
         pl.col("awayPlayersSmoothed").alias("away_players"),
-        pl.col("ball").list.first().struct.field("x").alias("bx"),
-        pl.col("ball").list.first().struct.field("y").alias("by"),
+        pl.col("ballsSmoothed").struct.field("x").alias("bx"),
+        pl.col("ballsSmoothed").struct.field("y").alias("by"),
     ]).filter(pl.col("home_has_ball").is_not_null()).collect()
 
     if frames.height == 0:
@@ -208,9 +208,9 @@ def _def_third_pct_match(match_id: int) -> pl.DataFrame:
         (((pl.col("x") - pl.col("bx")) ** 2
           + (pl.col("y") - pl.col("by")) ** 2) <= press_r2).alias("pressing"),
     ]).group_by(["player_id", "minute"]).agg([
-        pl.col("in_def_third").sum().alias("def_third_frames"),
-        pl.col("pressing").sum().alias("press_intensity_frames"),
-        pl.len().alias("oppo_possession_frames"),
+        pl.col("in_def_third").sum().cast(pl.Int64).alias("def_third_frames"),
+        pl.col("pressing").sum().cast(pl.Int64).alias("press_intensity_frames"),
+        pl.len().cast(pl.Int64).alias("oppo_possession_frames"),
     ]).with_columns([
         (pl.col("def_third_frames") / pl.col("oppo_possession_frames"))
          .alias("def_third_pct"),
@@ -279,8 +279,8 @@ def aggregate_per_player_minute(cache: bool = True) -> pl.DataFrame:
     agg = df.group_by(["game_id", "player_id", "minute"]).agg([
         pl.col("defensive_value").sum().alias("score_def_minute"),
         pl.col("vdep_contrib").sum().alias("vdep_minute"),
-        pl.col("is_def_action").sum().alias("n_def_actions"),
-        pl.len().alias("n_actions_total"),
+        pl.col("is_def_action").sum().cast(pl.Int64).alias("n_def_actions"),
+        pl.len().cast(pl.Int64).alias("n_actions_total"),
     ]).rename({"game_id": "sb_match_id", "player_id": "sb_player_id"})
 
     # Join con CONTEXTO off-ball (def_third_pct via tracking PFF).
@@ -367,8 +367,8 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
     ).group_by(["match_id","shock_id","pff_player_id","shock_type"]).agg([
         pl.col("score_def_minute").sum().alias("score_def_pre"),
         pl.col("vdep_minute").sum().alias("vdep_pre"),
-        pl.col("n_def_actions").sum().alias("n_def_actions_pre"),
-        pl.col("press_intensity_frames").sum().alias("press_frames_pre"),
+        pl.col("n_def_actions").sum().cast(pl.Int64).alias("n_def_actions_pre"),
+        pl.col("press_intensity_frames").sum().cast(pl.Int64).alias("press_frames_pre"),
     ])
     post = joined.filter(
         (pl.col("min_sec") >= pl.col("window_post_start")) &
@@ -376,8 +376,8 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
     ).group_by(["match_id","shock_id","pff_player_id","shock_type"]).agg([
         pl.col("score_def_minute").sum().alias("score_def_post"),
         pl.col("vdep_minute").sum().alias("vdep_post"),
-        pl.col("n_def_actions").sum().alias("n_def_actions_post"),
-        pl.col("press_intensity_frames").sum().alias("press_frames_post"),
+        pl.col("n_def_actions").sum().cast(pl.Int64).alias("n_def_actions_post"),
+        pl.col("press_intensity_frames").sum().cast(pl.Int64).alias("press_frames_post"),
     ])
 
     base = shocks.select([
