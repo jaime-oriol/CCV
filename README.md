@@ -6,33 +6,46 @@ Estimacion causal del efecto del shock emocional (gol a favor / gol en contra) s
 
 Output: ranking bidireccional de jugadores clutch (Indice Remontador + Indice Cerrojo) con intervalos de credibilidad bayesianos.
 
-## Estructura
+## Pipeline
 
 ```text
 src/
 ├── extract/                # extractores raw JSON -> parquet (lossless)
 ├── M01_loader_pff.py       # API PFF (events, tracking, metadata, rosters + vistas)
 ├── M02_loader_public.py    # API Wyscout + StatsBomb (polars nativo)
-├── M03_preprocess.py       # direction, score state, minutos, enrich_events
-├── M04_wp.py               # Win Probability bayesiana (numpyro SVI) + leverage + ET + pen
-├── M05_psxg.py             # Post-shot xG (LightGBM + Optuna 60 trials, AUC 0.974 / WC22 0.976)
-├── M06_nearmiss.py         # Near-miss (5 tipos, offside con 360 freeze-frame + spec curve)
-├── M07_shocks.py           # Shocks emocionales (172 goles) + ventanas ±10min por jugador
-├── M08_ataque.py           # Canal Empuje Ofensivo via atomic-VAEP (CatBoost + Optuna 30)
-├── M09_defensa.py          # Canal Solidez Defensiva: score_def + VDEP + def_third + Pressing
-├── M10_offball.py          # Canal Off-ball: OBSO + C-OBSO (PPCF Z02 + xG grid + tracking 25Hz)
-├── (M11-M16)               # pipeline restante (ver docs/ARCHITECTURE.md)
-├── Z01_vaep.py             # B01 atomic-VAEP (building block, usado por M08/M09)
-└── Z02_pitch_control.py    # B02 PPCF Spearman 2018 vectorizado (building block, usado por M10)
+├── M03_preprocess.py       # direction, score state (SB ground truth), minutos, enrich_events
+├── M04_wp.py               # Win Probability bayesiana (numpyro SVI, ordered-logistic
+│                           #   tiempo-variables) + leverage + ET Poisson + tanda Tijms
+│                           #   + Monte Carlo del grupo para elim_prox
+├── M05_psxg.py             # Post-shot xG (LightGBM + Optuna 60 trials + isotonic
+│                           #   + freeze-frame 360 + permutation importance)
+│                           #   AUC OOF 0.974 / WC22 holdout 0.976 (vs SB baseline 0.827)
+├── M06_nearmiss.py         # Near-miss 5 tipos (palo, offside milimetrico via 360,
+│                           #   PSxG-save, GLC, GLT) + specification curve Simonsohn
+├── M07_shocks.py           # 172 shocks-gol + ventanas ±10min por jugador en campo
+├── M08_ataque.py           # Empuje Ofensivo: atomic-VAEP CatBoost + Optuna 30 + 5-fold
+│                           #   CV by match + isotonic + mapping SB->PFF (74.9%)
+├── M09_defensa.py          # Solidez Defensiva: score_def + vdep_minute (Toda 2022)
+│                           #   + def_third_pct + pressing_intensity (Bekkers 2024)
+│                           #   via tracking PFF 25Hz vectorizado polars
+├── M10_offball.py          # Off-ball: OBSO + C-OBSO (Spearman 2018 + Teranishi 2022)
+│                           #   PPCF Z02 + xG grid + tracking PFF 25Hz full quality
+├── (M11-M16)               # pipeline restante (Pulso Fisico + agregacion final + ranking)
+├── Z01_vaep.py             # building block atomic-VAEP wrapper (compute_features/labels
+│                           #   + save_models/load_models, usado por M08/M09)
+└── Z02_pitch_control.py    # building block PPCF Spearman 2018 vectorizado (core
+│                           #   agnostico al proveedor, usado por M10)
 
 notebooks/
-└── M10_run.ipynb           # entry point para correr M10 a 25 Hz partido a partido
-                            # (resumable: cachea cada partido aparte, retoma tras interrupcion)
+└── M10_run.ipynb           # entry point M10 a 25 Hz partido a partido (resumable:
+                            # cachea cada partido aparte, retoma tras interrupcion)
 ```
 
-Datos, documentacion interna del proyecto y outputs intermedios estan fuera del repo (`.gitignore`).
+Datos, documentacion interna del proyecto y outputs intermedios estan fuera del
+repo (`.gitignore`).
 
 ## Stack
 
-Python (polars, pyarrow, scikit-learn, xgboost, catboost, lightgbm, numpyro/jax,
-optuna, socceraction).
+Python (polars, pyarrow, pandas) +
+modelos (catboost, lightgbm, numpyro/jax, scikit-learn) +
+hyperparam tuning (optuna) + acciones (socceraction atomic-VAEP).

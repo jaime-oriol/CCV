@@ -88,11 +88,6 @@ def load_wyscout_teams() -> pl.DataFrame:
     return pl.read_parquet(_WYSCOUT / "teams.parquet")
 
 
-def load_wyscout_coaches() -> pl.DataFrame:
-    """Catalogo de coaches Wyscout (208 filas)."""
-    return pl.read_parquet(_WYSCOUT / "coaches.parquet")
-
-
 def load_wyscout_playerank() -> pl.DataFrame:
     """Rankings ML PlayerRank de Wyscout (46.897 filas)."""
     return pl.read_parquet(_WYSCOUT / "playerank.parquet")
