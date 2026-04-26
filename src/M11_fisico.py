@@ -613,15 +613,9 @@ def fit_phys_model(df_with_rates: pl.DataFrame,
     p_idx = np.array([p_to_idx[int(p)] for p in player_ids], dtype=np.int32)
     n_players = len(uniq_p)
 
-    # Priors mu_global ~ escala observada (rates en m/s y fraction)
-    #   psv95 ~ 6 m/s  -> log ~ 1.8
-    #   mean_speed ~ 2 m/s -> log ~ 0.7
-    #   hsr_rate ~ 0.02 (2% del minuto) -> log(0.02 + 0.01) ~ -3.5
-    mu_g_prior = jnp.array([
-        float(np.log(np.exp(np.mean(y[:, 0])))),
-        float(np.log(np.exp(np.mean(y[:, 1])))),
-        float(np.log(np.exp(np.mean(y[:, 2])))),
-    ])  # robusto: usa el log-mean observado
+    # Priors mu_global centrados en la log-mean observada (data-driven).
+    # Escalas tipicas: log(psv95) ~ 1.8, log(mean_speed) ~ 0.2, log(hsr_rate+0.01) ~ -3.4.
+    mu_g_prior = jnp.asarray(y.mean(axis=0))
 
     def model(p_idx_, mn_, y_=None):
         sigma_p = numpyro.sample(
@@ -773,22 +767,28 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
 
     pm = pm.rename({"pff_match_id": "match_id"})
 
-    # M07 windows estan en period-relative seconds. M11 minute es period-relative
-    # minute, asi que min_sec = minute * 60. Joineamos por (match_id, player_id,
-    # period) para que el window solo aplique a rows del mismo period del shock.
+    # M07 t_event_seconds y window_* son ABSOLUTE seconds desde el inicio del
+    # partido (SB minute es absolute, sgc = m_abs*60 + s). M11 `minute` es
+    # period-relative, asi que para cruzar:
+    #   minute_abs_sec = (PERIOD_OFFSET_MIN[period] + minute) * 60
+    # Join solo por (match_id, player_id) — el filter por window absolute
+    # selecciona automaticamente los rows del period correcto.
+    pm = pm.with_columns(
+        ((pl.col("period").replace_strict(PERIOD_OFFSET_MIN, default=0)
+          + pl.col("minute")) * 60).cast(pl.Int64).alias("min_sec_abs")
+    )
+
     shocks_slim = shocks.select([
-        "match_id", "shock_id", "player_id", "shock_type", "period",
+        "match_id", "shock_id", "player_id", "shock_type",
         "window_pre_start", "window_pre_end",
         "window_post_start", "window_post_end",
     ])
 
-    joined = shocks_slim.join(pm, on=["match_id", "player_id", "period"],
-                                how="left") \
-                        .with_columns((pl.col("minute") * 60).alias("min_sec"))
+    joined = shocks_slim.join(pm, on=["match_id", "player_id"], how="left")
 
     pre = joined.filter(
-        (pl.col("min_sec") >= pl.col("window_pre_start")) &
-        (pl.col("min_sec") < pl.col("window_pre_end"))
+        (pl.col("min_sec_abs") >= pl.col("window_pre_start")) &
+        (pl.col("min_sec_abs") < pl.col("window_pre_end"))
     ).group_by(["match_id", "shock_id", "player_id", "shock_type"]).agg([
         pl.col("score_phys").mean().alias("score_phys_pre"),
         pl.col("z_psv95").mean().alias("z_psv95_pre"),
@@ -796,8 +796,8 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
         pl.col("z_hsr").mean().alias("z_hsr_pre"),
     ])
     post = joined.filter(
-        (pl.col("min_sec") >= pl.col("window_post_start")) &
-        (pl.col("min_sec") <= pl.col("window_post_end"))
+        (pl.col("min_sec_abs") >= pl.col("window_post_start")) &
+        (pl.col("min_sec_abs") <= pl.col("window_post_end"))
     ).group_by(["match_id", "shock_id", "player_id", "shock_type"]).agg([
         pl.col("score_phys").mean().alias("score_phys_post"),
         pl.col("z_psv95").mean().alias("z_psv95_post"),
