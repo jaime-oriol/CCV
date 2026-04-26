@@ -10,10 +10,10 @@ jugador x shock x minute_relativo):
 
   Estimador          Referencia             Rol
   ----------------   --------------------   --------------------------------
-  ATE TWFE-FE        Wooldridge 2023        Punto base, robusto bajo OK FE
+  ATE TWFE-FE        Wooldridge 2023        Punto base, FE player_shock
   Sun-Abraham 2021   J Econometrics 225     Event-study sin contam leads/lags
   BJS imputation     Borusyak-Jaravel-      Estimador eficiente; equivalente
-  (did2s)            Spiess 2024 ReStud     en este caso a dCDH para nuestro
+                     Spiess 2024 ReStud     en este caso a dCDH para nuestro
                                             tratamiento pulsado-instantaneo
                                             (sin staggered absorbing).
   HonestDiD-style    Rambachan-Roth 2023    Sensibilidad violacion parallel
@@ -47,15 +47,10 @@ Depende de: M07 (shocks_table), M08-M11 (per_minute por canal).
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import numpy as np
 import polars as pl
-
-_SRC_DIR = Path(__file__).resolve().parent
-if str(_SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(_SRC_DIR))
 
 
 # -- Rutas ------------------------------------------------------------------
@@ -208,7 +203,7 @@ def build_all_panels(clean_only: bool = True, cache: bool = True
 
 
 # ===========================================================================
-#  SECCION 2 — ATE FE (player_shock + relative_min)
+#  SECCION 2 — ATE FE (player_shock)
 # ===========================================================================
 
 def estimate_ate(panel: pl.DataFrame, shock_type: str | None = None) -> dict:
@@ -419,7 +414,6 @@ def honest_did_sensitivity(es_df: pl.DataFrame,
         })
 
     # Estimacion no-ajustada (promedio de coefs post, weights inverso var)
-    post_arr = post.to_numpy(structured=False)
     post_betas = post["beta"].to_numpy()
     post_ses = post["se"].to_numpy()
     weights = 1.0 / (post_ses ** 2 + 1e-12)
@@ -497,7 +491,10 @@ def pretrend_test(es_df: pl.DataFrame) -> dict:
 def compute_all(cache: bool = True, overwrite: bool = False) -> dict[str, Path]:
     """Pipeline completa M12: paneles + ATE + ES + BJS + HonestDiD + diagnostics.
 
-    Genera 5 parquets en data/parquet/derived/did/.
+    Si cache=True (default): persiste 5 parquets en data/parquet/derived/did/.
+    Si overwrite=False y los 5 ya existen: no recomputa, devuelve los paths.
+    Si cache=False: ejecuta la pipeline en RAM y devuelve los paths esperados
+    (los parquets no se escriben — util para testing in-memory).
     """
     out_paths = {
         "panel":     _DERIVED / "panel_event_study.parquet",
@@ -576,7 +573,7 @@ if __name__ == "__main__":
     print(f"  paneles en {time.time()-t0:.1f}s")
 
     # [2] ATE por (canal, shock_type)
-    print("\n[2] ATE FE (player_shock + relative_min FE, cluster player):")
+    print("\n[2] ATE FE (player_shock FE, cluster player, ref=rel_min!=0):")
     print(f"  {'canal':<10} {'shock':<14} {'ATE':>8} {'SE':>7} "
           f"{'CI95%':>22} {'N':>7} {'shocks':>7}")
     for ch, panel in panels.items():
