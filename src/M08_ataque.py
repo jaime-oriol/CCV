@@ -531,19 +531,210 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
         on=["name_norm", "team_name"], how="left",
     )
 
-    # Pase 2: para SB sin pff_player_id, intentar (last_norm, team_name) si es unico
-    #         dentro del equipo en el lado PFF (evita falsos positivos por apellidos
-    #         comunes como "Silva" cuando hay varios Silva en la misma seleccion).
-    last_unique = pff.group_by(["last_norm", "team_name"]).agg([
-        pl.col("pff_player_id").first().alias("pff_id_by_last"),
-        pl.len().alias("n_last"),
-    ]).filter(pl.col("n_last") == 1)
-    mapping = mapping.join(
-        last_unique.select(["last_norm", "team_name", "pff_id_by_last"]),
-        on=["last_norm", "team_name"], how="left",
-    ).with_columns(
-        pl.coalesce(["pff_player_id", "pff_id_by_last"]).alias("pff_player_id")
-    ).drop("pff_id_by_last")
+    # PASE 2 ELIMINADO: matchear por last_norm causa falsos positivos en
+    # nombres hispanos. SB "Pablo Sarabia García".last = "garcia", coincide
+    # con PFF "Eric García".last = "garcia" → mapping incorrecto. El pase 3
+    # tokens-subset lo cubre correctamente sin falsos positivos.
+
+    # Enrichment: cargar firstName + lastName del CSV original (data_mundial/
+    # players.csv) para cubrir casos donde PFF roster usa solo el nickname
+    # (Rodri en lugar de Rodrigo Hernandez Cascante, Koke en lugar de Jorge
+    # Resurreccion, etc). El SB nombre completo si lleva los apellidos.
+    csv_path = _REPO / "data_mundial" / "players.csv"
+    if csv_path.exists():
+        players_csv = pl.read_csv(csv_path).select([
+            pl.col("id").cast(pl.Int64).alias("pff_player_id"),
+            "firstName", "lastName",
+        ]).unique(subset=["pff_player_id"])
+        pff = pff.join(players_csv, on="pff_player_id", how="left")
+        # Combina nickname + firstName + lastName en tokens enriquecidos
+        def combine_tokens(s_nick, s_first, s_last):
+            parts = []
+            for s in (s_nick, s_first, s_last):
+                if s: parts.append(norm(s))
+            return " ".join(parts)
+        pff = pff.with_columns(
+            pl.struct(["pff_player_name", "firstName", "lastName"]).map_elements(
+                lambda r: combine_tokens(r["pff_player_name"], r["firstName"], r["lastName"]),
+                return_dtype=pl.String,
+            ).alias("name_norm_enriched")
+        )
+    else:
+        pff = pff.with_columns(pl.col("name_norm").alias("name_norm_enriched"))
+
+    # Pase 3: tokens-subset matching con name_norm_enriched (nickname +
+    # firstName + lastName del CSV). Cubre:
+    #   - Apellidos hispanos: SB "Pablo Sarabia García" → PFF "Pablo Sarabia"
+    #   - Nicknames: SB "Rodrigo Hernández Cascante" → PFF "Rodri" (firstName
+    #     "Rodrigo", lastName "Hernández" del CSV → tokens "rodri rodrigo
+    #     hernandez")
+    #   - Diacriticos: SB "Højbjerg" matches PFF tokens via NFKD strip ASCII.
+    # Match si UNICO en equipo y al menos 2 tokens coinciden, o si todos los
+    # PFF tokens estan en SB tokens. Evita falsos positivos one-token-share.
+    pff_tokens = pff.with_columns(
+        pl.col("name_norm_enriched").str.split(" ").alias("pff_tokens_e")
+    ).select(["pff_player_id", "team_name", "pff_tokens_e", "name_norm_enriched"])
+    unmapped_sb = mapping.filter(pl.col("pff_player_id").is_null()).select([
+        "sb_player_id", "team_name", "name_norm",
+    ]).with_columns(pl.col("name_norm").str.split(" ").alias("sb_tokens"))
+
+    rows_pass3 = []
+    if unmapped_sb.height > 0:
+        for sb_row in unmapped_sb.iter_rows(named=True):
+            cands = pff_tokens.filter(pl.col("team_name") == sb_row["team_name"])
+            sb_set = set(sb_row["sb_tokens"]) - {""}
+            matches = []
+            for c in cands.iter_rows(named=True):
+                pff_set = set(c["pff_tokens_e"]) - {""}
+                if not pff_set:
+                    continue
+                inter = pff_set & sb_set
+                # Match: PFF tokens ⊆ SB (caso "Pablo Sarabia" ⊆ "Pablo
+                # Sarabia García"), O al menos 2 tokens significativos en
+                # comun (cubre nicknames con firstName/lastName del CSV).
+                if pff_set.issubset(sb_set) or len(inter) >= 2:
+                    matches.append((c["pff_player_id"], c["name_norm_enriched"]))
+            if len(matches) == 1:
+                rows_pass3.append({
+                    "sb_player_id": sb_row["sb_player_id"],
+                    "pff_id_pass3": matches[0][0],
+                })
+    if rows_pass3:
+        pass3_df = pl.DataFrame(rows_pass3, schema={
+            "sb_player_id": pl.Int64, "pff_id_pass3": pl.Int64,
+        })
+        mapping = mapping.join(pass3_df, on="sb_player_id", how="left").with_columns(
+            pl.coalesce(["pff_player_id", "pff_id_pass3"]).alias("pff_player_id")
+        ).drop("pff_id_pass3")
+
+    # Pase 4: fuzzy Levenshtein distance per-token. Cubre casos edge que
+    # pase 3 perdio: diacriticos especiales (Mæhle, Højbjerg → NFKD strip),
+    # nombres con caracteres no-latinos transliterados, abreviaciones (Maxi
+    # vs Maximiliano). Match si: para CADA token PFF significativo (>=4
+    # chars), existe un token SB con Levenshtein <= 2. UNICO en equipo.
+    def lev(a: str, b: str, max_d: int = 2) -> int:
+        if abs(len(a) - len(b)) > max_d: return max_d + 1
+        if not a: return len(b)
+        if not b: return len(a)
+        prev = list(range(len(b) + 1))
+        for i, ca in enumerate(a, 1):
+            cur = [i] + [0] * len(b)
+            for j, cb in enumerate(b, 1):
+                cur[j] = min(cur[j-1] + 1, prev[j] + 1,
+                              prev[j-1] + (0 if ca == cb else 1))
+            prev = cur
+            if min(prev) > max_d: return max_d + 1
+        return prev[-1]
+
+    unmapped_sb2 = mapping.filter(pl.col("pff_player_id").is_null()).select([
+        "sb_player_id", "team_name", "name_norm",
+    ]).with_columns(pl.col("name_norm").str.split(" ").alias("sb_tokens"))
+    rows_pass4 = []
+    if unmapped_sb2.height > 0:
+        for sb_row in unmapped_sb2.iter_rows(named=True):
+            cands = pff_tokens.filter(pl.col("team_name") == sb_row["team_name"])
+            sb_set = [t for t in sb_row["sb_tokens"] if len(t) >= 3]
+            matches = []
+            for c in cands.iter_rows(named=True):
+                pff_set = [t for t in c["pff_tokens_e"] if len(t) >= 4]
+                if not pff_set:
+                    continue
+                # Para cada PFF token, hay un SB token con Levenshtein <=2?
+                fuzzy_hits = sum(
+                    1 for pt in pff_set
+                    if any(lev(pt, st) <= 2 for st in sb_set)
+                )
+                if fuzzy_hits >= max(2, len(set(pff_set))):
+                    matches.append((c["pff_player_id"], c["name_norm_enriched"]))
+            unique_matches = list({m[0]: m for m in matches}.values())
+            if len(unique_matches) == 1:
+                rows_pass4.append({
+                    "sb_player_id": sb_row["sb_player_id"],
+                    "pff_id_pass4": unique_matches[0][0],
+                })
+    if rows_pass4:
+        pass4_df = pl.DataFrame(rows_pass4, schema={
+            "sb_player_id": pl.Int64, "pff_id_pass4": pl.Int64,
+        })
+        mapping = mapping.join(pass4_df, on="sb_player_id", how="left").with_columns(
+            pl.coalesce(["pff_player_id", "pff_id_pass4"]).alias("pff_player_id")
+        ).drop("pff_id_pass4")
+
+    # Pase 5: difflib SequenceMatcher ratio sobre nombre enriquecido completo.
+    # Cubre transliteraciones arabes ("Salman Mohammed Al Faraj" vs "Salman
+    # Al-Faraj") y abreviaciones ("Phil" vs "Philip"). Match si ratio >= 0.55
+    # Y es el UNICO PFF del equipo arriba de ese umbral.
+    from difflib import SequenceMatcher
+    unmapped_sb3 = mapping.filter(pl.col("pff_player_id").is_null()).select([
+        "sb_player_id", "team_name", "name_norm",
+    ])
+    rows_pass5 = []
+    if unmapped_sb3.height > 0:
+        for sb_row in unmapped_sb3.iter_rows(named=True):
+            cands = pff_tokens.filter(pl.col("team_name") == sb_row["team_name"])
+            sb_name = sb_row["name_norm"]
+            scored = []
+            for c in cands.iter_rows(named=True):
+                ratio = SequenceMatcher(None, sb_name, c["name_norm_enriched"]).ratio()
+                if ratio >= 0.55:
+                    scored.append((ratio, c["pff_player_id"]))
+            scored.sort(reverse=True)
+            # match si el TOP es claramente mejor que el siguiente (gap > 0.10)
+            if scored and (len(scored) == 1 or scored[0][0] - scored[1][0] > 0.10):
+                rows_pass5.append({
+                    "sb_player_id": sb_row["sb_player_id"],
+                    "pff_id_pass5": scored[0][1],
+                })
+    if rows_pass5:
+        pass5_df = pl.DataFrame(rows_pass5, schema={
+            "sb_player_id": pl.Int64, "pff_id_pass5": pl.Int64,
+        })
+        mapping = mapping.join(pass5_df, on="sb_player_id", how="left").with_columns(
+            pl.coalesce(["pff_player_id", "pff_id_pass5"]).alias("pff_player_id")
+        ).drop("pff_id_pass5")
+
+    # Pase 6: manual overrides hardcoded para los casos edge donde ningun
+    # algoritmo automatico llega (transliteraciones arabes con tokens
+    # ambiguos, abreviaciones idiosincraticas). Validados manualmente
+    # contra rosters PFF (data_mundial/players.csv + nombres oficiales WC22).
+    # Cada entry justificada por inspeccion del nombre completo SB vs el
+    # PFF roster del mismo equipo.
+    MANUAL_OVERRIDES_SB_TO_PFF: dict[str, int] = {
+        # Saudi Arabia (transliteracion "Al X" vs "Al-X"):
+        "Hassan Mohammed Al-Tambakti":      13996,  # Hassan Tambakti
+        "Salman Mohammed Al Faraj":         13999,  # Salman Al-Faraj
+        "Salem Mohammed Al Dawsari":        13998,  # Salem Al-Dawsari (top-scorer KSA)
+        "Mohammed Khalil Al Owais":         13987,  # Mohammed Al-Owais
+        "Abdulelah Saad Hameed Al-Malki":   14004,  # Abdulelah Al-Malki
+        "Nawaf Shaker Al Abid":             14000,  # Nawaf Al-Abed
+        "Firas Tariq Nasser Al Albirakan":  14010,  # Firas Al-Buraikan
+        "Mohammed Awad Khalifa Kanoo":      None,   # NO esta en PFF roster
+        # Qatar:
+        "Ali Assadalla Thaimn Qambar":      None,   # ambiguo, varios Ali
+        "Hassan Khalid Al Heidos":          None,   # no tiene contrapartida clara
+        "Abdulkarim Hassan Fadlalla":       None,
+        "Mohammed Waed Abdulwahhab Al Bayati": None,
+        "Boualem Khoukhi":                  None,
+        "Karim Boudiaf":                    None,
+        "Ahmed Alaa Eldin Abdelmotaal":     13964,  # Ahmed Alaaeldin
+        # Hispanos/Portugues:
+        "Alejandro Darío Gómez":            8420,   # Papu Gómez
+        "Rúben Diogo Da Silva Neves":       240,    # Rúben Neves
+        "Anssumane Fati":                   1529,   # Ansu Fati
+        "Daniel Alves da Silva":            9330,   # Dani Alves
+    }
+    if MANUAL_OVERRIDES_SB_TO_PFF:
+        manual_rows = [
+            {"sb_player_name": k, "pff_id_manual": v}
+            for k, v in MANUAL_OVERRIDES_SB_TO_PFF.items() if v is not None
+        ]
+        if manual_rows:
+            manual_df = pl.DataFrame(manual_rows, schema={
+                "sb_player_name": pl.String, "pff_id_manual": pl.Int64,
+            })
+            mapping = mapping.join(manual_df, on="sb_player_name", how="left").with_columns(
+                pl.coalesce(["pff_player_id", "pff_id_manual"]).alias("pff_player_id")
+            ).drop("pff_id_manual")
 
     mapping = mapping.with_columns([
         pl.col("sb_player_id").cast(pl.Int64),

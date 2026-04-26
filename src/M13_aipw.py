@@ -25,7 +25,7 @@ Estado del arte:
   RDD local-lineal    Imbens-Kalyanaraman 2012 +         manual con kernel
                       Calonico-Cattaneo-Titiunik 2014    triangular + CCT bw
   Spec curve          Simonsohn 2020                     manual sobre 3 def
-  Balance test        Sant'Anna-Song-Xu 2022             SMD pre/post weighting
+  Balance test        Sant'Anna-Song-Xu 2022             SMD pre-balanceo (raw)
   Sensitivity         Cinelli-Hazlett 2020               omitted variable bias
 
 8 estimaciones (4 canales x 2 shock_types) por estimador, paralelas a M12 ATE.
@@ -42,7 +42,7 @@ Outputs (data/parquet/derived/aipw/):
   att_dr_learner.parquet          (channel x shock_type -> ATT DR-learner + IC)
   att_rdd.parquet                 (channel x bandwidth -> ATT RDD + IC)
   spec_curve.parquet              (def_near_miss x channel x shock_type -> ATT)
-  balance.parquet                 (covariable -> SMD pre + SMD post)
+  balance.parquet                 (covariable -> SMD pre-balanceo)
   sensitivity.parquet             (channel x shock_type -> robustness value)
   comparison_m12.parquet          (canal x shock_type -> ATE M12 vs ATT M13)
 
@@ -121,8 +121,6 @@ def build_shot_pool(xg_lo: float = XG_PRIMARY_LO,
         DataFrame con (sb_match_id, event_uuid, period, minute, second,
                        team_id_shooter, treated, xg_baseline, psxg, +covariables).
     """
-    derived = _DERIVED.parent
-
     # M05 shots con outcome + xg + psxg
     shots = pl.read_parquet(_PSXG / "shots.parquet").with_columns(
         pl.col("is_goal").cast(pl.Boolean),
@@ -244,12 +242,12 @@ def _attach_perspective(df: pl.DataFrame, pool: pl.DataFrame) -> pl.DataFrame:
     en metadata del partido.
     """
     from M01_loader_pff import load_metadata
+    from M03_preprocess import sb_to_pff_match_id
 
-    perspectives = []
+    sb2pff = sb_to_pff_match_id()
     sb_team_to_pff = {}
     for sb_mid in pool["sb_match_id"].unique().to_list():
-        from M03_preprocess import sb_to_pff_match_id
-        pff_mid = sb_to_pff_match_id().get(int(sb_mid))
+        pff_mid = sb2pff.get(int(sb_mid))
         if pff_mid is None:
             continue
         md = load_metadata(int(pff_mid)).row(0, named=True)
@@ -284,9 +282,8 @@ def attach_outcomes(panel: pl.DataFrame, pool: pl.DataFrame,
 
     sec_abs del shot = sb_minute*60 + sb_second (alineado con M12 sec_abs).
     """
-    derived = _DERIVED.parent
     pm_relpath, outcome_col, fill_value = CHANNELS[channel]
-    pm = pl.read_parquet(derived / pm_relpath).select([
+    pm = pl.read_parquet(_DERIVED.parent / pm_relpath).select([
         "pff_match_id", "pff_player_id", "sec_abs",
         pl.col(outcome_col).alias("outcome"),
     ])
@@ -451,14 +448,18 @@ def estimate_att_dml_plr(panel: pl.DataFrame) -> dict:
 # ===========================================================================
 
 def estimate_att_dr_learner(panel: pl.DataFrame) -> dict:
-    """DR-learner via cross-fitted LightGBM (Kennedy 2023).
+    """ATT via DR-learner cross-fitted LightGBM (Kennedy 2023).
 
     Algoritmo:
-      1. Cross-fit nuisance: g0(X)=E[Y|D=0,X], g1(X)=E[Y|D=1,X], m(X)=P(D=1|X)
-      2. Pseudo-outcome: phi = g1(X) - g0(X) + D*(Y-g1(X))/m(X)
-                                              - (1-D)*(Y-g0(X))/(1-m(X))
-      3. ATT = mean(phi over treated)
-      4. SE via influence function + cluster bootstrap por match
+      1. Cross-fit nuisance: g0(X)=E[Y|D=0,X], g1(X)=E[Y|D=1,X], m(X)=P(D=1|X).
+      2. Pseudo-outcome ATT (re-weighted, no la version ATE de Kennedy):
+         phi_ATT_i = (D_i / pi) * (Y_i - g0(X_i))
+                     - ((1 - D_i) / pi) * (m(X_i) / (1 - m(X_i))) * (Y_i - g0(X_i))
+         donde pi = mean(D) (proporcion treated).
+      3. ATT = mean(phi_ATT). Notar: NO es mean(phi[D==1]); es la formula DR
+         para ATT (Kennedy 2023 Eq con re-pesado por propensity-odds-ratio).
+      4. SE via cluster bootstrap por match (200 iters), preserva dependencia
+         intra-match (mismos players en cluster).
     """
     from sklearn.model_selection import GroupKFold
     import lightgbm as lgb
@@ -499,11 +500,13 @@ def estimate_att_dr_learner(panel: pl.DataFrame) -> dict:
 
     # Trimming propensity
     m_pred = np.clip(m_pred, 0.01, 0.99)
-    # Pseudo-outcome (Kennedy 2023 Eq 1)
-    phi = (g1_pred - g0_pred
-           + D * (Y - g1_pred) / m_pred
-           - (1 - D) * (Y - g0_pred) / (1 - m_pred))
-    att = float(np.mean(phi))
+    # Pseudo-outcome ATT (Kennedy 2023): re-pesa controles via odds-ratio del
+    # propensity para emular distribucion treated. ATT = E[Y(1)-Y(0) | D=1].
+    pi = float(np.mean(D))
+    phi_att = ((D / pi) * (Y - g0_pred)
+               - ((1 - D) / pi) * (m_pred / (1 - m_pred)) * (Y - g0_pred))
+    att = float(np.mean(phi_att))
+    phi = phi_att   # alias para bootstrap abajo
 
     # Cluster bootstrap por match (200 iters)
     rng = np.random.default_rng(42)
@@ -539,8 +542,6 @@ def estimate_att_rdd(panel: pl.DataFrame, threshold: float = RDD_THRESHOLD,
         return {"att": np.nan, "se": np.nan, "n_obs": 0}
 
     psxg = df["psxg"].values
-    Y = df["outcome_post"].values
-    D = df["treated"].values
     in_band = np.abs(psxg - threshold) <= bandwidth
     if in_band.sum() < 20:
         return {"att": np.nan, "se": np.nan, "n_obs": int(in_band.sum())}
@@ -548,7 +549,6 @@ def estimate_att_rdd(panel: pl.DataFrame, threshold: float = RDD_THRESHOLD,
     df_b = df[in_band]
     psxg_b = df_b["psxg"].values
     Y_b = df_b["outcome_post"].values
-    D_b = df_b["treated"].values
     # Triangular kernel weights
     w = 1.0 - np.abs(psxg_b - threshold) / bandwidth
 
@@ -650,28 +650,32 @@ def sensitivity_analysis(att_dict: dict, panel: pl.DataFrame) -> dict:
     """Robustness Value (Cinelli-Hazlett 2020): cuanta confounding hace falta
     para anular el ATT estimado. RV alto = robusto a OVB.
 
-    RV = 0.5 * (sqrt(f_y^2 * (f_y^2 + 4) - f_y^2)) donde f_y es la cota de
-    R^2 parcial entre confounder y outcome.
-
-    Implementacion compacta: estima R2 parcial del treatment sobre outcome
-    (sin confounders), luego RV bajo el supuesto de confounders del mismo
-    poder explicativo que las covariables existentes.
+    Formula RV_q = 0.5 * (sqrt(q^4 + 4*q^2) - q^2) donde
+    q = t_stat / sqrt(df_resid). Es el R^2 parcial minimo que un confounder
+    omitido tendria que tener (con outcome AND con treatment) para reducir el
+    t-statistic a cero. RV in [0, 1]; >0.05 considerado robusto en la
+    literatura aplicada.
     """
     if np.isnan(att_dict.get("att", np.nan)):
-        return {"robustness_value": np.nan, "tstat_ratio": np.nan}
+        return {"robustness_value": np.nan, "tstat_ratio": np.nan,
+                "interpretation": "indeterminado"}
     att, se = att_dict["att"], att_dict["se"]
     if se == 0:
-        return {"robustness_value": np.nan, "tstat_ratio": np.nan}
+        return {"robustness_value": np.nan, "tstat_ratio": np.nan,
+                "interpretation": "indeterminado"}
     t_stat = att / se
-    # Bound mininum needed: Cinelli-Hazlett RV formula
-    # RV_q = 0.5 * (sqrt(q^4 + 4*q^2) - q^2) donde q = t_stat / sqrt(df-1)
     df_resid = max(panel.height - 2, 1)
     q = t_stat / np.sqrt(df_resid)
     rv = 0.5 * (np.sqrt(q ** 4 + 4 * q ** 2) - q ** 2)
+    if np.isnan(rv):
+        interp = "indeterminado"
+    elif rv > 0.05:
+        interp = "robusto"
+    else:
+        interp = "fragil"
     return {"robustness_value": float(rv),
             "tstat_ratio": float(t_stat),
-            "interpretation": ("robusto" if rv > 0.05 else "fragil"
-                                if not np.isnan(rv) else "indeterminado")}
+            "interpretation": interp}
 
 
 # ===========================================================================
