@@ -48,7 +48,14 @@ src/
 │                           #   spec curve Simonsohn 2020 + balance test
 │                           #   Sant'Anna-Song-Xu 2022 + sensitivity Cinelli-
 │                           #   Hazlett 2020 + comparison vs M12 ATE
-├── (M14-M16)               # pipeline restante (CATE + PCJ + report)
+├── M14_cate.py             # CATE multivariate jerarquico bayesiano (numpyro
+│                           #   SVI Multivariate BCF analog Hu 2025): random
+│                           #   effects player ⊂ position + LKJ corr cross-
+│                           #   canal + Indice Remontador (atk_GA + off_GA) +
+│                           #   Indice Cerrojo (def_GF + phys_GF) + ranking
+│                           #   within position. 598 jugadores con (β_atk,
+│                           #   β_def, β_off, β_phys) IC 80%/95%
+├── (M15-M16)               # pipeline restante (PCJ ensamble + report)
 ├── Z01_vaep.py             # building block atomic-VAEP wrapper (compute_features/labels
 │                           #   + save_models/load_models, usado por M08/M09)
 └── Z02_pitch_control.py    # building block PPCF Spearman 2018 vectorizado (core
@@ -60,7 +67,7 @@ notebooks/
                             # para re-ejecucion granular
 ```
 
-Estado: M01-M13 ejecutados sobre los 64 partidos WC22. M14-M16 pendientes.
+Estado: M01-M14 ejecutados sobre los 64 partidos WC22. M15-M16 pendientes.
 
 Datos, documentacion interna del proyecto y outputs intermedios estan fuera del
 repo (`.gitignore`).
