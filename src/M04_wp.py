@@ -16,7 +16,8 @@ Training cross-dataset (excluyendo WC22 sagrado):
 Cobertura completa 0-90 + ET + penaltis:
   - Regulacion 0-90 : modelo bayesiano entrenado.
   - ET (90-120)    : Poisson goal-rate empirico sobre subset ET.
-  - Penaltis tanda : Tijms (2019) formula cerrada.
+  - Penaltis tanda : prob_shootout_home parametrico (0.5 simetrico por defecto)
+                     resuelve el draw post-ET en _wp_et_poisson_batch.
 
 Calibracion: temperature scaling sobre 48 partidos WC22 fase de grupos
 (NO sobre los 16 KO, que son sagrados para test final).
@@ -885,37 +886,6 @@ def et_goal_rate_empirical() -> tuple[float, float]:
     avg_goals_per_et = total_et_goals / n_et_matches
     rate = (avg_goals_per_et / 2) / ET_MINUTES  # split 50/50 home/away
     return rate, rate
-
-
-def shootout_probability(p_home_scores: float = 0.75,
-                         p_away_scores: float = 0.73) -> float:
-    """P(home gana tanda) via Tijms (2019) — simulacion Monte Carlo con
-    formato 5-tiros + sudden death. Devuelve P(home_wins).
-    """
-    rng = np.random.default_rng(42)
-    n_sim = 10_000
-    wins = 0
-    for _ in range(n_sim):
-        h = a = 0
-        # 5 rondas regulares
-        for i in range(5):
-            h += int(rng.random() < p_home_scores)
-            a += int(rng.random() < p_away_scores)
-            # Early stop si uno no puede alcanzar al otro
-            remaining = 5 - (i + 1)
-            if h - a > remaining: break
-            if a - h > remaining: break
-        if h != a:
-            wins += int(h > a)
-            continue
-        # Sudden death
-        while True:
-            ho = int(rng.random() < p_home_scores)
-            ao = int(rng.random() < p_away_scores)
-            if ho != ao:
-                wins += int(ho > ao)
-                break
-    return wins / n_sim
 
 
 # ===========================================================================

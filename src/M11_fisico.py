@@ -861,7 +861,7 @@ if __name__ == "__main__":
     t0 = time.time()
     raw = build_raw_per_minute(cache=True, overwrite=False)
     print(f"  raw_per_minute: {raw.height:,} filas en {time.time()-t0:.1f}s")
-    print(f"  matches: {raw['pff_match_id'].n_unique()}/64, players: {raw['player_id'].n_unique()}")
+    print(f"  matches: {raw['pff_match_id'].n_unique()}/64, players: {raw['pff_player_id'].n_unique()}")
 
     # Acceptance Bradley 2024: filtrar SOLO STARTERS (>= 60 min jugados)
     per_pm = raw.group_by(["pff_match_id", "pff_player_id"]).agg([

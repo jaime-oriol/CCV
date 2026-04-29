@@ -121,10 +121,6 @@ def sb_to_pff_match_id() -> dict[int, int]:
     return {v: k for k, v in pff_to_sb_match_id().items()}
 
 
-# Backward-compat alias (M08, M09 lo importan como privado historicamente).
-_pff_to_sb_match_id = pff_to_sb_match_id
-
-
 _GOALS_SCHEMA = {
     "match_id": pl.Int64, "period": pl.Int64,
     "start_game_clock": pl.Int64, "minute": pl.Int64,

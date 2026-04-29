@@ -5,7 +5,7 @@ Cuatro extractores:
   - extract_pff_events()   : 64 JSON Event Data -> 1 parquet por partido.
                              1 fila = 1 evento. Sub-dicts como struct,
                              listas de jugadores como list[struct].
-  - extract_pff_tracking() : 48 jsonl.bz2 Tracking Data -> 1 parquet por
+  - extract_pff_tracking() : 64 jsonl.bz2 Tracking Data -> 1 parquet por
                              partido. Streaming chunked (peak <500 MB/partido).
   - extract_pff_metadata() : 64 JSON Metadata -> 1 parquet unificado.
   - extract_pff_rosters()  : 64 JSON Rosters -> 1 parquet unificado.
@@ -45,7 +45,7 @@ def list_event_match_ids() -> list[int]:
 
 
 def list_tracking_match_ids() -> list[int]:
-    """IDs de los 48 partidos con tracking data."""
+    """IDs de los 64 partidos con tracking data."""
     return sorted(int(f.name.split(".")[0]) for f in _TRACKING.glob("*.jsonl.bz2"))
 
 
@@ -138,7 +138,7 @@ def extract_pff_tracking(
     Peak RAM por partido: ~150-300 MB (vs ~3 GB si carga completa).
 
     Args:
-        match_ids    : Subset a procesar. None = todos los 48.
+        match_ids    : Subset a procesar. None = todos los 64.
         overwrite    : Re-escribir si ya existe.
         chunk_frames : Frames por row group. Default 5000.
 
@@ -188,7 +188,7 @@ def extract_pff_tracking(
 
 def _flush_chunk(rows: list[dict], writer: pq.ParquetWriter, schema: pa.Schema) -> None:
     """Convierte rows a Arrow Table conformado al schema y escribe row group."""
-    df = pl.from_dicts(rows, schema_overrides=None, infer_schema_length=None)
+    df = pl.from_dicts(rows, infer_schema_length=None)
     table = df.to_arrow()
     # Conformar al schema unificado (anade campos faltantes como null)
     table = table.cast(schema, safe=False) if table.schema != schema else table

@@ -330,7 +330,7 @@ def run_full_audit() -> dict:
     print(f"  rows  OK={r1['rows_ok']:,}  FAIL={r1['rows_fail']}")
     for e in r1["errors"][:5]: print(f"  ERR: {e}")
 
-    print("\n[2/4] PFF tracking (500 frames/partido x 47 partidos)...")
+    print("\n[2/4] PFF tracking (500 frames/partido x 64 partidos)...")
     r2 = audit_pff_tracking(sample_per_match=500)
     print(f"  files OK={r2['files_ok']}  FAIL={r2['files_fail']}")
     print(f"  frames compared={r2['frames_compared']:,}  FAIL={r2['frames_fail']}")

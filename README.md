@@ -49,9 +49,11 @@ src/
 │                           #   Sant'Anna-Song-Xu 2022 + sensitivity Cinelli-
 │                           #   Hazlett 2020 + comparison vs M12 ATE
 ├── M14_cate.py             # CATE multivariate jerarquico bayesiano (numpyro
-│                           #   SVI Multivariate BCF analog Hu 2025): random
-│                           #   effects player ⊂ position + LKJ corr cross-
-│                           #   canal + Indice Remontador (atk_GA + off_GA) +
+│                           #   NUTS HMC, 4 chains, Multivariate BCF analog
+│                           #   Hu 2025): jerarquia 3 niveles player ⊂ team
+│                           #   ⊂ position + LKJCholesky cross-canal + priors
+│                           #   informativos PFF grades + R-hat/ESS + PPC KS-
+│                           #   test + Indice Remontador (atk_GA + off_GA) +
 │                           #   Indice Cerrojo (def_GF + phys_GF) + ranking
 │                           #   within position. 598 jugadores con (β_atk,
 │                           #   β_def, β_off, β_phys) IC 80%/95%
@@ -78,4 +80,5 @@ Python (polars, pyarrow, pandas) +
 modelos (catboost, lightgbm, numpyro/jax, scikit-learn) +
 hyperparam tuning (optuna) + acciones (socceraction atomic-VAEP) +
 DiD moderno (pyfixest fixed-effects + Sun-Abraham event-study) +
-DoubleML cross-fitted (doubleml IRM/PLR para AIPW Chernozhukov 2018).
+DoubleML cross-fitted (doubleml IRM/PLR para AIPW Chernozhukov 2018) +
+CATE bayesiano jerarquico via NUTS HMC + LKJCholesky cross-canal (numpyro).

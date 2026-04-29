@@ -52,7 +52,6 @@ def scan_glob(pattern: str) -> "pl.LazyFrame":
             pl.col("frameNum") < 1000
         ).collect()
     """
-    import polars as pl  # local import para evitar coste si no se usa
     files = sorted(PARQUET.glob(pattern))
     if not files:
         raise FileNotFoundError(f"Sin matches: {PARQUET / pattern}")

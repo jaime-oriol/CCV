@@ -23,8 +23,8 @@ Pipeline:
   5. Apply a WC22 atomic actions -> offensive_value per action.
   6. Aggregate: (sb_match_id, pff_match_id, sb_player_id, pff_player_id,
      period, minute_in_period, sec_abs, score_atk_minute, vaep_minute, n_actions).
-  7. Map player_id_sb -> player_id_pff (nombre+equipo exacto, fallback last-name
-     unico dentro del equipo).
+  7. Map player_id_sb -> player_id_pff (cascada 5 pases: exact, tokens-subset
+     enriquecido, Levenshtein per-token, difflib SequenceMatcher, manual overrides).
   8. Aggregate per shock-window (pre/post -10/+10 min).
 
 Output:
@@ -493,7 +493,7 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
     ]).unique(subset=["pff_player_id"])
 
     # Normalizacion de nombres: NFKD (quita tildes) + lower + quita puntuacion
-    # + colapsa espacios. Ademas derivamos last_token para fallback por apellido.
+    # + colapsa espacios.
     import re
     import unicodedata
     _punct_re = re.compile(r"[^a-z0-9 ]+")
@@ -506,23 +506,11 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
         s = _punct_re.sub(" ", s.lower())
         return _ws_re.sub(" ", s).strip()
 
-    def last_token(s: str | None) -> str | None:
-        if s is None:
-            return None
-        toks = s.split()
-        return toks[-1] if toks else None
-
-    sb_df = sb_df.with_columns([
-        pl.col("sb_player_name").map_elements(norm, return_dtype=pl.String).alias("name_norm"),
-    ])
     sb_df = sb_df.with_columns(
-        pl.col("name_norm").map_elements(last_token, return_dtype=pl.String).alias("last_norm")
+        pl.col("sb_player_name").map_elements(norm, return_dtype=pl.String).alias("name_norm"),
     )
-    pff = pff.with_columns([
-        pl.col("pff_player_name").map_elements(norm, return_dtype=pl.String).alias("name_norm"),
-    ])
     pff = pff.with_columns(
-        pl.col("name_norm").map_elements(last_token, return_dtype=pl.String).alias("last_norm")
+        pl.col("pff_player_name").map_elements(norm, return_dtype=pl.String).alias("name_norm"),
     )
 
     # Pase 1: full (name_norm, team_name)
