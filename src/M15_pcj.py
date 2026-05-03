@@ -36,18 +36,33 @@ import numpy as np
 import polars as pl
 
 _REPO = Path(__file__).resolve().parents[1]
-_CATE_DIR = _REPO / "data" / "parquet" / "derived" / "cate"
-_SHOCKS = _REPO / "data" / "parquet" / "derived" / "shocks" / "shocks_table.parquet"
-_PFF_GRADES = _REPO / "data" / "parquet" / "derived" / "preprocess" / "pff_grades.parquet"
+_CATE_DIR    = _REPO / "data" / "parquet" / "derived" / "cate"
+_DID_DIR     = _REPO / "data" / "parquet" / "derived" / "did"
+_AIPW_DIR    = _REPO / "data" / "parquet" / "derived" / "aipw"
+_DIDV_DIR    = _REPO / "data" / "parquet" / "derived" / "did_validation"
+_WP          = _REPO / "data" / "parquet" / "derived" / "wp" / "per_minute.parquet"
+_NM          = _REPO / "data" / "parquet" / "derived" / "nearmiss" / "nearmiss_table.parquet"
+_SHOCKS      = _REPO / "data" / "parquet" / "derived" / "shocks" / "shocks_table.parquet"
+_PFF_GRADES  = _REPO / "data" / "parquet" / "derived" / "preprocess" / "pff_grades.parquet"
+_OBSO        = _REPO / "data" / "parquet" / "derived" / "offball" / "per_minute.parquet"
+_FISICO_PM   = _REPO / "data" / "parquet" / "derived" / "fisico" / "per_minute.parquet"
+_ATAQUE_PM   = _REPO / "data" / "parquet" / "derived" / "ataque" / "per_minute.parquet"
+_DEFENSA_PM  = _REPO / "data" / "parquet" / "derived" / "defensa" / "per_minute.parquet"
 _PLAYERS_CSV = _REPO / "data_mundial" / "players.csv"
-_OUT_DIR = _REPO / "outputs"
-_AUX_DIR = _OUT_DIR / "pcj_aux"
+_METADATA    = _REPO / "data" / "parquet" / "pff" / "metadata.parquet"
+_OUT_DIR     = _REPO / "outputs"
+_AUX_DIR     = _OUT_DIR / "pcj_aux"
 
 MIN_MINUTES = 270
 SIG_THRESHOLD = 0.95
+ACUTE_WINDOW = 5    # T2.7 hallazgo: efectos son ACUTOS
 
 CHANNELS = ["ataque", "defensa", "offball", "fisico"]
 SHOCK_TYPES = ["GOAL_AGAINST", "GOAL_FOR"]   # GA=0, GF=1 (M14 sort order)
+PER_MIN_PATHS = {"ataque": _ATAQUE_PM, "defensa": _DEFENSA_PM,
+                 "offball": _OBSO,    "fisico": _FISICO_PM}
+PER_MIN_OUTCOL = {"ataque": "score_atk_minute", "defensa": "score_def_minute",
+                  "offball": "c_obso_mean",     "fisico": "score_phys"}
 
 
 # ----------------------------------------------------------------------------
@@ -77,6 +92,69 @@ def _load_player_meta() -> pl.DataFrame:
     return players.join(grades, on="pff_player_id", how="inner")
 
 
+def _load_player_age_height() -> pl.DataFrame:
+    """Edad (a fecha 2022-11-20 inicio WC) + altura desde players.csv."""
+    p = pl.read_csv(_PLAYERS_CSV).select(
+        pl.col("id").alias("pff_player_id"),
+        pl.col("dob").alias("dob"),
+        pl.col("height").alias("height_cm"),
+    ).unique("pff_player_id")
+    p = p.with_columns([
+        pl.col("dob").str.to_date(strict=False).alias("dob_d"),
+    ])
+    wc_start = pl.lit("2022-11-20").str.to_date()
+    p = p.with_columns(
+        ((wc_start - pl.col("dob_d")).dt.total_days() / 365.25)
+            .alias("age_years")
+    ).select(["pff_player_id", "age_years", "height_cm"])
+    return p
+
+
+def _load_channel_credibility() -> pl.DataFrame:
+    """Por (channel, shock_type): pre-trend OK + AIPW same-sign + sensitivity robusto.
+
+    Combina M12 diagnostics (pre-trend F-test) + M13 comparison_m12 (cross-val) +
+    M13 sensitivity (Cinelli-Hazlett robustness value).
+    """
+    pre = (pl.read_parquet(_DID_DIR / "diagnostics.parquet")
+             .select(["channel", "shock_type", "p_pretrend"]))
+    cmp = (pl.read_parquet(_AIPW_DIR / "comparison_m12.parquet")
+             .select(["channel", "shock_type", "same_sign", "diff_normalized"]))
+    sens = (pl.read_parquet(_AIPW_DIR / "sensitivity.parquet")
+             .rename({"perspective": "shock_type"})
+             .select(["channel", "shock_type", "robustness_value", "interpretation"]))
+    cred = pre.join(cmp, on=["channel", "shock_type"], how="left") \
+              .join(sens, on=["channel", "shock_type"], how="left")
+    cred = cred.with_columns([
+        (pl.col("p_pretrend") > 0.05).alias("pretrend_clean"),
+        (pl.col("p_pretrend") > 0.05).cast(pl.Int8).alias("c1"),
+        (pl.col("interpretation") == "robusto").cast(pl.Int8).alias("c2"),
+        pl.col("same_sign").fill_null(False).cast(pl.Int8).alias("c3"),
+    ]).with_columns(
+        (pl.col("c1") + pl.col("c2") + pl.col("c3")).alias("credibility_score")
+    ).with_columns(
+        pl.when(pl.col("credibility_score") >= 3).then(pl.lit("HIGH"))
+          .when(pl.col("credibility_score") == 2).then(pl.lit("MED"))
+          .otherwise(pl.lit("LOW"))
+          .alias("channel_credibility")
+    ).select(["channel", "shock_type", "p_pretrend", "same_sign",
+              "robustness_value", "interpretation",
+              "credibility_score", "channel_credibility"])
+    return cred
+
+
+def _load_power_flags() -> pl.DataFrame:
+    """Per (channel, shock_type) flag de poder estadistico desde T2.5."""
+    pwr = pl.read_parquet(_DIDV_DIR / "power_analysis.parquet").select(
+        ["channel", "shock_type", "power_observed", "n_effective"])
+    return pwr.with_columns(
+        pl.when(pl.col("power_observed") >= 0.80).then(pl.lit("WELL_POWERED"))
+          .when(pl.col("power_observed") >= 0.50).then(pl.lit("MARGINAL"))
+          .otherwise(pl.lit("UNDERPOWERED"))
+          .alias("power_flag")
+    )
+
+
 def _load_player_minutes() -> pl.DataFrame:
     """Suma minutos por jugador a lo largo de los 64 partidos WC22."""
     sys.path.insert(0, str(_REPO / "src"))
@@ -93,6 +171,83 @@ def _load_player_minutes() -> pl.DataFrame:
             ]).rename({"player_id": "pff_player_id"}))
 
 
+def _load_leverage_exposure() -> pl.DataFrame:
+    """Per jugador: avg leverage M04 en los minutos cuando vivio shocks.
+
+    Shocks bajo high-leverage (KO + late minute + close score) son mas
+    informativos. Player que solo tiene shocks en groups con leverage~0
+    estan menos "stress-tested".
+    """
+    sh = pl.read_parquet(_SHOCKS).rename({"player_id": "pff_player_id",
+                                          "match_id": "pff_match_id"})
+    wp = pl.read_parquet(_WP).rename({"match_id": "pff_match_id"})
+    # Join shock con WP at minute (using shock minute)
+    sh_wp = sh.join(
+        wp.select(["pff_match_id", "minute", "leverage", "phase"]),
+        on=["pff_match_id", "minute"], how="left"
+    )
+    return (sh_wp.group_by("pff_player_id").agg([
+        pl.col("leverage").mean().alias("avg_leverage_at_shock"),
+        pl.col("leverage").max().alias("max_leverage_at_shock"),
+        (pl.col("leverage") > 0.05).sum().alias("n_high_leverage_shocks"),
+    ]))
+
+
+def _load_nearmiss_exposure() -> pl.DataFrame:
+    """Per jugador: total near-miss eventos vividos en campo (cualquier equipo).
+
+    Nota: M06 nearmiss_table usa SB team_id, M03 player_minutes usa PFF team_id
+    (universos distintos). En vez de mapear SB→PFF a nivel team, contamos
+    exposición total: cuantos near-miss eventos ocurrieron mientras el jugador
+    estaba en campo en su partido. Mide "stress por casi-gol".
+    """
+    nm = pl.read_parquet(_NM).select(
+        pl.col("sb_match_id"), pl.col("minute"))
+    sys.path.insert(0, str(_REPO / "src"))
+    from M03_preprocess import player_minutes, pff_to_sb_match_id
+    from M01_loader_pff import list_event_match_ids
+    pff2sb = pff_to_sb_match_id()
+    rows = []
+    for pff_mid in list_event_match_ids():
+        sb_mid = pff2sb.get(int(pff_mid))
+        if sb_mid is None:
+            continue
+        nm_match = nm.filter(pl.col("sb_match_id") == sb_mid)
+        if nm_match.height == 0:
+            continue
+        pm = player_minutes(pff_mid)
+        for nm_row in nm_match.iter_rows(named=True):
+            on_field = pm.filter(
+                pl.col("minute_in").is_not_null() &
+                (pl.col("minute_in") <= nm_row["minute"]) &
+                (pl.col("minute_out") >= nm_row["minute"]))
+            for r in on_field.iter_rows(named=True):
+                rows.append(int(r["player_id"]))
+    if not rows:
+        return pl.DataFrame(schema={"pff_player_id": pl.Int64,
+                                     "n_nearmiss_exposure": pl.UInt32})
+    df = pl.DataFrame({"pff_player_id": rows})
+    return df.group_by("pff_player_id").agg(pl.len().alias("n_nearmiss_exposure"))
+
+
+def _load_baseline_channels() -> pl.DataFrame:
+    """Baseline absoluto per jugador outside shock windows (M10 obso, M11 score_phys,
+    M08 score_atk, M09 score_def). Permite distinguir 'PCJ_off bajo porque baseline
+    elite ya' vs 'PCJ_off bajo porque mediocre'.
+    """
+    rows = []
+    for ch, path in PER_MIN_PATHS.items():
+        col = PER_MIN_OUTCOL[ch]
+        df = pl.read_parquet(path).select(["pff_player_id", col])
+        agg = df.group_by("pff_player_id").agg(
+            pl.col(col).mean().alias(f"baseline_{ch}"))
+        rows.append(agg)
+    out = rows[0]
+    for r in rows[1:]:
+        out = out.join(r, on="pff_player_id", how="full", coalesce=True)
+    return out
+
+
 def _load_shock_exposure() -> pl.DataFrame:
     """Por jugador: n_shocks_for, n_shocks_against, n_groups, n_ko."""
     sh = pl.read_parquet(_SHOCKS).rename({"player_id": "pff_player_id"})
@@ -107,6 +262,97 @@ def _load_shock_exposure() -> pl.DataFrame:
 # ----------------------------------------------------------------------------
 # Posterior probabilities desde samples
 # ----------------------------------------------------------------------------
+def _compute_acute_window_per_player(window: int = ACUTE_WINDOW) -> pl.DataFrame:
+    """Per (player, channel, shock_type): within-player diff (post-pre) en
+    ventana ACUTA +-window min, computed desde per_minute parquets.
+
+    T2.7 hallazgo: efectos son acutos (decay 7x de w3 a w10 en fisico/offball).
+    El M14 a +-10 DILUYE el efecto. Esta col da el numero scout-relevante.
+    """
+    sh = (pl.read_parquet(_SHOCKS).rename({"player_id": "pff_player_id",
+                                            "match_id": "pff_match_id"})
+          .filter(~pl.col("truncated_pre") & ~pl.col("truncated_post") &
+                   ~pl.col("overlap_flag") & ~pl.col("sub_in_window")))
+    rows = []
+    for ch, path in PER_MIN_PATHS.items():
+        col = PER_MIN_OUTCOL[ch]
+        pm = pl.read_parquet(path).select(
+            ["pff_match_id", "pff_player_id", "period",
+             "minute_in_period", col])
+        pm = pm.with_columns(
+            ((pl.col("period") - 1) * 45 + pl.col("minute_in_period"))
+                .alias("minute_global"))
+        for sh_type in SHOCK_TYPES:
+            sh_sub = sh.filter(pl.col("shock_type") == sh_type)
+            # Cross-join per shock con +-window minutes
+            rels = pl.DataFrame({"relative_min":
+                [r for r in range(-window, window + 1) if r != 0]})
+            sh_exp = sh_sub.select(["pff_match_id", "pff_player_id",
+                                     "shock_id", "minute"]).join(
+                rels, how="cross").with_columns(
+                (pl.col("minute") + pl.col("relative_min")).alias("minute_global"))
+            joined = sh_exp.join(
+                pm.select(["pff_match_id", "pff_player_id",
+                           "minute_global", col]),
+                on=["pff_match_id", "pff_player_id", "minute_global"],
+                how="left").drop_nulls(col)
+            if joined.height == 0:
+                continue
+            # Per (player, shock): mean pre, mean post, diff
+            joined = joined.with_columns(
+                (pl.col("relative_min") > 0).cast(pl.Int8).alias("post"))
+            per_ps = (joined.group_by(["pff_player_id", "shock_id", "post"])
+                      .agg(pl.col(col).mean().alias("m"))
+                      .sort(["pff_player_id", "shock_id", "post"]))
+            wide = per_ps.pivot("post", index=["pff_player_id", "shock_id"],
+                                values="m").drop_nulls()
+            cols = wide.columns
+            if "0" in cols and "1" in cols:
+                wide = wide.with_columns((pl.col("1") - pl.col("0")).alias("d"))
+            elif 0 in cols and 1 in cols:
+                wide = wide.with_columns((pl.col(1) - pl.col(0)).alias("d"))
+            else:
+                continue
+            per_player = wide.group_by("pff_player_id").agg(
+                pl.col("d").mean().alias(f"acute_{ch}_{sh_type}"))
+            rows.append(per_player)
+    if not rows:
+        return pl.DataFrame({"pff_player_id": []})
+    out = rows[0]
+    for r in rows[1:]:
+        out = out.join(r, on="pff_player_id", how="full", coalesce=True)
+    return out
+
+
+def _compute_intra_player_corr(fit: dict) -> pl.DataFrame:
+    """Per player: corr(eta_atk_GA, eta_off_GA) y corr(eta_def_GF, eta_phys_GF)
+    a lo largo de los 4000 samples NUTS. Captura "tipo" de clutch.
+
+    Alta corr_chasing = remontador coordinado (atk + off-ball juntos).
+    Baja/negativa = remontador disperso (uno u otro, no ambos).
+    """
+    s = fit["samples"]
+    p_to_idx = fit["p_to_idx"]
+    ch = fit["ch_to_idx"]
+    eta_ga = s["eta_ga"]            # (4000, P, K)
+    eta_gf = s["eta_gf"]
+    n_samples, n_players, _ = eta_ga.shape
+    rows = []
+    idx_to_pid = {v: k for k, v in p_to_idx.items()}
+    atk = ch["ataque"]; off = ch["offball"]
+    df_ = ch["defensa"]; phy = ch["fisico"]
+    for i in range(n_players):
+        atk_ga = eta_ga[:, i, atk]; off_ga = eta_ga[:, i, off]
+        def_gf = eta_gf[:, i, df_]; phy_gf = eta_gf[:, i, phy]
+        # Pearson via numpy
+        c1 = float(np.corrcoef(atk_ga, off_ga)[0, 1]) if atk_ga.std() > 0 and off_ga.std() > 0 else 0.0
+        c2 = float(np.corrcoef(def_gf, phy_gf)[0, 1]) if def_gf.std() > 0 and phy_gf.std() > 0 else 0.0
+        rows.append(dict(pff_player_id=idx_to_pid[i],
+                         intra_corr_chasing_atk_off=c1,
+                         intra_corr_protecting_def_phys=c2))
+    return pl.DataFrame(rows)
+
+
 def _compute_posterior_probs(fit: dict) -> pl.DataFrame:
     """Per jugador: P(chasing>0|data), P(protecting>0|data), P(dual>0|data).
 
@@ -237,6 +483,33 @@ def _add_tiers(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
+def _add_tier_with_uncertainty(df: pl.DataFrame) -> pl.DataFrame:
+    """Tier_certain: Elite/Top SOLO si IC80 excluye 0 (signo certero).
+    Sino degrade a Elite_uncertain / Top_uncertain. Resto se mantiene.
+    """
+    def cert_tier(tier, lo, hi, sign):
+        if tier in ("Elite", "Top"):
+            ic_excludes_0 = (lo > 0 and hi > 0) if sign == "+" else (lo < 0 and hi < 0)
+            return tier + ("_certain" if ic_excludes_0 else "_uncertain")
+        return tier
+
+    # Map manual via Python rows
+    df_pd = df.to_pandas()
+    df_pd["tier_chasing_global_certain"] = [
+        cert_tier(t, lo, hi, "+")
+        for t, lo, hi in zip(df_pd["tier_chasing_global"],
+                              df_pd["chasing_clutch_lo80"],
+                              df_pd["chasing_clutch_hi80"])
+    ]
+    df_pd["tier_protecting_global_certain"] = [
+        cert_tier(t, lo, hi, "+")
+        for t, lo, hi in zip(df_pd["tier_protecting_global"],
+                              df_pd["protecting_clutch_lo80"],
+                              df_pd["protecting_clutch_hi80"])
+    ]
+    return pl.from_pandas(df_pd)
+
+
 def _add_significance(df: pl.DataFrame) -> pl.DataFrame:
     """Sig flag bayesiana: P(idx>0|data) > 0.95 → Sig clutch; <0.05 → Sig anti."""
     return df.with_columns([
@@ -297,40 +570,97 @@ def build_pcj_table() -> pl.DataFrame:
     print("[M15] Vector PCJ summary 4-canal directional...")
     cate_wide = _build_pcj_summary_vector(cate_wide)
 
+    print("[M15 v2] Acute window CATE +-5 min per player (T2.7 hallazgo)...")
+    acute = _compute_acute_window_per_player(window=ACUTE_WINDOW)
+    print(f"  acute: {acute.height} jugadores con acute deltas")
+
+    print("[M15 v2] Intra-player cross-canal correlation desde samples...")
+    intra = _compute_intra_player_corr(m14["fit"])
+
+    print("[M15 v2] Channel credibility (M12 pre-trend + M13 AIPW + sensitivity)...")
+    cred = _load_channel_credibility()
+
+    print("[M15 v2] Power flags per channel desde T2.5...")
+    pwr = _load_power_flags()
+
+    print("[M15 v2] Player metadata (age, height) desde players.csv...")
+    age_h = _load_player_age_height()
+
+    print("[M15 v2] Leverage exposure desde M04 WP...")
+    lev = _load_leverage_exposure()
+
+    print("[M15 v2] Near-miss exposure desde M06...")
+    nm = _load_nearmiss_exposure()
+
+    print("[M15 v2] Baseline absoluto canales (M08-M11 outside windows)...")
+    baselines = _load_baseline_channels()
+
     print("[M15] Joining + filtrando minutos minimos...")
     df = (cate_wide
             .join(posterior_probs, on="pff_player_id", how="inner")
-            .join(meta, on="pff_player_id", how="left")
-            .join(minutes, on="pff_player_id", how="left")
-            .join(shocks, on="pff_player_id", how="left"))
+            .join(meta,            on="pff_player_id", how="left")
+            .join(minutes,         on="pff_player_id", how="left")
+            .join(shocks,          on="pff_player_id", how="left")
+            .join(acute,           on="pff_player_id", how="left")
+            .join(intra,           on="pff_player_id", how="left")
+            .join(age_h,           on="pff_player_id", how="left")
+            .join(lev,             on="pff_player_id", how="left")
+            .join(nm,              on="pff_player_id", how="left")
+            .join(baselines,       on="pff_player_id", how="left"))
     n_total = df.height
     df = df.filter(pl.col("minutes_played") >= MIN_MINUTES)
     print(f"  {df.height}/{n_total} jugadores >={MIN_MINUTES} min")
 
-    print("[M15] Rankings + tiers + sig flags...")
+    print("[M15] Rankings + tiers + sig flags + uncertainty + channel credibility wide...")
     df = _add_rankings(df)
     df = _add_tiers(df)
+    df = _add_tier_with_uncertainty(df)
     df = _add_significance(df)
 
+    # Pivot channel credibility (4ch x 2sh = 8 cols channel_credibility_*)
+    cred_wide = cred.with_columns(
+        pl.concat_str([pl.col("channel"), pl.lit("_"), pl.col("shock_type")])
+            .alias("key")
+    ).pivot("key", index=None, values="channel_credibility")
+    # Materialize channel-level metadata as repeated cols (small static set)
+    cred_dict = {f"cred_{r['channel']}_{r['shock_type']}":
+                 r["channel_credibility"] for r in cred.iter_rows(named=True)}
+    pwr_dict = {f"power_{r['channel']}_{r['shock_type']}": r["power_flag"]
+                for r in pwr.iter_rows(named=True)}
+    df = df.with_columns([pl.lit(v).alias(k) for k, v in cred_dict.items()] +
+                          [pl.lit(v).alias(k) for k, v in pwr_dict.items()])
+
     # Reordenar columnas: identidad → exposicion → indices → posterior probs →
-    # 4-vec → CATEs 8 → rankings → tiers → sig
+    # 4-vec → CATEs 8 → acute → baselines → meta → rankings → tiers → sig → cred
     front = ["pff_player_id", "player_name", "team_name", "position_group",
-             "minutes_played", "n_matches_played", "n_shocks_for", "n_shocks_against",
+             "age_years", "height_cm",
+             "minutes_played", "n_matches_played",
+             "n_shocks_for", "n_shocks_against",
              "n_shocks_groups", "n_shocks_ko",
+             "n_high_leverage_shocks", "avg_leverage_at_shock",
+             "max_leverage_at_shock",
+             "n_nearmiss_exposure",
              "chasing_clutch_idx", "chasing_clutch_sd",
              "chasing_clutch_lo80", "chasing_clutch_hi80",
              "protecting_clutch_idx", "protecting_clutch_sd",
              "protecting_clutch_lo80", "protecting_clutch_hi80",
              "p_chasing_positive", "p_protecting_positive", "p_dual_positive",
+             "intra_corr_chasing_atk_off", "intra_corr_protecting_def_phys",
              "pcj_atk", "pcj_def", "pcj_off", "pcj_phys",
              "rank_chasing_global", "rank_protecting_global",
              "rank_chasing_in_position", "rank_protecting_in_position",
              "tier_chasing_global", "tier_protecting_global",
+             "tier_chasing_global_certain", "tier_protecting_global_certain",
              "tier_chasing_in_position", "tier_protecting_in_position",
              "sig_chasing", "sig_protecting"]
     cate_cols = sorted([c for c in df.columns if c.startswith("cate_")])
+    acute_cols = sorted([c for c in df.columns if c.startswith("acute_")])
+    base_cols = sorted([c for c in df.columns if c.startswith("baseline_")])
+    cred_cols = sorted([c for c in df.columns if c.startswith("cred_")])
+    power_cols = sorted([c for c in df.columns if c.startswith("power_")])
     pct_cols = [c for c in df.columns if c.startswith("pct_")]
-    cols = [c for c in front if c in df.columns] + cate_cols + pct_cols
+    cols = ([c for c in front if c in df.columns] + cate_cols + acute_cols +
+            base_cols + cred_cols + power_cols + pct_cols)
     cols += [c for c in df.columns if c not in cols]
     df = df.select(cols)
     return df

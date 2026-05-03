@@ -57,12 +57,20 @@ src/
 │                           #   Indice Cerrojo (def_GF + phys_GF) + ranking
 │                           #   within position. 598 jugadores con (β_atk,
 │                           #   β_def, β_off, β_phys) IC 80%/95%
-├── M15_pcj.py              # Perfil Clutch del Jugador ensamblaje scout-facing:
-│                           #   234 jugadores >=270 min x 71 cols (8 CATEs +
-│                           #   IC80 + 4-vec PCJ summary + 2 indices + posterior
-│                           #   probs + rankings + tier labels + sig flags
-│                           #   bayesianos via samples NUTS) + 4 aux tables
-│                           #   Top Cerrojo Sig: Keylor/Sommer/Neuer (3 GKs WC22)
+├── M15_pcj.py              # Perfil Clutch del Jugador ensamblaje scout-facing TOP 1%
+│                           #   234 jugadores >=270 min x 109 cols integrando TODO
+│                           #   el flujo del pipeline: 8 CATEs M14 + IC80 + 2 indices
+│                           #   bayesianos + posterior probs P(idx>0|data) desde
+│                           #   samples NUTS + 4-vec PCJ directional + tier labels
+│                           #   global/in-position + tier_certain (Elite solo si
+│                           #   IC80 excluye 0) + sig flags + 8 acute_* (ventana
+│                           #   ACUTA +-5min T2.7 hallazgo) + intra-corr cross-canal
+│                           #   per jugador + 4 baselines absolutos M08-M11 + age/
+│                           #   height + leverage exposure M04 + nearmiss exposure
+│                           #   M06 + 8 channel_credibility (M12 pre-trend + M13
+│                           #   AIPW same_sign + Cinelli-Hazlett robustness) + 8
+│                           #   power_flag (T2.5 well/marginal/underpowered) + 4 aux
+│                           #   tables. Top Cerrojo Sig: Keylor/Sommer/Neuer (3 GKs)
 ├── (M16)                   # report PDF por jugador (pendiente)
 ├── M05B_calibration.py     # T4.12 PSxG calibration diagnostics (curve, ECE/MCE,
 │                           #   Brier decomposition Murphy 1973, isotonic mapping)
