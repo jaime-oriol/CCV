@@ -83,6 +83,7 @@ import pickle
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import polars as pl
 
 
@@ -148,16 +149,36 @@ def build_delta_panel(cache: bool = True) -> pl.DataFrame:
         rows.append(df)
     panel = pl.concat(rows)
 
-    # Anadir position_group + team_id desde shocks_table
+    # Anadir position_group + team_id + stage + minute desde shocks_table
     shocks = pl.read_parquet(derived / "shocks/shocks_table.parquet").select([
         pl.col("match_id").alias("pff_match_id"),
         "shock_id",
         pl.col("player_id").alias("pff_player_id"),
         "position_group",
         pl.col("player_team_id").alias("pff_team_id"),
+        "stage",                     # groups | ko (T1.3 column)
+        "minute",                    # minuto del shock para join leverage
     ]).unique(subset=["pff_match_id", "shock_id", "pff_player_id"])
     panel = panel.join(shocks, on=["pff_match_id", "shock_id", "pff_player_id"],
                         how="left")
+
+    # Anadir leverage del shock desde M04 WP per_minute
+    wp_path = derived / "wp" / "per_minute.parquet"
+    if wp_path.exists():
+        wp = pl.read_parquet(wp_path).select([
+            pl.col("match_id").alias("pff_match_id"),
+            "minute", "leverage",
+        ])
+        panel = panel.join(wp, on=["pff_match_id", "minute"], how="left")
+        # Z-score leverage para escala unitaria en el modelo
+        lev_mean = float(panel["leverage"].drop_nulls().mean() or 0.0)
+        lev_std = float(panel["leverage"].drop_nulls().std() or 1.0) or 1.0
+        panel = panel.with_columns(
+            ((pl.col("leverage").fill_null(lev_mean) - lev_mean) / lev_std)
+                .alias("leverage_z")
+        )
+    else:
+        panel = panel.with_columns(pl.lit(0.0).alias("leverage_z"))
 
     # Z-score within (channel, shock_type)
     panel = panel.with_columns(
@@ -201,20 +222,25 @@ def attach_pff_grades(panel: pl.DataFrame) -> pl.DataFrame:
 #  SECCION 2 — Modelo Multivariate Bayesian Hierarchical (numpyro NUTS)
 # ===========================================================================
 
-def _model_mvbcf(player_idx, shock_idx, channel_idx,
+def _model_mvbcf(player_idx, shock_idx, channel_idx, stage_idx, leverage_z,
                   pff_grade_z, y, n_players, n_teams, n_positions, n_shock_types,
-                  n_channels, player_to_team, player_to_position):
-    """NCP completo — evita funnel de Neal en todos los efectos aleatorios.
+                  n_channels, n_stages, player_to_team, player_to_position):
+    """NCP completo + stage FE + leverage continuous moderator (TIER A1+A2).
 
     Betancourt-Girolami 2015: parameterizacion NO centrada en b_team, b_pos,
-    eta_ga, eta_gf. El sampler NUTS ve solo variables N(0,1) + escalas
+    eta_ga, eta_gf, b_stage. El sampler NUTS ve solo variables N(0,1) + escalas
     independientes → geometria regular, buena mezcla.
+
+    Augmentaciones vs v3:
+      - b_stage[stage, k] : effect groups vs ko (T2.8 demostro fisico-GA KO 4x)
+      - beta_lev[k]       : continuous moderator del leverage del shock (M04)
 
     Efectos individuales separados por shock_type (GA y GF independientes)
     para que los indices Remontador/Cerrojo capturen respuesta INDIVIDUAL
-    al shock especifico, neta de efectos de equipo y posicion.
+    al shock especifico, neta de equipo/posicion/STAGE/LEVERAGE.
 
-    shock_idx: GOAL_AGAINST=0, GOAL_FOR=1 (sorted alphabetically — assert en fit_cate_nuts)
+    shock_idx: GOAL_AGAINST=0, GOAL_FOR=1 (sorted alphabetically)
+    stage_idx: groups=0, ko=1                (sorted alphabetically)
     """
     import jax.numpy as jnp
     import numpyro
@@ -230,8 +256,16 @@ def _model_mvbcf(player_idx, shock_idx, channel_idx,
     # PFF grade coefficient por canal
     gamma = numpyro.sample("gamma", dist.Normal(0.0, 1.0).expand([n_channels]).to_event(1))
 
+    # Leverage moderator continuous per channel (escala 0.5 prior — efectos sub-SD)
+    beta_lev = numpyro.sample("beta_lev", dist.Normal(0.0, 0.5).expand([n_channels]).to_event(1))
+
     # Shock-type population mean (intercepto medio por tipo de shock)
     mu_shock = numpyro.sample("mu_shock", dist.Normal(0.0, 0.5).expand([n_shock_types, n_channels]).to_event(2))
+
+    # Stage como fixed effect (Normal directa, NO jerarquia — solo 2 niveles
+    # groups/ko, no necesita shrinkage). Mas barato HMC que NCP.
+    b_stage = numpyro.sample("b_stage",
+        dist.Normal(0.0, 0.3).expand([n_stages, n_channels]).to_event(2))
 
     # NCP para b_team y b_position — b = sigma * raw, raw ~ N(0,1)
     b_team_raw = numpyro.sample("b_team_raw", dist.Normal(0, 1).expand([n_teams, n_channels]).to_event(2))
@@ -262,9 +296,12 @@ def _model_mvbcf(player_idx, shock_idx, channel_idx,
         + b_team[player_to_team]
         + b_position[player_to_position])
 
-    # Likelihood: obs = mu_shock[s,k] + b_context[i,k] + eta[i,s,k] + eps
+    # Likelihood: obs = mu_shock[s,k] + b_context[i,k] + b_stage[stage,k]
+    #                  + beta_lev[k]*lev_z + eta[i,s,k] + eps
     pred = (mu_shock[shock_idx, channel_idx]
             + b_context[player_idx, channel_idx]
+            + b_stage[stage_idx, channel_idx]
+            + beta_lev[channel_idx] * leverage_z
             + eta_player[player_idx, shock_idx, channel_idx])
     with numpyro.plate("N", len(y)):
         numpyro.sample("obs", dist.Normal(pred, sigma_eps[channel_idx]), obs=y)
@@ -294,14 +331,20 @@ def fit_cate_nuts(panel: pl.DataFrame,
     positions = sorted(df["position_group"].unique())
     shock_types = sorted(df["shock_type"].unique())
     channels = sorted(df["channel"].unique())
+    stages = sorted(df["stage"].dropna().unique())
     p_to_idx = {p: i for i, p in enumerate(players)}
     t_to_idx = {t: i for i, t in enumerate(teams)}
     pos_to_idx = {p: i for i, p in enumerate(positions)}
     sh_to_idx = {s: i for i, s in enumerate(shock_types)}
     ch_to_idx = {c: i for i, c in enumerate(channels)}
+    stage_to_idx = {s: i for i, s in enumerate(stages)}
     # El modelo asume GOAL_AGAINST=0, GOAL_FOR=1 (sorted alphabetical)
     assert sh_to_idx.get("GOAL_AGAINST") == 0 and sh_to_idx.get("GOAL_FOR") == 1, \
         f"Orden shock_types inesperado: {sh_to_idx}"
+    # stages sorted alfabeticamente: groups=0, ko=1 (smoke tests pueden tener solo uno)
+    if "groups" in stage_to_idx and "ko" in stage_to_idx:
+        assert stage_to_idx["groups"] == 0 and stage_to_idx["ko"] == 1, \
+            f"Orden stages inesperado: {stage_to_idx}"
 
     # Player → team y position lookups
     p_to_team = {}
@@ -320,15 +363,17 @@ def fit_cate_nuts(panel: pl.DataFrame,
     pff_grade_z_arr = np.array(
         [p_to_grade_z.get(p, 0.0) for p in players], dtype=np.float32)
 
-    df = df[df["pff_team_id"].notna()].copy()
+    df = df[df["pff_team_id"].notna() & df["stage"].notna()].copy()
     player_idx = df["pff_player_id"].map(p_to_idx).values.astype(np.int32)
     shock_idx = df["shock_type"].map(sh_to_idx).values.astype(np.int32)
     channel_idx = df["channel"].map(ch_to_idx).values.astype(np.int32)
+    stage_idx = df["stage"].map(stage_to_idx).values.astype(np.int32)
+    leverage_z = df.get("leverage_z", pd.Series(np.zeros(len(df)))).fillna(0.0).values.astype(np.float32)
     y = df["delta_z"].values.astype(np.float32)
 
     print(f"  NUTS: N={len(y)}, players={len(players)}, teams={len(teams)}, "
           f"positions={len(positions)}, shock_types={len(shock_types)}, "
-          f"channels={len(channels)}")
+          f"channels={len(channels)}, stages={len(stages)}")
     print(f"  warmup={num_warmup}, samples={num_samples}, chains={num_chains}")
 
     # target_accept_prob=0.9 recomendado para modelos con LKJ + jerarquia
@@ -337,9 +382,10 @@ def fit_cate_nuts(panel: pl.DataFrame,
                  num_chains=num_chains, progress_bar=True)
     mcmc.run(
         jax.random.PRNGKey(seed),
-        player_idx, shock_idx, channel_idx,
+        player_idx, shock_idx, channel_idx, stage_idx, leverage_z,
         pff_grade_z_arr, y,
-        len(players), len(teams), len(positions), len(shock_types), len(channels),
+        len(players), len(teams), len(positions), len(shock_types),
+        len(channels), len(stages),
         player_to_team_arr, player_to_position_arr,
         extra_fields=("diverging", "accept_prob"),
     )
@@ -364,6 +410,7 @@ def fit_cate_nuts(panel: pl.DataFrame,
         "pos_to_idx":        pos_to_idx,
         "sh_to_idx":         sh_to_idx,
         "ch_to_idx":         ch_to_idx,
+        "stage_to_idx":      stage_to_idx,
         "player_to_team":    player_to_team_arr,
         "player_to_position": player_to_position_arr,
         "pff_grade_z":       pff_grade_z_arr,
@@ -714,7 +761,10 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
     print("[SMOKE] Cargando panel mini ({} partidos)...".format(n_matches))
     panel_full = build_delta_panel(cache=True)
     panel_full = attach_pff_grades(panel_full)
-    matches = panel_full["pff_match_id"].unique().sort()[:n_matches]
+    # Mezclar groups + KO para smoke (asegura ambos stages presentes)
+    all_matches = panel_full["pff_match_id"].unique().sort()
+    matches = pl.concat([all_matches.head(n_matches // 2),
+                          all_matches.tail(n_matches - n_matches // 2)]).unique()
     panel = panel_full.filter(pl.col("pff_match_id").is_in(matches))
     n_rows, n_players = panel.height, panel["pff_player_id"].n_unique()
     print(f"  mini panel: {n_rows:,} rows, {n_players} players")

@@ -33,7 +33,7 @@ Convencion de tiempos:
 Output: data/parquet/derived/shocks/shocks_table.parquet
 
 Acceptance (ARCHITECTURE): ~172 shocks-gol totales, tabla larga
-~(175 goles val) x ~22 jugadores en campo = ~3.800-4.000 filas player-level,
+~(172 goles val) x ~22 jugadores en campo = ~3.800-4.000 filas player-level,
 distribuida en GOAL_FOR / GOAL_AGAINST aproximadamente 50/50.
 
 Depende de: M01 (events/metadata), M03 (goals_timeline, player_minutes).
@@ -135,11 +135,18 @@ def build_shocks_table(cache: bool = True,
 
     all_rows = []
     shock_id_counter = 0
-    n_goals_total = 0
 
     # Stage map: week 1-3 = groups (48 partidos), 4-8 = ko (16 partidos)
     md = load_metadata().select(["id", "week"])
     week_map = {int(r["id"]): int(r["week"]) for r in md.iter_rows(named=True)}
+
+    # Leverage map: M04 WP per_minute per (match, minute). Disponible si M04 ejecutado.
+    wp_path = _DERIVED.parent / "wp" / "per_minute.parquet"
+    leverage_map: dict[tuple[int, int], float] = {}
+    if wp_path.exists():
+        wp = pl.read_parquet(wp_path).select(["match_id", "minute", "leverage"])
+        for r in wp.iter_rows(named=True):
+            leverage_map[(int(r["match_id"]), int(r["minute"]))] = float(r["leverage"] or 0.0)
 
     for mid in list_event_match_ids():
         goals = goals_timeline(mid)
@@ -155,7 +162,6 @@ def build_shocks_table(cache: bool = True,
 
         for i, g in enumerate(goals.iter_rows(named=True)):
             shock_id_counter += 1
-            n_goals_total += 1
             t = int(g["start_game_clock"])
             p = int(g["period"])
             minute_goal = int(g["minute"])
@@ -197,11 +203,13 @@ def build_shocks_table(cache: bool = True,
                     (win_post_min[0] <= m_out <= win_post_min[1])
                 )
 
+                shock_leverage = leverage_map.get((mid, minute_goal), 0.0)
                 all_rows.append({
                     "match_id":           mid,
                     "shock_id":           shock_id_counter,
                     "stage":              match_stage,
                     "match_week":         match_week,
+                    "leverage_at_shock":  shock_leverage,
                     "t_event_seconds":    t,
                     "period":             p,
                     "minute":             minute_goal,

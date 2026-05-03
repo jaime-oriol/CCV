@@ -124,15 +124,96 @@ def _detect_goal_line_clearance(psxg: pl.DataFrame) -> pl.DataFrame:
 
 
 def _detect_glt_denied(psxg: pl.DataFrame) -> pl.DataFrame:
-    """(e) GLT no-gol: MUY raro en WC22. Heuristica pobre sin tracking ad-hoc.
+    """(e) GLT no-gol via PFF tracking: ball cruzo linea de gol pero no
+    se conto como gol (TIER B3).
 
-    Por ahora retorna vacio (no hay marker SB directo). M06 puede re-invocarse
-    con datos tracking PFF si se añade detector fine-grained en el futuro.
+    Algoritmo:
+      1. Para cada shot SB de WC22 (no-goal), busca window 2s post-shot
+         en PFF tracking del partido equivalente.
+      2. Detecta frames donde ball esta dentro de la goal mouth:
+         |ball.y| < 1.83m (goal half width FIFA) AND
+         ball.x dentro de 1m de la linea de gol (signed).
+      3. Si frames detectados pero shot_outcome != Goal → GLT-denied.
+
+    WC22 tiene casos extremadamente raros (caso JPN-ESP famoso). Esperado
+    0-2 detections totales sobre 64 partidos.
     """
-    return psxg.head(0).with_columns(
-        pl.lit("e_glt_denied").alias("near_miss_type"),
-        pl.lit(None, dtype=pl.Float64).alias("margin_info"),
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from M01_loader_pff import scan_tracking, load_metadata
+    from M03_preprocess import sb_to_pff_match_id
+
+    sb2pff = sb_to_pff_match_id()
+    # GLT-denied REAL: ball cruza la linea de gol fisicamente. La definicion
+    # estricta requiere que TODO el balon (radio ~0.11m) cruce la linea.
+    # Threshold conservador: ball center entre 0 y 0.05m PASADA la linea
+    # (valor positivo = adentro del gol). Caso JPN-ESP fue ~10cm dentro.
+    GOAL_MOUTH_HALF_M = 1.83
+    GOAL_LINE_INSIDE_M = 0.05    # ball center hasta 5cm dentro
+    BALL_HEIGHT_MAX_M = 2.4      # bajo travesano (2.44m FIFA)
+
+    rows = []
+    candidates = psxg.filter(
+        (pl.col("is_goal") == 0) & pl.col("shot_outcome").is_in([
+            "Saved", "Saved Off Target", "Off T", "Saved to Post"
+        ])
     )
+    for sb_mid in candidates["sb_match_id"].unique().to_list():
+        pff_mid = sb2pff.get(int(sb_mid))
+        if pff_mid is None:
+            continue
+        try:
+            md = load_metadata(pff_mid).row(0, named=True)
+            pitch_half = float(md["pitch_length"]) / 2.0
+        except Exception:
+            continue
+        shots_match = candidates.filter(pl.col("sb_match_id") == sb_mid)
+        if shots_match.height == 0:
+            continue
+        try:
+            tr = scan_tracking(pff_mid).select([
+                "period", "periodGameClockTime", "balls"
+            ]).collect()
+        except Exception:
+            continue
+        # Vectorizar: extraer ball.x/y/z por frame
+        balls = tr.select([
+            "period", "periodGameClockTime",
+            pl.col("balls").list.first().struct.field("x").alias("ball_x"),
+            pl.col("balls").list.first().struct.field("y").alias("ball_y"),
+            pl.col("balls").list.first().struct.field("z").alias("ball_z"),
+        ]).filter(pl.col("ball_x").is_not_null())
+        if balls.height == 0:
+            continue
+        for shot in shots_match.iter_rows(named=True):
+            shot_period = shot.get("period") or 1
+            # SB minute es minutos absolutos en mitad; convertir a seg de periodo
+            t_shot_s = (shot.get("minute") or 0) * 60 + (shot.get("second") or 0)
+            window = balls.filter(
+                (pl.col("period") == shot_period) &
+                (pl.col("periodGameClockTime") >= t_shot_s) &
+                (pl.col("periodGameClockTime") <= t_shot_s + 2.0)
+            )
+            if window.height == 0:
+                continue
+            # ball center PASADA la linea (signed: x > pitch_half o x < -pitch_half)
+            in_goal_mouth = window.filter(
+                (pl.col("ball_y").abs() < GOAL_MOUTH_HALF_M) &
+                (pl.col("ball_z") < BALL_HEIGHT_MAX_M) &
+                ((pl.col("ball_x").abs() - pitch_half) > 0.0) &
+                ((pl.col("ball_x").abs() - pitch_half) < GOAL_LINE_INSIDE_M)
+            )
+            if in_goal_mouth.height >= 1:
+                rows.append({**shot,
+                             "near_miss_type": "e_glt_denied",
+                             "margin_info": float(in_goal_mouth["ball_x"]
+                                                    .abs().min() - pitch_half)})
+    if not rows:
+        return psxg.head(0).with_columns(
+            pl.lit("e_glt_denied").alias("near_miss_type"),
+            pl.lit(None, dtype=pl.Float64).alias("margin_info"),
+        )
+    return pl.DataFrame(rows)
 
 
 _OFFSIDE_SCHEMA = {

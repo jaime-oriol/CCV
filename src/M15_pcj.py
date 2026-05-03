@@ -55,7 +55,72 @@ _AUX_DIR     = _OUT_DIR / "pcj_aux"
 
 MIN_MINUTES = 270
 SIG_THRESHOLD = 0.95
-ACUTE_WINDOW = 5    # T2.7 hallazgo: efectos son ACUTOS
+ACUTE_WINDOW = 5              # T2.7 hallazgo: efectos son ACUTOS
+HIGH_LEVERAGE_THRESHOLD = 0.05   # M04 leverage > 0.05 = "high stress" shock
+
+
+# ----------------------------------------------------------------------------
+# Schema contract para M16 (PCJ table downstream consumer)
+# ----------------------------------------------------------------------------
+# Campos requeridos para que M16 pueda generar PDFs por jugador. Si falta
+# alguno, M15 falla con mensaje claro antes de persistir.
+PCJ_REQUIRED_COLS: dict[str, type] = {
+    # Identidad (5)
+    "pff_player_id": pl.Int64, "player_name": pl.String,
+    "team_name": pl.String, "position_group": pl.String,
+    "age_years": pl.Float64,
+    # Exposicion (10)
+    "minutes_played": pl.Int64, "n_matches_played": pl.UInt32,
+    "n_shocks_for": pl.UInt32, "n_shocks_against": pl.UInt32,
+    "n_shocks_groups": pl.UInt32, "n_shocks_ko": pl.UInt32,
+    "n_high_leverage_shocks": pl.UInt32,
+    "avg_leverage_at_shock": pl.Float64,
+    "n_nearmiss_exposure": pl.Float64,
+    # Indices (8)
+    "chasing_clutch_idx": pl.Float64, "chasing_clutch_lo80": pl.Float64,
+    "chasing_clutch_hi80": pl.Float64,
+    "protecting_clutch_idx": pl.Float64, "protecting_clutch_lo80": pl.Float64,
+    "protecting_clutch_hi80": pl.Float64,
+    # Posterior probs (3)
+    "p_chasing_positive": pl.Float64, "p_protecting_positive": pl.Float64,
+    "p_dual_positive": pl.Float64,
+    # PCJ 4-vec summary (4)
+    "pcj_atk": pl.Float64, "pcj_def": pl.Float64,
+    "pcj_off": pl.Float64, "pcj_phys": pl.Float64,
+    # Rankings (4)
+    "rank_chasing_global": pl.UInt32, "rank_protecting_global": pl.UInt32,
+    "rank_chasing_in_position": pl.UInt32,
+    "rank_protecting_in_position": pl.UInt32,
+    # Tier + Sig (4)
+    "tier_chasing_global": pl.String, "tier_protecting_global": pl.String,
+    "sig_chasing": pl.String, "sig_protecting": pl.String,
+}
+
+
+def validate_pcj_schema(df: pl.DataFrame) -> None:
+    """Falla con mensaje claro si faltan cols requeridas o tipos no coinciden.
+
+    M16 lee este parquet y necesita estabilidad de cols/tipos. Llamada
+    obligatoria antes de write_parquet en main().
+    """
+    missing = [c for c in PCJ_REQUIRED_COLS if c not in df.columns]
+    if missing:
+        raise ValueError(f"PCJ schema FALTAN cols: {missing}")
+    bad_types = []
+    for c, expected in PCJ_REQUIRED_COLS.items():
+        actual = df[c].dtype
+        # Permitimos UInt32/Int64 intercambiables y Float32/Float64 intercambiables
+        if expected in (pl.UInt32, pl.Int64) and actual in (pl.UInt32, pl.Int64,
+                                                              pl.UInt64, pl.Int32):
+            continue
+        if expected in (pl.Float32, pl.Float64) and actual in (pl.Float32, pl.Float64):
+            continue
+        if expected == pl.String and actual == pl.String:
+            continue
+        if actual != expected:
+            bad_types.append(f"{c}: expected {expected} got {actual}")
+    if bad_types:
+        raise TypeError(f"PCJ schema TYPES wrong: {bad_types}")
 
 CHANNELS = ["ataque", "defensa", "offball", "fisico"]
 SHOCK_TYPES = ["GOAL_AGAINST", "GOAL_FOR"]   # GA=0, GF=1 (M14 sort order)
@@ -617,12 +682,9 @@ def build_pcj_table() -> pl.DataFrame:
     df = _add_tier_with_uncertainty(df)
     df = _add_significance(df)
 
-    # Pivot channel credibility (4ch x 2sh = 8 cols channel_credibility_*)
-    cred_wide = cred.with_columns(
-        pl.concat_str([pl.col("channel"), pl.lit("_"), pl.col("shock_type")])
-            .alias("key")
-    ).pivot("key", index=None, values="channel_credibility")
-    # Materialize channel-level metadata as repeated cols (small static set)
+    # Channel-level metadata (cred + power) repetidos como cols planas para
+    # que scout queries no requieran join externo. Se mantienen estaticos a
+    # lo largo del torneo (heuristica HIGH/MED/LOW agregada population-level).
     cred_dict = {f"cred_{r['channel']}_{r['shock_type']}":
                  r["channel_credibility"] for r in cred.iter_rows(named=True)}
     pwr_dict = {f"power_{r['channel']}_{r['shock_type']}": r["power_flag"]
@@ -709,6 +771,7 @@ def build_aux_tables(pcj: pl.DataFrame) -> dict:
 
 def main():
     pcj = build_pcj_table()
+    validate_pcj_schema(pcj)             # falla si M16 contract roto
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
     _AUX_DIR.mkdir(parents=True, exist_ok=True)
     out_path = _OUT_DIR / "pcj_table.parquet"

@@ -108,7 +108,7 @@ def _normalize(obj: Any) -> Any:
     # polars unifica a String y se pierde el tipo Python pero NO el valor).
     if isinstance(obj, str):
         s = obj.strip()
-        if s and (s[0] == "-" and s[1:].isdigit() or s.isdigit()):
+        if s and s.lstrip("-").isdigit():
             try:
                 return int(s)
             except ValueError:

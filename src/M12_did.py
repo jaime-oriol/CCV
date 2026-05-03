@@ -128,7 +128,22 @@ def build_event_study_panel(channel: str,
         pl.col("player_id").alias("pff_player_id"),
         pl.col("period").alias("shock_period"),
         "position_group",
+        "stage", "minute",                   # T1.3 + para join leverage M04
     ])
+
+    # Anadir leverage M04 al shock-level (1 valor per shock-minute)
+    wp_path = derived_dir / "wp" / "per_minute.parquet"
+    if wp_path.exists():
+        wp = pl.read_parquet(wp_path).select([
+            pl.col("match_id").alias("pff_match_id"), "minute", "leverage",
+        ])
+        shocks_slim = shocks_slim.join(wp, on=["pff_match_id", "minute"],
+                                         how="left")
+        shocks_slim = shocks_slim.with_columns(
+            pl.col("leverage").fill_null(0.0)
+        )
+    else:
+        shocks_slim = shocks_slim.with_columns(pl.lit(0.0).alias("leverage"))
 
     # Esqueleto FULL (player x shock x relative_min ∈ [-10, +10]) — garantiza
     # que cada (player, shock) tiene 21 bins, rellenando missing donde toque.
@@ -143,6 +158,7 @@ def build_event_study_panel(channel: str,
         "pff_match_id", "shock_id", "shock_type",
         "pff_player_id", "position_group",
         "shock_period", "sec_abs", "relative_min",
+        "stage", "leverage",
     ])
 
     pm_slim = pm.select([
@@ -187,6 +203,7 @@ def build_event_study_panel(channel: str,
         "pff_match_id", "shock_id", "shock_type",
         "pff_player_id", "position_group",
         "relative_min", "outcome", "post",
+        "stage", "leverage",
     ])
 
     if cache:
@@ -257,6 +274,71 @@ def estimate_ate(panel: pl.DataFrame, shock_type: str | None = None) -> dict:
         "n_clusters_player": int(pdf["pff_player_id"].nunique()),
         "n_shocks": int(pdf["shock_id"].nunique()),
     }
+
+
+# ===========================================================================
+#  SECCION 2.5 — ATE con controles stage + leverage (TIER A3)
+# ===========================================================================
+
+def estimate_ate_with_controls(panel: pl.DataFrame,
+                                 shock_type: str | None = None) -> dict:
+    """ATE con stage como FE adicional + leverage como interaction con post.
+
+    Spec extendida vs estimate_ate:
+        y_iτs = α_(i,s) + β · Post_τ + δ · Post_τ · 1{stage=ko}
+                + γ · Post_τ · leverage_z + ε_iτs
+
+    Captura heterogeneidad ATE por:
+      - stage (KO vs groups): T2.8 demostro fisico-GA KO 4× magnitude
+      - leverage del shock (continuous): high-leverage shocks mas informativos
+
+    Reporta beta (ATE base) + delta (ATE incremento KO) + gamma (ATE per
+    unit leverage_z). FE player_shock + cluster player.
+    """
+    import pyfixest as pf
+
+    df = panel
+    if shock_type:
+        df = df.filter(pl.col("shock_type") == shock_type)
+    df = df.filter(pl.col("relative_min") != 0)
+    if df.height == 0:
+        return {k: np.nan for k in ("ate_base", "se_base", "ate_ko_extra",
+                                      "se_ko_extra", "ate_per_lev",
+                                      "se_per_lev", "ate_at_high_lev_ko",
+                                      "n_obs")}
+
+    pdf = df.to_pandas()
+    pdf["player_shock"] = (pdf["pff_player_id"].astype(str) + "_"
+                            + pdf["shock_id"].astype(str))
+    # leverage centrado (z-score basado en dataset)
+    lev = pdf["leverage"].astype(float).fillna(0.0)
+    pdf["leverage_z"] = (lev - lev.mean()) / (lev.std() or 1.0)
+    pdf["is_ko"] = (pdf["stage"] == "ko").astype(int)
+    pdf["post_x_ko"] = pdf["post"] * pdf["is_ko"]
+    pdf["post_x_lev"] = pdf["post"] * pdf["leverage_z"]
+
+    fit = pf.feols(
+        "outcome ~ post + post_x_ko + post_x_lev | player_shock",
+        data=pdf,
+        vcov={"CRV1": "pff_player_id"},
+    )
+    coefs = fit.coef()
+    ses = fit.se()
+    b_base  = float(coefs.get("post", np.nan))
+    b_ko    = float(coefs.get("post_x_ko", np.nan))
+    b_lev   = float(coefs.get("post_x_lev", np.nan))
+    se_base = float(ses.get("post", np.nan))
+    se_ko   = float(ses.get("post_x_ko", np.nan))
+    se_lev  = float(ses.get("post_x_lev", np.nan))
+    # ATE en KO con leverage_z=+1: ate_base + ate_ko + ate_per_lev*1
+    ate_high = b_base + b_ko + b_lev
+    return dict(
+        ate_base=b_base, se_base=se_base,
+        ate_ko_extra=b_ko, se_ko_extra=se_ko,
+        ate_per_lev=b_lev, se_per_lev=se_lev,
+        ate_at_high_lev_ko=ate_high,
+        n_obs=int(pdf.shape[0]),
+    )
 
 
 # ===========================================================================
@@ -521,7 +603,7 @@ def compute_all(cache: bool = True, overwrite: bool = False) -> dict[str, Path]:
         panel_long.write_parquet(out_paths["panel"], compression="snappy")
 
     # ATE + BJS + diagnostics + event-study + HonestDiD por (canal, shock_type)
-    ate_rows, es_rows_all, honest_rows, diag_rows = [], [], [], []
+    ate_rows, ate_ctrl_rows, es_rows_all, honest_rows, diag_rows = [], [], [], [], []
     for ch, panel in panels.items():
         for st in SHOCK_TYPES:
             ate_fe = estimate_ate(panel, shock_type=st)
@@ -531,6 +613,8 @@ def compute_all(cache: bool = True, overwrite: bool = False) -> dict[str, Path]:
                              "se_bjs": ate_bjs["se_bjs"],
                              "ci_lo_bjs": ate_bjs["ci_lo"],
                              "ci_hi_bjs": ate_bjs["ci_hi"]})
+            ate_ctrl = estimate_ate_with_controls(panel, shock_type=st)
+            ate_ctrl_rows.append({"channel": ch, "shock_type": st, **ate_ctrl})
             es = event_study_sa(panel, shock_type=st)
             es_with_ctx = es.with_columns([
                 pl.lit(ch).alias("channel"), pl.lit(st).alias("shock_type"),
@@ -542,12 +626,15 @@ def compute_all(cache: bool = True, overwrite: bool = False) -> dict[str, Path]:
             diag_rows.append({"channel": ch, "shock_type": st, **diag})
 
     ate_df = pl.DataFrame(ate_rows)
+    ate_ctrl_df = pl.DataFrame(ate_ctrl_rows)
     es_df_all = pl.concat(es_rows_all)
     honest_df = pl.DataFrame(honest_rows)
     diag_df = pl.DataFrame(diag_rows)
 
     if cache:
         ate_df.write_parquet(out_paths["ate"], compression="snappy")
+        ate_ctrl_df.write_parquet(_DERIVED / "ate_with_controls.parquet",
+                                    compression="snappy")
         es_df_all.write_parquet(out_paths["es"], compression="snappy")
         honest_df.write_parquet(out_paths["honest"], compression="snappy")
         diag_df.write_parquet(out_paths["diag"], compression="snappy")

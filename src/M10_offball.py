@@ -164,17 +164,24 @@ def _pff_frame_to_z02_df(frame_dict: dict,
                           home_id: int, away_id: int,
                           home_gk_jerseys: set[int], away_gk_jerseys: set[int],
                           vel_buffer: dict,
-                          frame_num: int, dt_sec: float) -> pd.DataFrame:
+                          frame_num: int, dt_sec: float,
+                          require_visible: bool = True) -> pd.DataFrame:
     """Convierte frame PFF a DataFrame pandas formato Z02.
 
     Z02 espera cols: x_tracking, y_tracking, team_id, is_ball, is_goalkeeper, vx, vy.
     PFF coords ya en metros centradas (0,0) -> compatible directamente.
     Velocities derivadas de buffer de posiciones previas.
+
+    require_visible (TIER B4): si True, descarta jugadores con visibility !=
+    'VISIBLE'. PFF reporta ESTIMATED para frames con tracking inferido (no
+    detectado). Filtrar VISIBLE elimina ruido de PPCF/OBSO downstream.
     """
     rows = []
     for p in (frame_dict.get("home_players") or []):
         x = p.get("x"); y = p.get("y"); jersey = p.get("jerseyNum")
         if x is None or y is None or jersey is None:
+            continue
+        if require_visible and (p.get("visibility") and p["visibility"] != "VISIBLE"):
             continue
         try: jnum = int(jersey)
         except (ValueError, TypeError): continue
@@ -198,6 +205,8 @@ def _pff_frame_to_z02_df(frame_dict: dict,
     for p in (frame_dict.get("away_players") or []):
         x = p.get("x"); y = p.get("y"); jersey = p.get("jerseyNum")
         if x is None or y is None or jersey is None:
+            continue
+        if require_visible and (p.get("visibility") and p["visibility"] != "VISIBLE"):
             continue
         try: jnum = int(jersey)
         except (ValueError, TypeError): continue

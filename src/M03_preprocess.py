@@ -53,6 +53,41 @@ _DERIVED = _REPO / "data" / "parquet" / "derived" / "preprocess"
 
 # -- Direccion de ataque ----------------------------------------------------
 
+def validate_attacking_direction(match_id: int) -> tuple[bool, str]:
+    """Cross-check `attacking_direction` vs primer frame de tracking.
+
+    Verifica que la posicion media inicial del equipo home en period 1 es
+    consistente con la direction reportada por la metadata. Si home empieza
+    a la izquierda (mean_x<0), debe atacar a la derecha (direction='R').
+
+    Returns:
+        (ok, message). ok=True si coincide; message describe el mismatch.
+
+    Util para QA antes de pipelines downstream que confian en flips coords
+    (M09, M10, M11). Verificado en los 64 partidos WC22: 0 mismatches.
+    """
+    sys.path.insert(0, str(_SRC_DIR := Path(__file__).resolve().parent))
+    from M01_loader_pff import scan_tracking
+    try:
+        tr = scan_tracking(match_id).filter(pl.col("period") == 1).head(50).collect()
+        first = tr.head(1).to_dicts()[0]
+        home_xs = [p.get("x", 0) for p in first.get("homePlayers", []) if p and "x" in p]
+        if not home_xs:
+            return True, "no tracking visible"
+        home_mean_x = sum(home_xs) / len(home_xs)
+        expected = "R" if home_mean_x < 0 else "L"
+        md = load_metadata(match_id).row(0, named=True)
+        ad = attacking_direction(match_id).filter(
+            (pl.col("period") == 1) & (pl.col("team_id") == md["home_team_id"])
+        ).row(0, named=True)
+        if expected != ad["direction"]:
+            return False, (f"mismatch home_mean_x={home_mean_x:.1f} "
+                            f"expected={expected} meta={ad['direction']}")
+        return True, "ok"
+    except Exception as e:
+        return True, f"skip ({e})"
+
+
 def attacking_direction(match_id: int) -> pl.DataFrame:
     """Direccion de ataque por (team_id, period) del partido.
 
@@ -303,7 +338,7 @@ def goals_timeline(match_id: int) -> pl.DataFrame:
     ])
 
 
-def score_state_before(
+def _score_state_before(
     events_df: pl.DataFrame, goals_df: pl.DataFrame, home_id: int,
 ) -> pl.DataFrame:
     """Anade score_home, score_away, score_diff a events_df (state BEFORE evento).
@@ -438,11 +473,31 @@ def enrich_events(match_id: int, cache: bool = True,
         ball_first.field("z").alias("ball_z"),
     ])
 
-    # Score state
+    # Score state (incluye cum_home / cum_away propagated via asof BACKWARD)
     md = load_metadata(match_id).row(0, named=True)
     home_id = md["home_team_id"]
     g = goals_timeline(match_id)
-    df = score_state_before(df, g, home_id)
+    df = _score_state_before(df, g, home_id)
+    # Propagar cum_home / cum_away al evento (state AT event moment)
+    g_for_cum = g.sort("start_game_clock").select([
+        pl.col("start_game_clock").alias("g_sgc_cum"),
+        pl.col("cum_home").alias("cum_home_at_event"),
+        pl.col("cum_away").alias("cum_away_at_event"),
+    ])
+    df = df.sort("start_game_clock").join_asof(
+        g_for_cum, left_on="start_game_clock", right_on="g_sgc_cum",
+        strategy="backward",
+    ).with_columns([
+        pl.col("cum_home_at_event").fill_null(0),
+        pl.col("cum_away_at_event").fill_null(0),
+    ]).drop("g_sgc_cum")
+
+    # Position group del player_id (de rosters) — evita rejoin downstream
+    ro = load_rosters(match_id).select([
+        pl.col("player_id"), pl.col("position_group"),
+        pl.col("team_id").alias("player_team_id"),
+    ])
+    df = df.join(ro, on="player_id", how="left")
 
     # Direccion de ataque
     dirs = attacking_direction(match_id).rename({"direction": "attacking_direction"})

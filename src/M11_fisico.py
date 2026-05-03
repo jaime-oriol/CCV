@@ -332,6 +332,9 @@ _PHYS_SCHEMA = {
     "z4_m":             pl.Float64, "z5_m": pl.Float64,
     "hmld_m":           pl.Float64,
     "n_frames":         pl.Int64,
+    # TIER B5: phase of play context (in/out possession fraction)
+    "frames_team_in_poss":  pl.Int64,
+    "frames_team_out_poss": pl.Int64,
 }
 
 
@@ -402,10 +405,35 @@ def _phys_metrics_per_minute(match_id: int) -> pl.DataFrame:
         pl.col("frameNum"), pl.col("period"),
         pl.col("homePlayersSmoothed").alias("home_players"),
         pl.col("awayPlayersSmoothed").alias("away_players"),
+        pl.col("game_event").struct.field("home_ball").alias("home_has_ball"),
     ]).collect()
 
     if frames.height == 0:
         return pl.DataFrame(schema=_PHYS_SCHEMA)
+
+    # TIER B5: contar frames per (period, minute, team_id) en/fuera de posesion
+    # → join al output. Usa home_has_ball; null se cuenta como out_poss.
+    poss_long = frames.with_columns([
+        pl.col("home_has_ball").fill_null(False).alias("home_has_ball"),
+    ])
+    # Reconstrir minute_in_period via period_start_frame
+    period_starts_p = poss_long.group_by("period").agg(
+        pl.col("frameNum").min().alias("ps")
+    )
+    poss_with_min = poss_long.join(period_starts_p, on="period").with_columns(
+        ((pl.col("frameNum") - pl.col("ps")) // int(frames_per_min))
+            .cast(pl.Int64).alias("minute_in_period")
+    )
+    poss_per_team = pl.concat([
+        poss_with_min.group_by(["period", "minute_in_period"]).agg([
+            pl.col("home_has_ball").sum().cast(pl.Int64).alias("frames_team_in_poss"),
+            (pl.len() - pl.col("home_has_ball").sum()).cast(pl.Int64).alias("frames_team_out_poss"),
+        ]).with_columns(pl.lit(home_id, dtype=pl.Int64).alias("team_id")),
+        poss_with_min.group_by(["period", "minute_in_period"]).agg([
+            (pl.len() - pl.col("home_has_ball").sum()).cast(pl.Int64).alias("frames_team_in_poss"),
+            pl.col("home_has_ball").sum().cast(pl.Int64).alias("frames_team_out_poss"),
+        ]).with_columns(pl.lit(away_id, dtype=pl.Int64).alias("team_id")),
+    ])
 
     def _side_long(players_col: str, side_team_id: int) -> pl.DataFrame:
         # NO filtramos confidence: homePlayersSmoothed ya viene Kalman-filled,
@@ -441,6 +469,11 @@ def _phys_metrics_per_minute(match_id: int) -> pl.DataFrame:
           .alias("player_id")
     ).filter(pl.col("player_id").is_not_null())
 
+    # Cache team_id per player_id para join con poss_per_team
+    player_team_map = {int(r["player_id"]): int(r["team_id"])
+                        for r in long.select(["player_id", "team_id"]).unique()
+                        .iter_rows(named=True)}
+
     rows_out = []
     for (player_id, period), group in long.sort("frameNum").group_by(
         ["player_id", "period"], maintain_order=True,
@@ -471,7 +504,18 @@ def _phys_metrics_per_minute(match_id: int) -> pl.DataFrame:
 
     if not rows_out:
         return pl.DataFrame(schema=_PHYS_SCHEMA)
-    out = pl.DataFrame(rows_out, schema_overrides=_PHYS_SCHEMA)
+    out = pl.DataFrame(rows_out)
+    # Join phase of play (frames_team_in/out_poss per period+minute+team)
+    out = out.with_columns(
+        pl.col("pff_player_id").replace_strict(player_team_map, default=None,
+                                                  return_dtype=pl.Int64)
+            .alias("team_id")
+    ).join(poss_per_team, on=["period", "minute_in_period", "team_id"],
+            how="left").drop("team_id").with_columns([
+        pl.col("frames_team_in_poss").fill_null(0).cast(pl.Int64),
+        pl.col("frames_team_out_poss").fill_null(0).cast(pl.Int64),
+    ])
+    out = out.cast({k: v for k, v in _PHYS_SCHEMA.items() if k in out.columns})
     # (player, period, minute_in_period) ya es unique por construccion.
     return out.sort(["pff_match_id", "pff_player_id",
                       "period", "minute_in_period"])

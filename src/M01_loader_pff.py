@@ -28,7 +28,7 @@ Uso rapido:
     inv    = list_matches()           # 64 filas, has_tracking True en las 64
     ev     = load_events(10502)       # eventos 1 partido, structs intactas
     tr     = scan_tracking(10502)     # LazyFrame de tracking
-    goals  = list_goals()             # todos los goles del torneo (175 validos)
+    goals  = list_goals()             # todos los goles del torneo (172 validos)
 """
 
 from __future__ import annotations
