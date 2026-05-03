@@ -77,7 +77,10 @@ HONEST_M_VALUES     = (0.5, 1.0, 2.0) # Rambachan-Roth M restrictions
 CHANNELS: dict[str, tuple[str, str, float | None]] = {
     "ataque":  ("ataque/per_minute.parquet",  "score_atk_minute", 0.0),
     "defensa": ("defensa/per_minute.parquet", "score_def_minute", 0.0),
-    "offball": ("offball/per_minute.parquet", "obso_mean",        0.0),
+    # c_obso_mean (counterfactual Teranishi 2022) — raw OBSO descartado tras
+    # validacion T1.2: raw -0.21 vs c_obso +0.30 con PFF off grades.
+    # null cuando atacking_frames=0 → fill 0 (jugador no atacaba ese minuto)
+    "offball": ("offball/per_minute.parquet", "c_obso_mean",      0.0),
     "fisico":  ("fisico/per_minute.parquet",  "score_phys",       None),
 }
 SHOCK_TYPES = ("GOAL_FOR", "GOAL_AGAINST")
@@ -277,7 +280,7 @@ def estimate_ate(panel: pl.DataFrame, shock_type: str | None = None) -> dict:
 
 
 # ===========================================================================
-#  SECCION 2.5 — ATE con controles stage + leverage (TIER A3)
+#  SECCION 2.5 — ATE con controles stage + leverage
 # ===========================================================================
 
 def estimate_ate_with_controls(panel: pl.DataFrame,

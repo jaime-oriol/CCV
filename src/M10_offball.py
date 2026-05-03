@@ -172,9 +172,9 @@ def _pff_frame_to_z02_df(frame_dict: dict,
     PFF coords ya en metros centradas (0,0) -> compatible directamente.
     Velocities derivadas de buffer de posiciones previas.
 
-    require_visible (TIER B4): si True, descarta jugadores con visibility !=
-    'VISIBLE'. PFF reporta ESTIMATED para frames con tracking inferido (no
-    detectado). Filtrar VISIBLE elimina ruido de PPCF/OBSO downstream.
+    require_visible: si True, descarta jugadores con visibility != 'VISIBLE'.
+    PFF reporta ESTIMATED para frames con tracking inferido (no detectado).
+    Filtrar VISIBLE elimina ruido de PPCF/OBSO downstream.
     """
     rows = []
     for p in (frame_dict.get("home_players") or []):

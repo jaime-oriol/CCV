@@ -100,7 +100,10 @@ _PFF_GRADES = _REPO / "data" / "parquet" / "derived" / "preprocess" / "pff_grade
 CHANNELS: dict[str, tuple[str, str, str]] = {
     "ataque":  ("ataque/per_shock_window.parquet",  "score_atk_pre", "score_atk_post"),
     "defensa": ("defensa/per_shock_window.parquet", "score_def_pre", "score_def_post"),
-    "offball": ("offball/per_shock_window.parquet", "obso_pre",      "obso_post"),
+    # c_obso (counterfactual Teranishi 2022). Raw OBSO descartado tras T1.2:
+    # raw correlaciona NEG (-0.21) con grades PFF y c_obso POS (+0.30).
+    # Raw mide ocupacion de pitch; c_obso mide contribucion del MOVIMIENTO.
+    "offball": ("offball/per_shock_window.parquet", "c_obso_pre",    "c_obso_post"),
     "fisico":  ("fisico/per_shock_window.parquet",  "score_phys_pre","score_phys_post"),
 }
 SHOCK_TYPES = ("GOAL_FOR", "GOAL_AGAINST")
@@ -901,7 +904,7 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
 # -- Sanity inline ---------------------------------------------------------
 
 if __name__ == "__main__":
-    import time, sys, warnings
+    import sys, warnings
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     warnings.filterwarnings("ignore")
 
@@ -913,4 +916,4 @@ if __name__ == "__main__":
 
     print("\n=== Smoke test OK — para el run completo lanza compute_all() manualmente ===")
     print("  Ejemplo: python -c \"from M14_cate import compute_all; compute_all(overwrite=True)\"")
-    print("  ETA: ~2h con NUTS 4 chains x 1000 iter sobre 14k obs.")
+    print("  ETA: ~22 min con NUTS 4 chains x 2000 iter sobre 14k obs.")

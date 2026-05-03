@@ -1,24 +1,31 @@
 """M15_pcj — Perfil Clutch del Jugador: ensamblaje scout-facing final.
 
-Lee outputs M14 + posterior samples + metadata → produce tabla maestra
-`outputs/pcj_table.parquet` con vector 4-canal × 2 shocks + indices + IC
-bayesianos + tier labels + posterior probabilities + rankings.
+Combina outputs M14 (CATE post-shock-de-gol) + M14b (pressure response sostenido
+bajo high-elim_prox) + M04/M06/M08-M12/M13 + metadata para producir la tabla
+maestra `outputs/pcj_table.parquet`.
 
-Decisiones de diseno (TOP 1% SOTA):
-  - **Threshold 270 min** (3 partidos completos, estandar scout)
-  - **8 CATEs preservados** (4 canales x 2 shocks) - chasing vs protecting
-    son fenomenos psicologicos distintos, agregar cancelaria signos
-  - **Vector PCJ summary 4-canal directional**:
-      pcj_atk = cate_atk_GA  (chasing → atk relevant cuando vas perdiendo)
-      pcj_def = cate_def_GF  (protecting → def relevant cuando vas ganando)
-      pcj_off = cate_off_GA  (chasing → off-ball cuando atacas resp.)
-      pcj_phys = cate_phys con max(|GA|,|GF|) signed (reactividad fisica)
-  - **Tier labels percentile-based** dual: global + within-position
-  - **Significance flag bayesiano**: P(idx>0|data) > 0.95 → "Sig clutch"
+3 dimensiones de clutch identificadas:
+  1. **Remontador** (chasing-clutch) — respuesta atk+off en ±10 min post-GA
+     captura "el que sube cuando hay que remontar"
+  2. **Cerrojo** (protecting-clutch) — respuesta def+phys en ±10 min post-GF
+     captura "el que aguanta cuando hay que aguantar"
+  3. **Pressure Response** (NEW M14b) — clutch sostenido bajo high-elim_prox
+     captura "el que aparece cuando estamos a punto de ser eliminados"
+
+Decisiones de diseno:
+  - Threshold 270 min (3 partidos completos = squad estandar scout)
+  - 8 CATEs preservados (4 canales × 2 shocks) — chasing vs protecting
+    son fenomenos distintos, agregar cancelaria signos
+  - Vector PCJ summary 4-canal directional:
+      pcj_atk = cate_atk_GA, pcj_def = cate_def_GF,
+      pcj_off = cate_off_GA, pcj_phys = max(|GA|,|GF|) signed
+  - Tier labels percentile-based (global + within-position)
+  - Significance flag bayesiano: P(idx>0|data) > 0.95 → Sig_clutch
     (lo que diferencia esto de Wyscout/InStat: ellos no tienen IC posterior)
+  - Tier_certain = Elite/Top SOLO si IC80 excluye 0 (robust al ruido)
 
 Outputs:
-  outputs/pcj_table.parquet         (1 fila por jugador, ~60 cols)
+  outputs/pcj_table.parquet         (1 fila por jugador, ~120 cols)
   outputs/pcj_aux/top10_chasing_per_position.parquet
   outputs/pcj_aux/top10_protecting_per_position.parquet
   outputs/pcj_aux/dual_clutch_top.parquet
@@ -75,6 +82,8 @@ PCJ_REQUIRED_COLS: dict[str, type] = {
     "n_shocks_groups": pl.UInt32, "n_shocks_ko": pl.UInt32,
     "n_high_leverage_shocks": pl.UInt32,
     "avg_leverage_at_shock": pl.Float64,
+    "n_elimination_shocks": pl.UInt32,
+    "avg_elim_prox_at_shock": pl.Float64,
     "n_nearmiss_exposure": pl.Float64,
     # Indices (8)
     "chasing_clutch_idx": pl.Float64, "chasing_clutch_lo80": pl.Float64,
@@ -94,6 +103,13 @@ PCJ_REQUIRED_COLS: dict[str, type] = {
     # Tier + Sig (4)
     "tier_chasing_global": pl.String, "tier_protecting_global": pl.String,
     "sig_chasing": pl.String, "sig_protecting": pl.String,
+    # Pressure response 3a dimension (M14b)
+    "pressure_response_idx": pl.Float64,
+    "pressure_response_lo80": pl.Float64,
+    "pressure_response_hi80": pl.Float64,
+    "p_pressure_clutch_positive": pl.Float64,
+    "sig_pressure": pl.String,
+    "tier_pressure_global": pl.String,
 }
 
 
@@ -140,6 +156,25 @@ def _load_m14() -> dict:
     indices   = pl.read_parquet(_CATE_DIR / "indices.parquet")
     rankings  = pl.read_parquet(_CATE_DIR / "rankings.parquet")
     return dict(fit=fit, posterior=posterior, indices=indices, rankings=rankings)
+
+
+def _load_m14b_pressure() -> pl.DataFrame:
+    """Pressure response (3a dimension): clutch sostenido bajo high-elim_prox.
+
+    Output M14b: pressure_response_idx + IC + posterior probability.
+    Si M14b no se ha ejecutado, retorna df vacio (M15 lo maneja con join left).
+    """
+    pr_path = _CATE_DIR / "pressure_response.parquet"
+    if not pr_path.exists():
+        return pl.DataFrame(schema={
+            "pff_player_id": pl.Int64,
+            "pressure_response_idx":  pl.Float64,
+            "pressure_response_sd":   pl.Float64,
+            "pressure_response_lo80": pl.Float64,
+            "pressure_response_hi80": pl.Float64,
+            "p_pressure_clutch_positive": pl.Float64,
+        })
+    return pl.read_parquet(pr_path)
 
 
 def _load_player_meta() -> pl.DataFrame:
@@ -237,24 +272,26 @@ def _load_player_minutes() -> pl.DataFrame:
 
 
 def _load_leverage_exposure() -> pl.DataFrame:
-    """Per jugador: avg leverage M04 en los minutos cuando vivio shocks.
+    """Per jugador: leverage + elim_prox M04 en los minutos cuando vivio shocks.
 
-    Shocks bajo high-leverage (KO + late minute + close score) son mas
-    informativos. Player que solo tiene shocks en groups con leverage~0
-    estan menos "stress-tested".
+    leverage = sensibilidad WP a un gol mas (pivotal moment).
+    elim_prox = P(equipo NO clasifica) — "cerca de irnos a casa", propuesta_final.md:27.
+    Shocks bajo high-leverage / high-elim_prox son los REALMENTE clutch.
     """
     sh = pl.read_parquet(_SHOCKS).rename({"player_id": "pff_player_id",
                                           "match_id": "pff_match_id"})
-    wp = pl.read_parquet(_WP).rename({"match_id": "pff_match_id"})
-    # Join shock con WP at minute (using shock minute)
-    sh_wp = sh.join(
-        wp.select(["pff_match_id", "minute", "leverage", "phase"]),
-        on=["pff_match_id", "minute"], how="left"
-    )
-    return (sh_wp.group_by("pff_player_id").agg([
-        pl.col("leverage").mean().alias("avg_leverage_at_shock"),
-        pl.col("leverage").max().alias("max_leverage_at_shock"),
-        (pl.col("leverage") > 0.05).sum().alias("n_high_leverage_shocks"),
+    return (sh.group_by("pff_player_id").agg([
+        pl.col("leverage_at_shock").mean().alias("avg_leverage_at_shock"),
+        pl.col("leverage_at_shock").max().alias("max_leverage_at_shock"),
+        (pl.col("leverage_at_shock") > HIGH_LEVERAGE_THRESHOLD).sum()
+            .alias("n_high_leverage_shocks"),
+        # Elim prox del equipo del jugador (perspectiva real)
+        pl.col("elim_prox_player_at_shock").mean()
+            .alias("avg_elim_prox_at_shock"),
+        pl.col("elim_prox_player_at_shock").max()
+            .alias("max_elim_prox_at_shock"),
+        (pl.col("elim_prox_player_at_shock") > 0.7).sum()
+            .alias("n_elimination_shocks"),
     ]))
 
 
@@ -293,6 +330,23 @@ def _load_nearmiss_exposure() -> pl.DataFrame:
                                      "n_nearmiss_exposure": pl.UInt32})
     df = pl.DataFrame({"pff_player_id": rows})
     return df.group_by("pff_player_id").agg(pl.len().alias("n_nearmiss_exposure"))
+
+
+def _load_physical_per90() -> pl.DataFrame:
+    """Metricas fisicas Bradley 2024 per-90 desde tracking PFF 25Hz.
+
+    Agrega M11 raw_per_minute por jugador y devuelve totals + peak speed.
+    La normalizacion per-90 se hace en build_pcj_table tras join con minutes.
+    """
+    raw = pl.read_parquet(_FISICO_PM.parent / "raw_per_minute.parquet")
+    return (raw.group_by("pff_player_id").agg([
+        pl.col("distance_m").sum().alias("_phys_dist_total_m"),
+        pl.col("hsr_s").sum().alias("_phys_hsr_s_total"),
+        pl.col("sprint_count").sum().alias("_phys_sprints_total"),
+        pl.col("n_high_accel").sum().alias("_phys_accels_total"),
+        pl.col("hmld_m").sum().alias("_phys_hmld_total_m"),
+        pl.col("psv95").max().alias("physical_peak_speed_mps"),
+    ]))
 
 
 def _load_baseline_channels() -> pl.DataFrame:
@@ -522,9 +576,11 @@ def _tier_from_percentile(pct: float) -> str:
 
 
 def _add_tiers(df: pl.DataFrame) -> pl.DataFrame:
-    """Tier labels: global + within-position, para chasing y protecting."""
+    """Tier labels: global + within-position para 3 dimensiones (chasing,
+    protecting, pressure_response). Percentile-based.
+    """
     n = df.height
-    # Percentile global (descending: highest value = highest percentile)
+    # 4 percentiles core (chasing/protecting × global/in_position)
     df = df.with_columns([
         (pl.col("chasing_clutch_idx").rank(method="ordinal") / n)
             .alias("pct_chasing_global"),
@@ -537,9 +593,17 @@ def _add_tiers(df: pl.DataFrame) -> pl.DataFrame:
             pl.col("position_group").count().over("position_group"))
             .alias("pct_protecting_in_position"),
     ])
-    # Apply tier function
-    for col in ["pct_chasing_global", "pct_protecting_global",
-                "pct_chasing_in_position", "pct_protecting_in_position"]:
+    # Pressure_response tiers (si M14b corrio)
+    if "pressure_response_idx" in df.columns:
+        df = df.with_columns([
+            (pl.col("pressure_response_idx").rank(method="ordinal") / n)
+                .alias("pct_pressure_global"),
+            (pl.col("pressure_response_idx").rank(method="ordinal").over("position_group") /
+                pl.col("position_group").count().over("position_group"))
+                .alias("pct_pressure_in_position"),
+        ])
+    pct_cols = [c for c in df.columns if c.startswith("pct_")]
+    for col in pct_cols:
         tier_col = "tier_" + col.replace("pct_", "")
         df = df.with_columns(
             pl.col(col).map_elements(_tier_from_percentile, return_dtype=pl.String)
@@ -576,8 +640,10 @@ def _add_tier_with_uncertainty(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def _add_significance(df: pl.DataFrame) -> pl.DataFrame:
-    """Sig flag bayesiana: P(idx>0|data) > 0.95 → Sig clutch; <0.05 → Sig anti."""
-    return df.with_columns([
+    """Sig flag bayesiana: P(idx>0|data) > 0.95 → Sig clutch; <0.05 → Sig anti.
+    3 dimensiones: chasing (Remontador), protecting (Cerrojo), pressure (Pressure response).
+    """
+    out = df.with_columns([
         pl.when(pl.col("p_chasing_positive") >= SIG_THRESHOLD).then(pl.lit("Sig_remontador"))
           .when(pl.col("p_chasing_positive") <= 1 - SIG_THRESHOLD).then(pl.lit("Sig_anti_remontador"))
           .otherwise(pl.lit("Inconclusive"))
@@ -587,13 +653,24 @@ def _add_significance(df: pl.DataFrame) -> pl.DataFrame:
           .otherwise(pl.lit("Inconclusive"))
           .alias("sig_protecting"),
     ])
+    if "p_pressure_clutch_positive" in df.columns:
+        out = out.with_columns(
+            pl.when(pl.col("p_pressure_clutch_positive") >= SIG_THRESHOLD)
+              .then(pl.lit("Sig_pressure_clutch"))
+              .when(pl.col("p_pressure_clutch_positive") <= 1 - SIG_THRESHOLD)
+              .then(pl.lit("Sig_anti_pressure_clutch"))
+              .otherwise(pl.lit("Inconclusive"))
+              .alias("sig_pressure")
+        )
+    return out
 
 
 # ----------------------------------------------------------------------------
 # Rankings (global + in-position)
 # ----------------------------------------------------------------------------
 def _add_rankings(df: pl.DataFrame) -> pl.DataFrame:
-    return df.with_columns([
+    """Rankings global + within-position para las 3 dimensiones."""
+    out = df.with_columns([
         pl.col("chasing_clutch_idx").rank(method="ordinal", descending=True)
             .alias("rank_chasing_global"),
         pl.col("protecting_clutch_idx").rank(method="ordinal", descending=True)
@@ -603,6 +680,14 @@ def _add_rankings(df: pl.DataFrame) -> pl.DataFrame:
         pl.col("protecting_clutch_idx").rank(method="ordinal", descending=True)
             .over("position_group").alias("rank_protecting_in_position"),
     ])
+    if "pressure_response_idx" in df.columns:
+        out = out.with_columns([
+            pl.col("pressure_response_idx").rank(method="ordinal", descending=True)
+                .alias("rank_pressure_global"),
+            pl.col("pressure_response_idx").rank(method="ordinal", descending=True)
+                .over("position_group").alias("rank_pressure_in_position"),
+        ])
+    return out
 
 
 # ----------------------------------------------------------------------------
@@ -635,30 +720,37 @@ def build_pcj_table() -> pl.DataFrame:
     print("[M15] Vector PCJ summary 4-canal directional...")
     cate_wide = _build_pcj_summary_vector(cate_wide)
 
-    print("[M15 v2] Acute window CATE +-5 min per player (T2.7 hallazgo)...")
+    print("[M15] Acute window CATE +-5 min per player (T2.7 hallazgo)...")
     acute = _compute_acute_window_per_player(window=ACUTE_WINDOW)
     print(f"  acute: {acute.height} jugadores con acute deltas")
 
-    print("[M15 v2] Intra-player cross-canal correlation desde samples...")
+    print("[M15] Intra-player cross-canal correlation desde samples...")
     intra = _compute_intra_player_corr(m14["fit"])
 
-    print("[M15 v2] Channel credibility (M12 pre-trend + M13 AIPW + sensitivity)...")
+    print("[M15] Channel credibility (M12 pre-trend + M13 AIPW + sensitivity)...")
     cred = _load_channel_credibility()
 
-    print("[M15 v2] Power flags per channel desde T2.5...")
+    print("[M15] Power flags per channel desde T2.5...")
     pwr = _load_power_flags()
 
-    print("[M15 v2] Player metadata (age, height) desde players.csv...")
+    print("[M15] Player metadata (age, height) desde players.csv...")
     age_h = _load_player_age_height()
 
-    print("[M15 v2] Leverage exposure desde M04 WP...")
+    print("[M15] Leverage exposure desde M04 WP...")
     lev = _load_leverage_exposure()
 
-    print("[M15 v2] Near-miss exposure desde M06...")
+    print("[M15] Near-miss exposure desde M06...")
     nm = _load_nearmiss_exposure()
 
-    print("[M15 v2] Baseline absoluto canales (M08-M11 outside windows)...")
+    print("[M15] Baseline absoluto canales (M08-M11 outside windows)...")
     baselines = _load_baseline_channels()
+
+    print("[M15] Metricas fisicas per-90 Bradley 2024 (tracking PFF 25Hz)...")
+    physical = _load_physical_per90()
+
+    print("[M15] Pressure response 3a dimension (M14b)...")
+    pressure = _load_m14b_pressure()
+    print(f"  pressure: {pressure.height} jugadores con pressure_response")
 
     print("[M15] Joining + filtrando minutos minimos...")
     df = (cate_wide
@@ -671,10 +763,26 @@ def build_pcj_table() -> pl.DataFrame:
             .join(age_h,           on="pff_player_id", how="left")
             .join(lev,             on="pff_player_id", how="left")
             .join(nm,              on="pff_player_id", how="left")
-            .join(baselines,       on="pff_player_id", how="left"))
+            .join(baselines,       on="pff_player_id", how="left")
+            .join(physical,        on="pff_player_id", how="left")
+            .join(pressure,        on="pff_player_id", how="left"))
     n_total = df.height
     df = df.filter(pl.col("minutes_played") >= MIN_MINUTES)
     print(f"  {df.height}/{n_total} jugadores >={MIN_MINUTES} min")
+
+    # Compute physical per-90 desde totals + minutes_played
+    df = df.with_columns([
+        (pl.col("_phys_dist_total_m") / 1000 / pl.col("minutes_played") * 90)
+            .alias("physical_distance_km_per90"),
+        (pl.col("_phys_hsr_s_total") * 5.5 / pl.col("minutes_played") * 90)
+            .alias("physical_hsr_m_per90"),    # 5.5 m/s = HSR threshold
+        (pl.col("_phys_sprints_total") / pl.col("minutes_played") * 90)
+            .alias("physical_sprints_per90"),
+        (pl.col("_phys_accels_total") / pl.col("minutes_played") * 90)
+            .alias("physical_high_accels_per90"),
+        (pl.col("_phys_hmld_total_m") / pl.col("minutes_played") * 90)
+            .alias("physical_hmld_m_per90"),
+    ]).drop([c for c in df.columns if c.startswith("_phys_")])
 
     print("[M15] Rankings + tiers + sig flags + uncertainty + channel credibility wide...")
     df = _add_rankings(df)
@@ -701,6 +809,8 @@ def build_pcj_table() -> pl.DataFrame:
              "n_shocks_groups", "n_shocks_ko",
              "n_high_leverage_shocks", "avg_leverage_at_shock",
              "max_leverage_at_shock",
+             "n_elimination_shocks", "avg_elim_prox_at_shock",
+             "max_elim_prox_at_shock",
              "n_nearmiss_exposure",
              "chasing_clutch_idx", "chasing_clutch_sd",
              "chasing_clutch_lo80", "chasing_clutch_hi80",
@@ -714,7 +824,18 @@ def build_pcj_table() -> pl.DataFrame:
              "tier_chasing_global", "tier_protecting_global",
              "tier_chasing_global_certain", "tier_protecting_global_certain",
              "tier_chasing_in_position", "tier_protecting_in_position",
-             "sig_chasing", "sig_protecting"]
+             "sig_chasing", "sig_protecting",
+             # Pressure response 3a dimension (M14b)
+             "pressure_response_idx", "pressure_response_sd",
+             "pressure_response_lo80", "pressure_response_hi80",
+             "p_pressure_clutch_positive",
+             "rank_pressure_global", "rank_pressure_in_position",
+             "tier_pressure_global", "tier_pressure_in_position",
+             "sig_pressure",
+             # Physical Bradley 2024 per-90
+             "physical_distance_km_per90", "physical_hsr_m_per90",
+             "physical_sprints_per90", "physical_high_accels_per90",
+             "physical_hmld_m_per90", "physical_peak_speed_mps"]
     cate_cols = sorted([c for c in df.columns if c.startswith("cate_")])
     acute_cols = sorted([c for c in df.columns if c.startswith("acute_")])
     base_cols = sorted([c for c in df.columns if c.startswith("baseline_")])
@@ -757,6 +878,17 @@ def build_aux_tables(pcj: pl.DataFrame) -> dict:
                        "dual_score", "p_chasing_positive", "p_protecting_positive",
                        "p_dual_positive", "minutes_played"]))
     aux["dual_clutch_top"] = dual
+    # Top10 pressure response per position (M14b 3a dimension)
+    if "pressure_response_idx" in pcj.columns:
+        aux["top10_pressure_per_position"] = (pcj
+            .filter(pl.col("pressure_response_idx").is_not_null())
+            .sort("pressure_response_idx", descending=True)
+            .group_by("position_group", maintain_order=True).head(10)
+            .select(["position_group", "rank_pressure_in_position",
+                     "player_name", "team_name", "pressure_response_idx",
+                     "pressure_response_lo80", "pressure_response_hi80",
+                     "p_pressure_clutch_positive", "tier_pressure_in_position",
+                     "sig_pressure", "minutes_played"]))
     # Por equipo: agg de minutos + indices
     by_team = (pcj.group_by("team_name").agg([
         pl.len().alias("n_players"),

@@ -140,13 +140,22 @@ def build_shocks_table(cache: bool = True,
     md = load_metadata().select(["id", "week"])
     week_map = {int(r["id"]): int(r["week"]) for r in md.iter_rows(named=True)}
 
-    # Leverage map: M04 WP per_minute per (match, minute). Disponible si M04 ejecutado.
+    # Leverage + elim_prox map: M04 WP per_minute per (match, minute).
+    # leverage = sensibilidad WP a un gol mas (pivotal moment).
+    # elim_prox_home/away = P(equipo NO clasifica) — la "proximidad de irse a casa"
+    # propuesta_final.md:27. Antes elim_prox NO se propagaba (gap auditoria).
     wp_path = _DERIVED.parent / "wp" / "per_minute.parquet"
     leverage_map: dict[tuple[int, int], float] = {}
+    elim_prox_home_map: dict[tuple[int, int], float] = {}
+    elim_prox_away_map: dict[tuple[int, int], float] = {}
     if wp_path.exists():
-        wp = pl.read_parquet(wp_path).select(["match_id", "minute", "leverage"])
+        wp = pl.read_parquet(wp_path).select(
+            ["match_id", "minute", "leverage", "elim_prox_home", "elim_prox_away"])
         for r in wp.iter_rows(named=True):
-            leverage_map[(int(r["match_id"]), int(r["minute"]))] = float(r["leverage"] or 0.0)
+            key = (int(r["match_id"]), int(r["minute"]))
+            leverage_map[key] = float(r["leverage"] or 0.0)
+            elim_prox_home_map[key] = float(r["elim_prox_home"] or 0.0)
+            elim_prox_away_map[key] = float(r["elim_prox_away"] or 0.0)
 
     for mid in list_event_match_ids():
         goals = goals_timeline(mid)
@@ -156,6 +165,9 @@ def build_shocks_table(cache: bool = True,
         p_bounds = _period_boundaries(mid)
         match_week = week_map.get(mid)
         match_stage = "groups" if (match_week is not None and match_week <= 3) else "ko"
+        # Cache home_team_id para resolver elim_prox desde perspectiva del jugador
+        match_md = load_metadata(mid).row(0, named=True)
+        home_team_id = int(match_md["home_team_id"])
 
         # Pre-compute overlap table: for each goal, does another goal fall in ±10min?
         goal_times = goals["start_game_clock"].to_list()
@@ -204,12 +216,19 @@ def build_shocks_table(cache: bool = True,
                 )
 
                 shock_leverage = leverage_map.get((mid, minute_goal), 0.0)
+                # Player-perspective elim_prox: del equipo del jugador
+                ep_home = elim_prox_home_map.get((mid, minute_goal), 0.0)
+                ep_away = elim_prox_away_map.get((mid, minute_goal), 0.0)
+                ep_player = ep_home if player_team_id == home_team_id else ep_away
                 all_rows.append({
                     "match_id":           mid,
                     "shock_id":           shock_id_counter,
                     "stage":              match_stage,
                     "match_week":         match_week,
                     "leverage_at_shock":  shock_leverage,
+                    "elim_prox_home_at_shock": ep_home,
+                    "elim_prox_away_at_shock": ep_away,
+                    "elim_prox_player_at_shock": ep_player,    # perspectiva jugador
                     "t_event_seconds":    t,
                     "period":             p,
                     "minute":             minute_goal,

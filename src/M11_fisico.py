@@ -332,7 +332,7 @@ _PHYS_SCHEMA = {
     "z4_m":             pl.Float64, "z5_m": pl.Float64,
     "hmld_m":           pl.Float64,
     "n_frames":         pl.Int64,
-    # TIER B5: phase of play context (in/out possession fraction)
+    # phase of play context (in/out possession fraction)
     "frames_team_in_poss":  pl.Int64,
     "frames_team_out_poss": pl.Int64,
 }
@@ -411,7 +411,7 @@ def _phys_metrics_per_minute(match_id: int) -> pl.DataFrame:
     if frames.height == 0:
         return pl.DataFrame(schema=_PHYS_SCHEMA)
 
-    # TIER B5: contar frames per (period, minute, team_id) en/fuera de posesion
+    # contar frames per (period, minute, team_id) en/fuera de posesion
     # → join al output. Usa home_has_ball; null se cuenta como out_poss.
     poss_long = frames.with_columns([
         pl.col("home_has_ball").fill_null(False).alias("home_has_ball"),

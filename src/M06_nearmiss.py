@@ -125,7 +125,7 @@ def _detect_goal_line_clearance(psxg: pl.DataFrame) -> pl.DataFrame:
 
 def _detect_glt_denied(psxg: pl.DataFrame) -> pl.DataFrame:
     """(e) GLT no-gol via PFF tracking: ball cruzo linea de gol pero no
-    se conto como gol (TIER B3).
+    se conto como gol.
 
     Algoritmo:
       1. Para cada shot SB de WC22 (no-goal), busca window 2s post-shot
