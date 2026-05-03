@@ -58,6 +58,15 @@ src/
 │                           #   within position. 598 jugadores con (β_atk,
 │                           #   β_def, β_off, β_phys) IC 80%/95%
 ├── (M15-M16)               # pipeline restante (PCJ ensamble + report)
+├── M05B_calibration.py     # T4.12 PSxG calibration diagnostics (curve, ECE/MCE,
+│                           #   Brier decomposition Murphy 1973, isotonic mapping)
+│                           #   WC22 holdout AUC 0.976, Brier 0.037, ECE 0.011
+├── M12B_validation.py      # T2 SOTA causal robustness suite:
+│                           #   - placebo test 1000 perm + BH-FDR
+│                           #   - statistical power (ICC + MDE@80% + observed)
+│                           #   - baseline naive comparison
+│                           #   - window sensitivity extendido +-3/5/7/10/15 min
+│                           #   - stage stratification (groups vs KO)
 ├── Z01_vaep.py             # building block atomic-VAEP wrapper (compute_features/labels
 │                           #   + save_models/load_models, usado por M08/M09)
 └── Z02_pitch_control.py    # building block PPCF Spearman 2018 vectorizado (core
@@ -70,6 +79,20 @@ notebooks/
 ```
 
 Estado: M01-M14 ejecutados sobre los 64 partidos WC22. M15-M16 pendientes.
+
+Validaciones SOTA (M05B + M12B):
+
+- M09 (defensa) vs PFF defensive grades: Spearman rho=+0.27 (n=264, p<0.001)
+- M10 c_obso vs PFF offensive grades: Pearson r=+0.30 (n=610, p<10^-13);
+  raw OBSO -0.21 confirma que el counterfactual es la metrica correcta
+- Placebo test 1000 perm + BH-FDR: ataque-GF, offball-GF/GA, fisico-GA
+  significativamente fuera del placebo null (z>2.4, p_FDR<0.025)
+- Window sensitivity +-3/5/7/10/15: efectos ACUTOS (decay 7x de w3 a w10
+  en fisico-GA y offball-GA) -> el shock es de respuesta inmediata
+- Stage stratification: fisico-GA en KO 4x magnitude vs groups
+  (heterogeneidad oculta en pooled estimates)
+- PSxG WC22 holdout: AUC 0.976 vs SB xG 0.844 (+13pp), Brier 0.037 vs
+  0.083 (-55%), ECE 0.011 (calibracion casi perfecta)
 
 Datos, documentacion interna del proyecto y outputs intermedios estan fuera del
 repo (`.gitignore`).

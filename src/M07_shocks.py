@@ -50,7 +50,7 @@ _SRC_DIR = Path(__file__).resolve().parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
-from M01_loader_pff import list_event_match_ids, load_events
+from M01_loader_pff import list_event_match_ids, load_events, load_metadata
 from M03_preprocess import goals_timeline, player_minutes
 
 
@@ -137,12 +137,18 @@ def build_shocks_table(cache: bool = True,
     shock_id_counter = 0
     n_goals_total = 0
 
+    # Stage map: week 1-3 = groups (48 partidos), 4-8 = ko (16 partidos)
+    md = load_metadata().select(["id", "week"])
+    week_map = {int(r["id"]): int(r["week"]) for r in md.iter_rows(named=True)}
+
     for mid in list_event_match_ids():
         goals = goals_timeline(mid)
         if goals.height == 0:
             continue
         pm = player_minutes(mid)
         p_bounds = _period_boundaries(mid)
+        match_week = week_map.get(mid)
+        match_stage = "groups" if (match_week is not None and match_week <= 3) else "ko"
 
         # Pre-compute overlap table: for each goal, does another goal fall in ±10min?
         goal_times = goals["start_game_clock"].to_list()
@@ -194,6 +200,8 @@ def build_shocks_table(cache: bool = True,
                 all_rows.append({
                     "match_id":           mid,
                     "shock_id":           shock_id_counter,
+                    "stage":              match_stage,
+                    "match_week":         match_week,
                     "t_event_seconds":    t,
                     "period":             p,
                     "minute":             minute_goal,
