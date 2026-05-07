@@ -1,16 +1,17 @@
 """M15_pcj — Perfil Clutch del Jugador: ensamblaje scout-facing final.
 
-Combina outputs M14 (CATE post-shock-de-gol) + M14b (pressure response sostenido
-bajo high-elim_prox) + M04/M06/M08-M12/M13 + metadata para producir la tabla
+Combina outputs del modelo unificado M14 (CATE bayesiano jerarquico con eta_ga,
+eta_gf, eta_pressure) + M04/M06/M08-M13 + metadata para producir la tabla
 maestra `outputs/pcj_table.parquet`.
 
 3 dimensiones de clutch identificadas:
-  1. **Remontador** (chasing-clutch) — respuesta atk+off en ±10 min post-GA
+  1. **Remontador** (chasing-clutch) — eta_ga[atk] + eta_ga[off] post-GA
      captura "el que sube cuando hay que remontar"
-  2. **Cerrojo** (protecting-clutch) — respuesta def+phys en ±10 min post-GF
+  2. **Cerrojo** (protecting-clutch) — eta_gf[def] + eta_gf[phys] post-GF
      captura "el que aguanta cuando hay que aguantar"
-  3. **Pressure Response** (NEW M14b) — clutch sostenido bajo high-elim_prox
-     captura "el que aparece cuando estamos a punto de ser eliminados"
+  3. **Pressure Response** — eta_pressure[i,:] (pendiente individual respecto
+     a elim_prox_z) — captura "el que aparece cuando estamos a punto de ser
+     eliminados", absorbido en M14 desde M14b binario.
 
 Decisiones de diseno:
   - Threshold 270 min (3 partidos completos = squad estandar scout)
@@ -110,6 +111,11 @@ PCJ_REQUIRED_COLS: dict[str, type] = {
     "p_pressure_clutch_positive": pl.Float64,
     "sig_pressure": pl.String,
     "tier_pressure_global": pl.String,
+    # H5: ranking ABSOLUTO paralelo (test "varios cambian de tier abs vs rel")
+    "chasing_clutch_idx_absolute":   pl.Float64,
+    "protecting_clutch_idx_absolute": pl.Float64,
+    "h5_chasing_tier_changed":   pl.Boolean,
+    "h5_protecting_tier_changed": pl.Boolean,
 }
 
 
@@ -158,23 +164,31 @@ def _load_m14() -> dict:
     return dict(fit=fit, posterior=posterior, indices=indices, rankings=rankings)
 
 
-def _load_m14b_pressure() -> pl.DataFrame:
-    """Pressure response (3a dimension): clutch sostenido bajo high-elim_prox.
+def _load_m14_pressure_from_posterior(fit: dict) -> pl.DataFrame:
+    """Pressure response (3a dimension) desde el modelo unificado M14.
 
-    Output M14b: pressure_response_idx + IC + posterior probability.
-    Si M14b no se ha ejecutado, retorna df vacio (M15 lo maneja con join left).
+    Tras PASO 6 (eliminacion de M14b), `eta_pressure[i,k]` es la pendiente
+    individual respecto a elim_prox dentro del CATE multivariate jerarquico.
+    pressure_response_idx = mean across canales del eta_pressure[i,:].
     """
-    pr_path = _CATE_DIR / "pressure_response.parquet"
-    if not pr_path.exists():
-        return pl.DataFrame(schema={
-            "pff_player_id": pl.Int64,
-            "pressure_response_idx":  pl.Float64,
-            "pressure_response_sd":   pl.Float64,
-            "pressure_response_lo80": pl.Float64,
-            "pressure_response_hi80": pl.Float64,
-            "p_pressure_clutch_positive": pl.Float64,
+    s = fit["samples"]
+    eta_pres = s["eta_pressure"]                      # (S, P, K)
+    p_to_idx = fit["p_to_idx"]
+    inv_p = {v: k for k, v in p_to_idx.items()}
+    # Per-sample idx = mean across channels
+    pri_samples = eta_pres.mean(axis=2)               # (S, P)
+    rows = []
+    for p_i in range(eta_pres.shape[1]):
+        x = pri_samples[:, p_i]
+        rows.append({
+            "pff_player_id":                inv_p[p_i],
+            "pressure_response_idx":        float(x.mean()),
+            "pressure_response_sd":         float(x.std()),
+            "pressure_response_lo80":       float(np.quantile(x, 0.10)),
+            "pressure_response_hi80":       float(np.quantile(x, 0.90)),
+            "p_pressure_clutch_positive":   float((x > 0).mean()),
         })
-    return pl.read_parquet(pr_path)
+    return pl.DataFrame(rows)
 
 
 def _load_player_meta() -> pl.DataFrame:
@@ -472,6 +486,41 @@ def _compute_intra_player_corr(fit: dict) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
+def _compute_absolute_indices_for_h5(panel_abs: pl.DataFrame) -> pl.DataFrame:
+    """Indices ABSOLUTOS paralelos (H5: comparacion absoluto vs relativo).
+
+    panel_abs viene de build_delta_panel(relative=False) — delta = post-pre raw.
+    Por jugador, mean del delta absoluto en cada (channel, shock_type) — no
+    es bayesiano, es punto-estimado para fines de H5 ranking comparison.
+
+    Returns 1 fila por jugador con cols *_idx_absolute.
+    """
+    if panel_abs is None or panel_abs.height == 0:
+        return pl.DataFrame(schema={"pff_player_id": pl.Int64})
+    pivoted = (panel_abs.group_by(["pff_player_id", "channel", "shock_type"])
+               .agg(pl.col("delta").mean().alias("d"))
+               .pivot(values="d", index="pff_player_id",
+                      on=["channel", "shock_type"]))
+    cols_map = {}
+    for c in pivoted.columns:
+        if c == "pff_player_id":
+            continue
+        # polars pivot crea col names tipo '{"ataque","GOAL_AGAINST"}' en list. simplifica.
+        cols_map[c] = c.replace('{', '').replace('}', '').replace('"', '').replace(',', '_')
+    pivoted = pivoted.rename(cols_map)
+    out = pivoted.with_columns([
+        ((pl.col("ataque_GOAL_AGAINST") + pl.col("offball_GOAL_AGAINST")) / 2)
+            .alias("chasing_clutch_idx_absolute"),
+        ((pl.col("defensa_GOAL_FOR") + pl.col("fisico_GOAL_FOR")) / 2)
+            .alias("protecting_clutch_idx_absolute"),
+    ])
+    return out.select([
+        "pff_player_id",
+        "chasing_clutch_idx_absolute",
+        "protecting_clutch_idx_absolute",
+    ])
+
+
 def _compute_posterior_probs(fit: dict) -> pl.DataFrame:
     """Per jugador: P(chasing>0|data), P(protecting>0|data), P(dual>0|data).
 
@@ -748,9 +797,16 @@ def build_pcj_table() -> pl.DataFrame:
     print("[M15] Metricas fisicas per-90 Bradley 2024 (tracking PFF 25Hz)...")
     physical = _load_physical_per90()
 
-    print("[M15] Pressure response 3a dimension (M14b)...")
-    pressure = _load_m14b_pressure()
+    print("[M15] Pressure response 3a dimension (eta_pressure desde M14 unificado)...")
+    pressure = _load_m14_pressure_from_posterior(m14["fit"])
     print(f"  pressure: {pressure.height} jugadores con pressure_response")
+
+    print("[M15] Indices ABSOLUTOS paralelos (H5: ranking absoluto vs relativo)...")
+    sys.path.insert(0, str(_REPO / "src"))
+    from M14_cate import build_delta_panel as _bdp
+    panel_abs = _bdp(cache=True, relative=False)
+    abs_idx = _compute_absolute_indices_for_h5(panel_abs)
+    print(f"  abs_idx: {abs_idx.height} jugadores con absolutos para H5")
 
     print("[M15] Joining + filtrando minutos minimos...")
     df = (cate_wide
@@ -765,7 +821,8 @@ def build_pcj_table() -> pl.DataFrame:
             .join(nm,              on="pff_player_id", how="left")
             .join(baselines,       on="pff_player_id", how="left")
             .join(physical,        on="pff_player_id", how="left")
-            .join(pressure,        on="pff_player_id", how="left"))
+            .join(pressure,        on="pff_player_id", how="left")
+            .join(abs_idx,         on="pff_player_id", how="left"))
     n_total = df.height
     df = df.filter(pl.col("minutes_played") >= MIN_MINUTES)
     print(f"  {df.height}/{n_total} jugadores >={MIN_MINUTES} min")
@@ -789,6 +846,22 @@ def build_pcj_table() -> pl.DataFrame:
     df = _add_tiers(df)
     df = _add_tier_with_uncertainty(df)
     df = _add_significance(df)
+
+    # H5: tier_changed entre absoluto y relativo (test propuesta_final §H5)
+    n = df.height
+    df = df.with_columns([
+        (pl.col("chasing_clutch_idx_absolute").rank(method="ordinal") / n)
+            .map_elements(_tier_from_percentile, return_dtype=pl.String)
+            .alias("tier_chasing_global_absolute"),
+        (pl.col("protecting_clutch_idx_absolute").rank(method="ordinal") / n)
+            .map_elements(_tier_from_percentile, return_dtype=pl.String)
+            .alias("tier_protecting_global_absolute"),
+    ]).with_columns([
+        (pl.col("tier_chasing_global") != pl.col("tier_chasing_global_absolute"))
+            .alias("h5_chasing_tier_changed"),
+        (pl.col("tier_protecting_global") != pl.col("tier_protecting_global_absolute"))
+            .alias("h5_protecting_tier_changed"),
+    ])
 
     # Channel-level metadata (cred + power) repetidos como cols planas para
     # que scout queries no requieran join externo. Se mantienen estaticos a
@@ -835,7 +908,11 @@ def build_pcj_table() -> pl.DataFrame:
              # Physical Bradley 2024 per-90
              "physical_distance_km_per90", "physical_hsr_m_per90",
              "physical_sprints_per90", "physical_high_accels_per90",
-             "physical_hmld_m_per90", "physical_peak_speed_mps"]
+             "physical_hmld_m_per90", "physical_peak_speed_mps",
+             # H5: ranking absoluto vs relativo
+             "chasing_clutch_idx_absolute", "protecting_clutch_idx_absolute",
+             "tier_chasing_global_absolute", "tier_protecting_global_absolute",
+             "h5_chasing_tier_changed", "h5_protecting_tier_changed"]
     cate_cols = sorted([c for c in df.columns if c.startswith("cate_")])
     acute_cols = sorted([c for c in df.columns if c.startswith("acute_")])
     base_cols = sorted([c for c in df.columns if c.startswith("baseline_")])

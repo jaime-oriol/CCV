@@ -55,7 +55,7 @@ if str(_SRC_DIR) not in sys.path:
 from M01_loader_pff import (load_metadata, load_rosters, scan_tracking,
                               list_event_match_ids)
 from M03_preprocess import attacking_direction
-from M07_shocks import build_shocks_table
+from M07_shocks import build_shocks_table, attach_team_loo
 import Z02_pitch_control as pc
 
 
@@ -548,6 +548,36 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
               how="left")
         .join(post, on=["match_id","shock_id","pff_player_id","shock_type"],
               how="left")
+    )
+
+    # LOO sobre c_obso_mean (canal off-ball primario; raw OBSO descartado en M14)
+    pm_for_loo = aggregate_per_player_minute(cache=True).filter(
+        pl.col("pff_match_id").is_not_null()
+        & pl.col("pff_player_id").is_not_null()
+        & pl.col("c_obso_mean").is_not_null()
+    )
+    loo = attach_team_loo(
+        pm_for_loo, value_col="c_obso_mean",
+    ).rename({
+        "c_obso_mean_team_loo_pre":  "c_obso_team_loo_pre",
+        "c_obso_mean_team_loo_post": "c_obso_team_loo_post",
+        "c_obso_mean_relative_pre":  "c_obso_relative_pre",
+        "c_obso_mean_relative_post": "c_obso_relative_post",
+        "c_obso_mean_delta_player":  "c_obso_delta_player",
+        "c_obso_mean_delta_team_loo":"c_obso_delta_team_loo",
+        "c_obso_mean_delta_relative":"c_obso_delta_relative",
+    }).select([
+        "match_id", "shock_id", "pff_player_id", "shock_type",
+        "c_obso_team_loo_pre", "c_obso_team_loo_post",
+        "c_obso_relative_pre", "c_obso_relative_post",
+        "c_obso_delta_player", "c_obso_delta_team_loo",
+        "c_obso_delta_relative", "n_block",
+    ])
+
+    out = (
+        out
+        .join(loo, on=["match_id","shock_id","pff_player_id","shock_type"],
+              how="left")
         .rename({"match_id": "pff_match_id"})
         .join(pff_to_sb_pl, on="pff_player_id", how="left")
         .with_columns(
@@ -561,7 +591,12 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
             "obso_pre", "obso_post",
             "obso_max_pre", "obso_max_post",
             "c_obso_pre", "c_obso_post",
+            "c_obso_team_loo_pre", "c_obso_team_loo_post",
+            "c_obso_relative_pre", "c_obso_relative_post",
+            "c_obso_delta_player", "c_obso_delta_team_loo",
+            "c_obso_delta_relative",
             "att_frames_pre", "att_frames_post",
+            "n_block",
         ])
     )
 

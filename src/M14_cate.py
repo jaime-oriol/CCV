@@ -1,10 +1,14 @@
 """
-M14_cate - CATE jerarquico bayesiano multivariate (Multivariate BCF analog).
+M14_cate - CATE jerarquico bayesiano multivariate UNIFICADO (3 dimensiones).
 
 Capa 4 PCJ. Estima el efecto causal HETEROGENEO por jugador del shock
-emocional sobre los 4 canales conjuntamente, con jerarquia 3 niveles
-(jugador ⊂ equipo ⊂ posicion), correlacion cross-canal LKJ, priors
-informativos PFF grades y sampling HMC/NUTS exacto.
+emocional sobre los 4 canales conjuntamente, en las TRES dimensiones de la
+propuesta (post-GA, post-GF, eliminacion-continuo), con jerarquia 3 niveles
+(jugador ⊂ equipo ⊂ posicion), correlacion cross-canal LKJ por dimension,
+priors informativos PFF grades, moduladores continuos del contexto del
+shock (minute, score-diff post, fase, leverage, elim_prox) y sampling
+HMC/NUTS exacto. Absorbe el M14b binario via eta_pressure[i,k] como
+pendiente individual respecto a elim_prox_z (3a dimension continua).
 
 SOTA implementado:
 
@@ -97,14 +101,18 @@ _PFF_GRADES = _REPO / "data" / "parquet" / "derived" / "preprocess" / "pff_grade
 
 # -- Constantes pre-registradas --------------------------------------------
 
-CHANNELS: dict[str, tuple[str, str, str]] = {
-    "ataque":  ("ataque/per_shock_window.parquet",  "score_atk_pre", "score_atk_post"),
-    "defensa": ("defensa/per_shock_window.parquet", "score_def_pre", "score_def_post"),
-    # c_obso (counterfactual Teranishi 2022). Raw OBSO descartado tras T1.2:
-    # raw correlaciona NEG (-0.21) con grades PFF y c_obso POS (+0.30).
-    # Raw mide ocupacion de pitch; c_obso mide contribucion del MOVIMIENTO.
-    "offball": ("offball/per_shock_window.parquet", "c_obso_pre",    "c_obso_post"),
-    "fisico":  ("fisico/per_shock_window.parquet",  "score_phys_pre","score_phys_post"),
+CHANNELS: dict[str, tuple[str, str, str, str]] = {
+    # (path, col_pre_abs, col_post_abs, col_delta_relative).
+    # delta_relative ya viene computed via attach_team_loo de M07 en los
+    # per_shock_window de M08-M11 (PASO 2). Lo usamos directo sin recomputar.
+    "ataque":  ("ataque/per_shock_window.parquet",  "score_atk_pre", "score_atk_post",
+                "score_atk_delta_relative"),
+    "defensa": ("defensa/per_shock_window.parquet", "score_def_pre", "score_def_post",
+                "score_def_delta_relative"),
+    "offball": ("offball/per_shock_window.parquet", "c_obso_pre",    "c_obso_post",
+                "c_obso_delta_relative"),
+    "fisico":  ("fisico/per_shock_window.parquet",  "score_phys_pre","score_phys_post",
+                "score_phys_delta_relative"),
 }
 SHOCK_TYPES = ("GOAL_FOR", "GOAL_AGAINST")
 N_CHANNELS  = len(CHANNELS)
@@ -125,68 +133,85 @@ PROTECTING_COMPONENTS = (("defensa", "GOAL_FOR"),
 #  SECCION 1 — Build delta panel (player × shock × channel × shock_type)
 # ===========================================================================
 
-def build_delta_panel(cache: bool = True) -> pl.DataFrame:
+def build_delta_panel(cache: bool = True, relative: bool = True) -> pl.DataFrame:
     """Panel long: (pff_player_id, shock_id, channel, shock_type, delta_z).
 
-    delta = post - pre dentro de cada (player, shock, channel). Z-score
-    within (channel, shock_type) para que los 4 canales sean comparables en
-    el modelo multivariate. Schema unificado X3.
+    relative=True (default): delta = `*_delta_relative` (Δ_player − Δ_team_loo)
+    pre-computed por attach_team_loo en M08-M11. ESTA es la metrica primaria
+    de la propuesta nueva.
+    relative=False: delta = post - pre absoluto del jugador (sensitivity H5).
+
+    Z-score within (channel, shock_type) para que canales sean comparables
+    en el modelo multivariate.
     """
-    cache_path = _DERIVED / "panel_delta.parquet"
+    cache_suffix = "" if relative else "_absolute"
+    cache_path = _DERIVED / f"panel_delta{cache_suffix}.parquet"
     if cache and cache_path.exists():
         return pl.read_parquet(cache_path)
 
     derived = _DERIVED.parent
     rows = []
-    for ch, (rel_path, col_pre, col_post) in CHANNELS.items():
-        df = pl.read_parquet(derived / rel_path).filter(
-            pl.col(col_pre).is_not_null() & pl.col(col_post).is_not_null()
-        )
-        df = df.with_columns([
-            (pl.col(col_post) - pl.col(col_pre)).cast(pl.Float64).alias("delta"),
-            pl.lit(ch).alias("channel"),
-        ]).select([
+    for ch, (rel_path, col_pre, col_post, col_rel) in CHANNELS.items():
+        df_raw = pl.read_parquet(derived / rel_path)
+        if relative:
+            df = df_raw.filter(pl.col(col_rel).is_not_null()).with_columns([
+                pl.col(col_rel).cast(pl.Float64).alias("delta"),
+                pl.lit(ch).alias("channel"),
+            ])
+        else:
+            df = df_raw.filter(
+                pl.col(col_pre).is_not_null() & pl.col(col_post).is_not_null()
+            ).with_columns([
+                (pl.col(col_post) - pl.col(col_pre)).cast(pl.Float64).alias("delta"),
+                pl.lit(ch).alias("channel"),
+            ])
+        df = df.select([
             "pff_match_id", "shock_id", "pff_player_id", "shock_type",
             "channel", "delta",
         ])
         rows.append(df)
     panel = pl.concat(rows)
 
-    # Anadir position_group + team_id + stage + minute desde shocks_table
+    # Anadir context + moduladores continuos desde shocks_table (PASO 1)
     shocks = pl.read_parquet(derived / "shocks/shocks_table.parquet").select([
         pl.col("match_id").alias("pff_match_id"),
         "shock_id",
         pl.col("player_id").alias("pff_player_id"),
         "position_group",
         pl.col("player_team_id").alias("pff_team_id"),
-        "stage",                     # groups | ko (T1.3 column)
-        "minute",                    # minuto del shock para join leverage
+        "stage",
+        "minute",
+        # Moduladores continuos (propuesta §Fase 4)
+        "minute_norm",                       # minute / 90
+        "score_diff_post",                   # marcador post-shock (player-pov)
+        "week_idx_norm",                     # fase del torneo continua
+        "elim_prox_player_at_shock",         # P(equipo NO clasifica) at shock
+        "leverage_at_shock",                 # |dWP / d(gol marginal)|
     ]).unique(subset=["pff_match_id", "shock_id", "pff_player_id"])
     panel = panel.join(shocks, on=["pff_match_id", "shock_id", "pff_player_id"],
                         how="left")
 
-    # Anadir leverage del shock desde M04 WP per_minute
-    wp_path = derived / "wp" / "per_minute.parquet"
-    if wp_path.exists():
-        wp = pl.read_parquet(wp_path).select([
-            pl.col("match_id").alias("pff_match_id"),
-            "minute", "leverage",
-        ])
-        panel = panel.join(wp, on=["pff_match_id", "minute"], how="left")
-        # Z-score leverage para escala unitaria en el modelo
-        lev_mean = float(panel["leverage"].drop_nulls().mean() or 0.0)
-        lev_std = float(panel["leverage"].drop_nulls().std() or 1.0) or 1.0
-        panel = panel.with_columns(
-            ((pl.col("leverage").fill_null(lev_mean) - lev_mean) / lev_std)
-                .alias("leverage_z")
-        )
-    else:
-        panel = panel.with_columns(pl.lit(0.0).alias("leverage_z"))
+    # Z-score globales de moduladores continuos (escala unitaria para modelo)
+    z_targets = [
+        ("leverage_at_shock", "leverage_z"),
+        ("score_diff_post",   "score_diff_post_z"),
+        ("elim_prox_player_at_shock", "elim_prox_z"),
+    ]
+    z_cols = []
+    for col, alias in z_targets:
+        m = float(panel[col].drop_nulls().mean() or 0.0)
+        s = float(panel[col].drop_nulls().std() or 1.0) or 1.0
+        z_cols.append(((pl.col(col).fill_null(m) - m) / s).alias(alias))
+    panel = panel.with_columns(z_cols)
 
-    # Z-score within (channel, shock_type)
+    # Z-score within (channel, shock_type) + clip suave a [-5, +5] para
+    # estabilidad NUTS (outliers fisico extremos generan tail muy gruesa que
+    # explota gradientes con LKJ + jerarquia 3 niveles). Pierde <0.1% info,
+    # gana convergencia robusta.
     panel = panel.with_columns(
         ((pl.col("delta") - pl.col("delta").mean().over(["channel", "shock_type"])) /
-         pl.col("delta").std().over(["channel", "shock_type"])).alias("delta_z")
+         pl.col("delta").std().over(["channel", "shock_type"]))
+            .clip(-5.0, 5.0).alias("delta_z")
     )
 
     if cache:
@@ -226,78 +251,101 @@ def attach_pff_grades(panel: pl.DataFrame) -> pl.DataFrame:
 # ===========================================================================
 
 def _model_mvbcf(player_idx, shock_idx, channel_idx,
-                  pff_grade_z, y, n_players, n_teams, n_positions, n_shock_types,
+                  pff_grade_z,
+                  minute_norm, score_diff_post_z, week_idx_norm,
+                  leverage_z, elim_prox_z,
+                  y, n_players, n_teams, n_positions, n_shock_types,
                   n_channels, player_to_team, player_to_position):
-    """NCP completo — evita funnel de Neal en todos los efectos aleatorios.
+    """Modelo unificado relativo (propuesta nueva §Fase 4):
 
-    Betancourt-Girolami 2015: parameterizacion NO centrada en b_team, b_pos,
-    eta_ga, eta_gf. El sampler NUTS ve solo variables N(0,1) + escalas
-    independientes → geometria regular, buena mezcla.
+      delta_iks ~ Normal(
+          mu_shock[s,k]
+          + b_context[i,k]                       # PFF grade + team + position
+          + eta[i,s,k]                           # respuesta individual a shock-type s
+          + b_min[k] minute_norm
+          + b_score[k] score_diff_post_z
+          + b_phase[k] week_idx_norm
+          + b_lev[k] leverage_z
+          + b_elim[k] elim_prox_z
+          + eta_pressure[i,k] elim_prox_z,       # pendiente individual a elim_prox
+          sigma_eps[k]
+      )
 
-    Efectos individuales separados por shock_type (GA y GF independientes)
-    para que los indices Remontador/Cerrojo capturen respuesta INDIVIDUAL
-    al shock especifico, neta de efectos de equipo y posicion.
+    eta_ga, eta_gf, eta_pressure: NCP + LKJ cross-canal independiente.
+    Los moduladores continuos absorben la heterogeneidad poblacional por
+    contexto (minute, score-diff post, fase, leverage, elim_prox).
+    eta_pressure es el TERCER eta — captura la respuesta INDIVIDUAL al
+    contexto de eliminacion (absorbe M14b sin trigger binario).
 
-    Stage + leverage NO se incluyen como moderadores aditivos: los shocks
-    se identifican causalmente con FE de player-shock (M12) y el ATE
-    population ya documenta stage-heterogeneidad (M12B T2.8). Anadir
-    additive controls aqui solo desplaza la media sin capturar heterogeneidad
-    individual (eso requeriria interaction eta * stage, fuera de scope).
-    Las cols stage + leverage_z viven en el panel parquet y M15 las consume
-    como exposure context per jugador.
-
-    shock_idx: GOAL_AGAINST=0, GOAL_FOR=1 (sorted alphabetically — assert en fit_cate_nuts)
+    shock_idx: GOAL_AGAINST=0, GOAL_FOR=1 (sorted alphabetical).
     """
     import jax.numpy as jnp
     import numpyro
     import numpyro.distributions as dist
 
-    # Hyperpriors (solo escalas — NCP: no dependen de datos directamente)
+    # Hyperpriors (escalas, NCP)
     sigma_team     = numpyro.sample("sigma_team",     dist.HalfNormal(0.5).expand([n_channels]).to_event(1))
     sigma_position = numpyro.sample("sigma_position", dist.HalfNormal(0.5).expand([n_channels]).to_event(1))
     sigma_ga       = numpyro.sample("sigma_ga",       dist.HalfNormal(0.5).expand([n_channels]).to_event(1))
     sigma_gf       = numpyro.sample("sigma_gf",       dist.HalfNormal(0.5).expand([n_channels]).to_event(1))
+    sigma_pressure = numpyro.sample("sigma_pressure", dist.HalfNormal(0.5).expand([n_channels]).to_event(1))
     sigma_eps      = numpyro.sample("sigma_eps",      dist.HalfNormal(1.0).expand([n_channels]).to_event(1))
 
     # PFF grade coefficient por canal
     gamma = numpyro.sample("gamma", dist.Normal(0.0, 1.0).expand([n_channels]).to_event(1))
 
-    # Shock-type population mean (intercepto medio por tipo de shock)
-    mu_shock = numpyro.sample("mu_shock", dist.Normal(0.0, 0.5).expand([n_shock_types, n_channels]).to_event(2))
+    # Moduladores continuos (priors regularizadores Normal(0, 0.5))
+    b_min   = numpyro.sample("b_min",   dist.Normal(0.0, 0.5).expand([n_channels]).to_event(1))
+    b_score = numpyro.sample("b_score", dist.Normal(0.0, 0.5).expand([n_channels]).to_event(1))
+    b_phase = numpyro.sample("b_phase", dist.Normal(0.0, 0.5).expand([n_channels]).to_event(1))
+    b_lev   = numpyro.sample("b_lev",   dist.Normal(0.0, 0.5).expand([n_channels]).to_event(1))
+    b_elim  = numpyro.sample("b_elim",  dist.Normal(0.0, 0.5).expand([n_channels]).to_event(1))
 
-    # NCP para b_team y b_position — b = sigma * raw, raw ~ N(0,1)
+    mu_shock = numpyro.sample("mu_shock",
+                               dist.Normal(0.0, 0.5).expand([n_shock_types, n_channels]).to_event(2))
+
+    # NCP team / position
     b_team_raw = numpyro.sample("b_team_raw", dist.Normal(0, 1).expand([n_teams, n_channels]).to_event(2))
     b_team = numpyro.deterministic("b_team", b_team_raw * sigma_team[None, :])
-
     b_pos_raw = numpyro.sample("b_pos_raw", dist.Normal(0, 1).expand([n_positions, n_channels]).to_event(2))
     b_position = numpyro.deterministic("b_position", b_pos_raw * sigma_position[None, :])
 
-    # NCP para efectos individuales GOAL_AGAINST (chasing) con LKJ cross-canal
-    # eta_ga[i,:] = L_ga @ eta_raw_ga[i,:]  con  L_ga = diag(sigma_ga) @ L_ga_corr
+    # NCP eta_ga (chasing) + LKJ cross-canal
     L_ga_corr = numpyro.sample("L_ga_corr", dist.LKJCholesky(n_channels, concentration=2.0))
-    L_ga = sigma_ga[:, None] * L_ga_corr                           # (K, K) lower tri
+    L_ga = sigma_ga[:, None] * L_ga_corr
     eta_raw_ga = numpyro.sample("eta_raw_ga", dist.Normal(0, 1).expand([n_players, n_channels]).to_event(2))
-    eta_ga = numpyro.deterministic("eta_ga", jnp.matmul(eta_raw_ga, L_ga.T))   # (P, K)
+    eta_ga = numpyro.deterministic("eta_ga", jnp.matmul(eta_raw_ga, L_ga.T))
 
-    # NCP para efectos individuales GOAL_FOR (protecting) con LKJ cross-canal
+    # NCP eta_gf (protecting) + LKJ cross-canal
     L_gf_corr = numpyro.sample("L_gf_corr", dist.LKJCholesky(n_channels, concentration=2.0))
     L_gf = sigma_gf[:, None] * L_gf_corr
     eta_raw_gf = numpyro.sample("eta_raw_gf", dist.Normal(0, 1).expand([n_players, n_channels]).to_event(2))
-    eta_gf = numpyro.deterministic("eta_gf", jnp.matmul(eta_raw_gf, L_gf.T))   # (P, K)
+    eta_gf = numpyro.deterministic("eta_gf", jnp.matmul(eta_raw_gf, L_gf.T))
 
-    # eta[i, shock_type, k]: (P, S, K) — GA=idx0, GF=idx1
-    eta_player = jnp.stack([eta_ga, eta_gf], axis=1)               # (P, S, K)
+    # NCP eta_pressure (3a dimension): respuesta individual continua a elim_prox
+    L_pres_corr = numpyro.sample("L_pres_corr", dist.LKJCholesky(n_channels, concentration=2.0))
+    L_pres = sigma_pressure[:, None] * L_pres_corr
+    eta_raw_pres = numpyro.sample("eta_raw_pres", dist.Normal(0, 1).expand([n_players, n_channels]).to_event(2))
+    eta_pressure = numpyro.deterministic("eta_pressure", jnp.matmul(eta_raw_pres, L_pres.T))
 
-    # b_context[i,k] = grade_effect + team_effect + position_effect (comun a GA/GF)
+    # eta[i, s, k]: (P, S, K) GA=0 GF=1
+    eta_player = jnp.stack([eta_ga, eta_gf], axis=1)
+
     b_context = numpyro.deterministic("b_context",
-        gamma[None, :] * pff_grade_z[:, None]                       # (P, K)
+        gamma[None, :] * pff_grade_z[:, None]
         + b_team[player_to_team]
         + b_position[player_to_position])
 
-    # Likelihood: obs = mu_shock[s,k] + b_context[i,k] + eta[i,s,k] + eps
+    # Likelihood unificado
     pred = (mu_shock[shock_idx, channel_idx]
             + b_context[player_idx, channel_idx]
-            + eta_player[player_idx, shock_idx, channel_idx])
+            + eta_player[player_idx, shock_idx, channel_idx]
+            + b_min[channel_idx]   * minute_norm
+            + b_score[channel_idx] * score_diff_post_z
+            + b_phase[channel_idx] * week_idx_norm
+            + b_lev[channel_idx]   * leverage_z
+            + b_elim[channel_idx]  * elim_prox_z
+            + eta_pressure[player_idx, channel_idx] * elim_prox_z)
     with numpyro.plate("N", len(y)):
         numpyro.sample("obs", dist.Normal(pred, sigma_eps[channel_idx]), obs=y)
 
@@ -334,9 +382,6 @@ def fit_cate_nuts(panel: pl.DataFrame,
     # El modelo asume GOAL_AGAINST=0, GOAL_FOR=1 (sorted alphabetical)
     assert sh_to_idx.get("GOAL_AGAINST") == 0 and sh_to_idx.get("GOAL_FOR") == 1, \
         f"Orden shock_types inesperado: {sh_to_idx}"
-    # Stage map (groups=0, ko=1) preservado en panel para consumers downstream (M15)
-    stages = sorted(df["stage"].dropna().unique()) if "stage" in df.columns else []
-    stage_to_idx = {s: i for i, s in enumerate(stages)}
 
     # Player → team y position lookups
     p_to_team = {}
@@ -361,19 +406,29 @@ def fit_cate_nuts(panel: pl.DataFrame,
     channel_idx = df["channel"].map(ch_to_idx).values.astype(np.int32)
     y = df["delta_z"].values.astype(np.float32)
 
+    # Moduladores continuos (PASO 1 + PASO 5)
+    minute_norm        = df["minute_norm"].fillna(0.0).values.astype(np.float32)
+    score_diff_post_z  = df["score_diff_post_z"].fillna(0.0).values.astype(np.float32)
+    week_idx_norm      = df["week_idx_norm"].fillna(0.0).values.astype(np.float32)
+    leverage_z         = df["leverage_z"].fillna(0.0).values.astype(np.float32)
+    elim_prox_z        = df["elim_prox_z"].fillna(0.0).values.astype(np.float32)
+
     print(f"  NUTS: N={len(y)}, players={len(players)}, teams={len(teams)}, "
           f"positions={len(positions)}, shock_types={len(shock_types)}, "
           f"channels={len(channels)}")
+    print(f"  moduladores: minute, score_diff_post, week_idx, leverage, elim_prox")
     print(f"  warmup={num_warmup}, samples={num_samples}, chains={num_chains}")
 
-    # target_accept_prob=0.9 recomendado para modelos con LKJ + jerarquia
-    kernel = NUTS(_model_mvbcf, target_accept_prob=0.9)
+    kernel = NUTS(_model_mvbcf, target_accept_prob=0.95)
     mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples,
                  num_chains=num_chains, progress_bar=True)
     mcmc.run(
         jax.random.PRNGKey(seed),
         player_idx, shock_idx, channel_idx,
-        pff_grade_z_arr, y,
+        pff_grade_z_arr,
+        minute_norm, score_diff_post_z, week_idx_norm,
+        leverage_z, elim_prox_z,
+        y,
         len(players), len(teams), len(positions), len(shock_types), len(channels),
         player_to_team_arr, player_to_position_arr,
         extra_fields=("diverging", "accept_prob"),
@@ -399,7 +454,6 @@ def fit_cate_nuts(panel: pl.DataFrame,
         "pos_to_idx":        pos_to_idx,
         "sh_to_idx":         sh_to_idx,
         "ch_to_idx":         ch_to_idx,
-        "stage_to_idx":      stage_to_idx,
         "player_to_team":    player_to_team_arr,
         "player_to_position": player_to_position_arr,
         "pff_grade_z":       pff_grade_z_arr,
@@ -422,11 +476,11 @@ def compute_diagnostics(fit: dict) -> pl.DataFrame:
     """
     # Solo params diagnosticables (escalas, correlaciones, efectos globales)
     _SKIP = frozenset({
-        "eta_raw_ga", "eta_raw_gf",   # NCP raw (P x K) — N(0,1) by design
-        "b_team_raw", "b_pos_raw",     # NCP raw (T/P x K) — N(0,1) by design
-        "eta_ga", "eta_gf",            # deterministic — derived
-        "b_team", "b_position",        # deterministic — derived
-        "b_context",                   # deterministic — derived (P x K)
+        "eta_raw_ga", "eta_raw_gf", "eta_raw_pres",   # NCP raw — N(0,1) by design
+        "b_team_raw", "b_pos_raw",                     # NCP raw
+        "eta_ga", "eta_gf", "eta_pressure",            # deterministic — derived
+        "b_team", "b_position",                        # deterministic — derived
+        "b_context",                                   # deterministic
     })
     samples = fit["samples_per_chain"]   # {param: (n_chains, n_samples, ...)}
     rows = []
@@ -501,23 +555,40 @@ def posterior_predictive_check(fit: dict, panel: pl.DataFrame,
     shock_idx_v = df_pd["shock_type"].map(sh_to_idx).values
     channel_idx_v = df_pd["channel"].map(ch_to_idx).values
     y_obs = df_pd["delta_z"].values
+    # Moduladores continuos (replican _model_mvbcf)
+    minute_norm_v        = df_pd["minute_norm"].fillna(0.0).values.astype(np.float32)
+    score_diff_post_z_v  = df_pd["score_diff_post_z"].fillna(0.0).values.astype(np.float32)
+    week_idx_norm_v      = df_pd["week_idx_norm"].fillna(0.0).values.astype(np.float32)
+    leverage_z_v         = df_pd["leverage_z"].fillna(0.0).values.astype(np.float32)
+    elim_prox_z_v        = df_pd["elim_prox_z"].fillna(0.0).values.astype(np.float32)
 
     rows = []
     for ch_n, ch_i in ch_to_idx.items():
         for sh_n, sh_i in sh_to_idx.items():
             mask = (channel_idx_v == ch_i) & (shock_idx_v == sh_i)
             obs = y_obs[mask]
-            eta_key = "eta_ga" if sh_i == 0 else "eta_gf"   # GA=0, GF=1
+            eta_key = "eta_ga" if sh_i == 0 else "eta_gf"
             sims = []
             for r in draw_idx:
-                # Modelo completo: mu_shock + b_context + eta + N(0, sigma_eps)
                 eta_s   = s[eta_key][r]                  # (P, K)
+                eta_p   = s["eta_pressure"][r]           # (P, K)
                 bctx    = s["b_context"][r]              # (P, K)
                 mu_s    = s["mu_shock"][r, sh_i, ch_i]
                 sig_eps = s["sigma_eps"][r, ch_i]
+                b_min_  = s["b_min"][r, ch_i]
+                b_sco   = s["b_score"][r, ch_i]
+                b_pha   = s["b_phase"][r, ch_i]
+                b_lev_  = s["b_lev"][r, ch_i]
+                b_eli   = s["b_elim"][r, ch_i]
                 mu_obs  = (mu_s
                            + bctx[player_idx[mask], ch_i]
-                           + eta_s[player_idx[mask], ch_i])
+                           + eta_s[player_idx[mask], ch_i]
+                           + b_min_ * minute_norm_v[mask]
+                           + b_sco  * score_diff_post_z_v[mask]
+                           + b_pha  * week_idx_norm_v[mask]
+                           + b_lev_ * leverage_z_v[mask]
+                           + b_eli  * elim_prox_z_v[mask]
+                           + eta_p[player_idx[mask], ch_i] * elim_prox_z_v[mask])
                 sims.extend((mu_obs + rng.standard_normal(len(mu_obs)) * sig_eps).tolist())
             ks_stat, ks_p = ks_2samp(obs, sims)
             obs_mean, sim_mean = float(obs.mean()), float(np.mean(sims))
@@ -549,8 +620,9 @@ def posterior_per_player(fit: dict) -> pl.DataFrame:
     Remontador/Cerrojo y a M15.
     """
     s = fit["samples"]
-    eta_ga = s["eta_ga"]   # (n_samples, n_players, n_channels)
-    eta_gf = s["eta_gf"]   # (n_samples, n_players, n_channels)
+    eta_ga = s["eta_ga"]
+    eta_gf = s["eta_gf"]
+    eta_pres = s["eta_pressure"]
     n_samples, n_players, n_channels = eta_ga.shape
 
     inv_p = {v: k for k, v in fit["p_to_idx"].items()}
@@ -559,7 +631,7 @@ def posterior_per_player(fit: dict) -> pl.DataFrame:
     def _block(arr: np.ndarray, shock_name: str) -> list[dict]:
         rows = []
         for c_i in range(n_channels):
-            col = arr[:, :, c_i]                                # (S, P)
+            col = arr[:, :, c_i]
             mean    = col.mean(axis=0)
             sd      = col.std(axis=0)
             ci_lo80 = np.percentile(col, 10, axis=0)
@@ -580,7 +652,12 @@ def posterior_per_player(fit: dict) -> pl.DataFrame:
                 })
         return rows
 
-    return pl.DataFrame(_block(eta_ga, "GOAL_AGAINST") + _block(eta_gf, "GOAL_FOR"))
+    # PRESSURE: 3a dimension = pendiente individual respecto a elim_prox
+    return pl.DataFrame(
+        _block(eta_ga,   "GOAL_AGAINST")
+        + _block(eta_gf, "GOAL_FOR")
+        + _block(eta_pres, "PRESSURE")
+    )
 
 
 def posterior_cross_canal_corr(fit: dict) -> pl.DataFrame:
@@ -591,10 +668,12 @@ def posterior_cross_canal_corr(fit: dict) -> pl.DataFrame:
     s = fit["samples"]
     inv_c = {v: k for k, v in fit["ch_to_idx"].items()}
     rows = []
-    for shock_name, key in [("GOAL_AGAINST", "L_ga_corr"), ("GOAL_FOR", "L_gf_corr")]:
-        Ls = s[key]                              # (n_samples, K, K)
-        corr = np.einsum("sij,skj->sik", Ls, Ls)  # L @ L.T per sample
-        corr_mean = corr.mean(axis=0)            # (K, K)
+    for shock_name, key in [("GOAL_AGAINST", "L_ga_corr"),
+                              ("GOAL_FOR",     "L_gf_corr"),
+                              ("PRESSURE",     "L_pres_corr")]:
+        Ls = s[key]
+        corr = np.einsum("sij,skj->sik", Ls, Ls)
+        corr_mean = corr.mean(axis=0)
         for i in range(corr_mean.shape[0]):
             for j in range(corr_mean.shape[1]):
                 rows.append({
@@ -620,24 +699,31 @@ def compute_indices(fit: dict) -> pl.DataFrame:
     descontando el efecto de equipo y posicion.
     """
     s = fit["samples"]
-    eta_ga = s["eta_ga"]   # (n_samples, n_players, n_channels)
+    eta_ga = s["eta_ga"]
     eta_gf = s["eta_gf"]
-    ch = fit["ch_to_idx"]  # canal -> idx (sorted: ataque=0, defensa=1, fisico=2, offball=3)
+    eta_pres = s["eta_pressure"]
+    ch = fit["ch_to_idx"]
     inv_p = {v: k for k, v in fit["p_to_idx"].items()}
 
-    eta_ga_mean = eta_ga.mean(axis=0)   # (n_players, n_channels)
-    eta_gf_mean = eta_gf.mean(axis=0)
+    eta_ga_mean   = eta_ga.mean(axis=0)
+    eta_gf_mean   = eta_gf.mean(axis=0)
+    eta_pres_mean = eta_pres.mean(axis=0)
 
-    atk_i = ch["ataque"]
-    off_i = ch["offball"]
-    def_i = ch["defensa"]
-    phy_i = ch["fisico"]
+    atk_i = ch["ataque"]; off_i = ch["offball"]
+    def_i = ch["defensa"]; phy_i = ch["fisico"]
 
     rows = [
         {
             "pff_player_id":       inv_p[p_i],
-            "chasing_clutch_idx":  float((eta_ga_mean[p_i, atk_i] + eta_ga_mean[p_i, off_i]) / 2),
-            "protecting_clutch_idx": float((eta_gf_mean[p_i, def_i] + eta_gf_mean[p_i, phy_i]) / 2),
+            # Remontador: Empuje + Off-ball relativos al bloque post-GA
+            "chasing_clutch_idx":  float((eta_ga_mean[p_i, atk_i]
+                                           + eta_ga_mean[p_i, off_i]) / 2),
+            # Cerrojo: Defensa + Fisico relativos al bloque post-GF
+            "protecting_clutch_idx": float((eta_gf_mean[p_i, def_i]
+                                            + eta_gf_mean[p_i, phy_i]) / 2),
+            # Pressure Response: media 4-canales de la pendiente individual
+            # respecto a elim_prox (3a dimension propuesta_final §Fase 5).
+            "pressure_response_idx": float(eta_pres_mean[p_i, :].mean()),
         }
         for p_i in range(len(inv_p))
     ]
@@ -645,7 +731,7 @@ def compute_indices(fit: dict) -> pl.DataFrame:
 
 
 def compute_rankings(indices: pl.DataFrame, panel: pl.DataFrame) -> pl.DataFrame:
-    """Ranking dentro del rol (position_group) + ranking global."""
+    """Ranking dentro del rol (position_group) + ranking global. 3 dimensiones."""
     pos_per_player = panel.filter(pl.col("position_group").is_not_null()).group_by(
         "pff_player_id"
     ).agg(pl.col("position_group").mode().first().alias("position_group"))
@@ -655,10 +741,14 @@ def compute_rankings(indices: pl.DataFrame, panel: pl.DataFrame) -> pl.DataFrame
           .alias("rank_chasing_global"),
         pl.col("protecting_clutch_idx").rank(descending=True, method="ordinal")
           .alias("rank_protecting_global"),
+        pl.col("pressure_response_idx").rank(descending=True, method="ordinal")
+          .alias("rank_pressure_global"),
         pl.col("chasing_clutch_idx").rank(descending=True, method="ordinal")
           .over("position_group").alias("rank_chasing_in_position"),
         pl.col("protecting_clutch_idx").rank(descending=True, method="ordinal")
           .over("position_group").alias("rank_protecting_in_position"),
+        pl.col("pressure_response_idx").rank(descending=True, method="ordinal")
+          .over("position_group").alias("rank_pressure_in_position"),
     ])
     return df
 
@@ -777,19 +867,28 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
     expected_shapes = {
         "eta_ga":     (n_total, n_pl, n_ch),
         "eta_gf":     (n_total, n_pl, n_ch),
+        "eta_pressure": (n_total, n_pl, n_ch),
         "eta_raw_ga": (n_total, n_pl, n_ch),
         "eta_raw_gf": (n_total, n_pl, n_ch),
+        "eta_raw_pres": (n_total, n_pl, n_ch),
         "b_team_raw": (n_total, n_te, n_ch),
         "b_pos_raw":  (n_total, n_po, n_ch),
         "L_ga_corr":  (n_total, n_ch, n_ch),
         "L_gf_corr":  (n_total, n_ch, n_ch),
+        "L_pres_corr": (n_total, n_ch, n_ch),
         "sigma_ga":   (n_total, n_ch),
         "sigma_gf":   (n_total, n_ch),
+        "sigma_pressure": (n_total, n_ch),
         "sigma_team": (n_total, n_ch),
         "sigma_position": (n_total, n_ch),
         "sigma_eps":  (n_total, n_ch),
         "mu_shock":   (n_total, 2, n_ch),
         "gamma":      (n_total, n_ch),
+        "b_min":      (n_total, n_ch),
+        "b_score":    (n_total, n_ch),
+        "b_phase":    (n_total, n_ch),
+        "b_lev":      (n_total, n_ch),
+        "b_elim":     (n_total, n_ch),
     }
     fails = []
     for name, exp in expected_shapes.items():
@@ -867,9 +966,10 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
     # T6. Pipeline de extraccion completo
     # ------------------------------------------------------------------ #
     post = posterior_per_player(fit)
-    assert post.height == n_pl * n_ch * 2, f"posterior shape: {post.height}"
+    # 3 dimensiones: GOAL_AGAINST, GOAL_FOR, PRESSURE
+    assert post.height == n_pl * n_ch * 3, f"posterior shape: {post.height}"
     corr = posterior_cross_canal_corr(fit)
-    assert corr.height == 2 * n_ch * n_ch, f"corr shape: {corr.height}"
+    assert corr.height == 3 * n_ch * n_ch, f"corr shape: {corr.height}"
     idx = compute_indices(fit)
     assert idx.height == n_pl, f"indices shape: {idx.height}"
     rank = compute_rankings(idx, panel)
@@ -879,14 +979,18 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
           f"idx={idx.height}, rank={rank.height}, diag={diag.height} params)")
 
     # ------------------------------------------------------------------ #
-    # T7. Face validity: ranking diferenciado (top != bottom, no degenerate)
+    # T7. Face validity: ranking diferenciado en las 3 dimensiones
     # ------------------------------------------------------------------ #
     cci_range = float(idx["chasing_clutch_idx"].max() - idx["chasing_clutch_idx"].min())
     pci_range = float(idx["protecting_clutch_idx"].max() - idx["protecting_clutch_idx"].min())
-    if cci_range < 0.01 or pci_range < 0.01:
-        print(f"  T7 differentiation: FAIL (cci_range={cci_range:.4f}, pci_range={pci_range:.4f})")
+    pri_range = float(idx["pressure_response_idx"].max()
+                       - idx["pressure_response_idx"].min())
+    if cci_range < 0.01 or pci_range < 0.01 or pri_range < 0.001:
+        print(f"  T7 differentiation: FAIL (cci={cci_range:.4f}, pci={pci_range:.4f}, "
+              f"pri={pri_range:.4f})")
         return False
-    print(f"  T7 differentiation: OK (cci range={cci_range:.3f}, pci range={pci_range:.3f})")
+    print(f"  T7 differentiation: OK (cci={cci_range:.3f}, pci={pci_range:.3f}, "
+          f"pri={pri_range:.3f})")
 
     # ------------------------------------------------------------------ #
     # T8. R-hat ESS sanity: laxo para 200 samples (R-hat < 1.5 OK)

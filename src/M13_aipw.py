@@ -277,10 +277,16 @@ def _attach_perspective(df: pl.DataFrame, pool: pl.DataFrame) -> pl.DataFrame:
 # ===========================================================================
 
 def attach_outcomes(panel: pl.DataFrame, pool: pl.DataFrame,
-                     channel: str) -> pl.DataFrame:
+                     channel: str, relative: bool = True) -> pl.DataFrame:
     """Anade outcome_post = mean(canal) en ventana sec_abs ∈ [t+60, t+600].
 
     sec_abs del shot = sb_minute*60 + sb_second (alineado con M12 sec_abs).
+
+    relative=True: outcome_post = focal − team_loo. El bloque se define por
+    `pff_team_id` del panel (todos los teammates del focal en campo en ese
+    shot). team_loo se computa con CROSS-PRODUCT (members × ventana) +
+    fill_null=fill_value, NO solo sobre miembros que actuaron — eso evita
+    sub-estimar n_block.
     """
     pm_relpath, outcome_col, fill_value = CHANNELS[channel]
     pm = pl.read_parquet(_DERIVED.parent / pm_relpath).select([
@@ -288,16 +294,13 @@ def attach_outcomes(panel: pl.DataFrame, pool: pl.DataFrame,
         pl.col(outcome_col).alias("outcome"),
     ])
 
-    # sec_abs del shot
     pool_with_sec = pool.with_columns(
         (pl.col("minute") * 60 + pl.col("second")).cast(pl.Int64).alias("t_event_sec")
     ).select(["event_uuid", "t_event_sec"])
 
     panel = panel.join(pool_with_sec, on="event_uuid", how="left")
 
-    # Window join: para cada (event_uuid, player), filtrar pm en [t+60, t+600]
-    # y aggregate mean. Polars no tiene join asof rangos, asi que hacemos cross
-    # join intra-match (small N) y filtramos.
+    # Suma per-player en ventana post: cross-product (event x player)
     panel_with_outcome = panel.join(
         pm, on=["pff_match_id", "pff_player_id"], how="left",
     ).with_columns(
@@ -305,20 +308,63 @@ def attach_outcomes(panel: pl.DataFrame, pool: pl.DataFrame,
     ).filter(
         pl.col("rel_sec").is_between(WINDOW_POST_SEC[0], WINDOW_POST_SEC[1])
     )
-
     if fill_value is not None:
         panel_with_outcome = panel_with_outcome.with_columns(
             pl.col("outcome").fill_null(fill_value)
         )
-
-    agg = panel_with_outcome.group_by(
+    agg_focal = panel_with_outcome.group_by(
         ["event_uuid", "pff_player_id"]
     ).agg([
-        pl.col("outcome").mean().alias("outcome_post"),
+        pl.col("outcome").mean().alias("outcome_post_abs"),
         pl.col("outcome").count().cast(pl.Int64).alias("n_minutes_obs"),
     ])
+    out = panel.join(agg_focal, on=["event_uuid", "pff_player_id"], how="left")
 
-    out = panel.join(agg, on=["event_uuid", "pff_player_id"], how="left")
+    if relative:
+        # team_loo a granularidad evento: cross-product (event × member)
+        # garantiza que miembros sin accion en ventana cuenten en n_block.
+        # `panel` ya enumera los 22 players_in_field por event_uuid → bloque
+        # del focal = filas del MISMO pff_team_id en ese event.
+        block_members = panel.select([
+            "event_uuid", "pff_team_id",
+            pl.col("pff_player_id").alias("member_player_id"),
+        ]).unique()
+        member_outcome = block_members.join(
+            agg_focal.rename({"pff_player_id": "member_player_id",
+                               "outcome_post_abs": "member_mean"}),
+            on=["event_uuid", "member_player_id"], how="left",
+        ).with_columns(
+            pl.col("member_mean").fill_null(
+                fill_value if fill_value is not None else 0.0
+            )
+        )
+        team_aggs = member_outcome.group_by(
+            ["event_uuid", "pff_team_id"]
+        ).agg([
+            pl.col("member_mean").sum().alias("team_total"),
+            pl.col("member_player_id").n_unique().alias("n_block_event"),
+        ])
+        out = out.join(
+            team_aggs, on=["event_uuid", "pff_team_id"], how="left",
+        ).with_columns([
+            pl.when(pl.col("n_block_event") > 1)
+              .then((pl.col("team_total") - pl.col("outcome_post_abs"))
+                    / (pl.col("n_block_event") - 1))
+              .otherwise(pl.lit(None, dtype=pl.Float64))
+              .alias("outcome_post_team_loo")
+        ]).with_columns(
+            (pl.col("outcome_post_abs") - pl.col("outcome_post_team_loo"))
+                .alias("outcome_post_relative"),
+        ).with_columns(
+            pl.coalesce([pl.col("outcome_post_relative"),
+                          pl.col("outcome_post_abs")]).alias("outcome_post")
+        ).drop(["team_total", "n_block_event"])
+    else:
+        out = out.with_columns([
+            pl.col("outcome_post_abs").alias("outcome_post"),
+            pl.lit(None, dtype=pl.Float64).alias("outcome_post_team_loo"),
+            pl.lit(None, dtype=pl.Float64).alias("outcome_post_relative"),
+        ])
     return out
 
 
@@ -326,9 +372,15 @@ def build_panel_for_channel_perspective(
     channel: str, perspective: str,
     near_miss_types: tuple[str, ...] | None = None,
     cache: bool = True,
+    relative: bool = True,
 ) -> pl.DataFrame:
-    """Panel completo para 1 (canal, perspective): pool x players x covariables x outcome."""
-    cache_path = _DERIVED / f"panel_{channel}_{perspective.lower()}.parquet"
+    """Panel completo para 1 (canal, perspective): pool x players x covariables x outcome.
+
+    relative=True (default): outcome_post = focal − team_loo a ventana post-shot.
+    relative=False: outcome_post absoluto del focal (sensitivity H5).
+    """
+    suffix = "" if relative else "_absolute"
+    cache_path = _DERIVED / f"panel_{channel}_{perspective.lower()}{suffix}.parquet"
     if cache and cache_path.exists() and near_miss_types is None:
         return pl.read_parquet(cache_path)
 
@@ -341,9 +393,8 @@ def build_panel_for_channel_perspective(
         ["event_uuid", "treated", "xg_baseline", "psxg"] + COVARIATES
     )
     panel = panel.join(pool_slim, on="event_uuid", how="left")
-    panel = attach_outcomes(panel, pool, channel)
+    panel = attach_outcomes(panel, pool, channel, relative=relative)
 
-    # Drop rows sin outcome (sin per_minute en ventana — fisico p.ej. si NaN)
     panel = panel.filter(pl.col("outcome_post").is_not_null())
 
     if cache and near_miss_types is None:

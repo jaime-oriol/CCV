@@ -370,6 +370,54 @@ def _score_state_before(
     return ev
 
 
+# -- Score state post-shock + week index continuo --------------------------
+
+_WC22_LAST_WEEK = 8   # J1, J2, J3, Octavos, Cuartos, Semis, 3rd-place, Final
+
+
+def score_state_after_shock(match_id: int, t_event_seconds: int) -> dict[str, int]:
+    """Marcador (cum_home, cum_away) DESPUES de los goles con sgc <= t_event_seconds.
+
+    A diferencia de `_score_state_before` (asof BACKWARD strict, marcador previo
+    al evento), aqui INCLUIMOS el gol del shock: el shock-de-gol cambia el
+    marcador inmediatamente y los moduladores continuos del CATE (M14) deben
+    ver el marcador post-shock, no el pre-shock.
+
+    Si cae mas de un gol en el mismo segundo (rarisimo), los cuenta todos.
+
+    Returns:
+        {'score_home_post': int, 'score_away_post': int}.
+    """
+    g = goals_timeline(match_id)
+    if g.height == 0:
+        return {"score_home_post": 0, "score_away_post": 0}
+    md = load_metadata(match_id).row(0, named=True)
+    home_id = md["home_team_id"]
+    g_at = g.filter(pl.col("start_game_clock") <= t_event_seconds)
+    if g_at.height == 0:
+        return {"score_home_post": 0, "score_away_post": 0}
+    sh = int(g_at.filter(pl.col("scoring_team_id") == home_id).height)
+    sa = int(g_at.filter(pl.col("scoring_team_id") != home_id).height)
+    return {"score_home_post": sh, "score_away_post": sa}
+
+
+def week_index_continuous(match_id: int,
+                           last_week: int = _WC22_LAST_WEEK) -> float:
+    """Week index normalizado a [0, 1] (modulador continuo de fase del torneo).
+
+    WC22: J1=1, J2=2, J3=3, Octavos=4, Cuartos=5, Semis=6, Final/3rd=7.
+    Devuelve `(week - 1) / (last_week - 1)`. La propuesta nueva exige fase
+    continua via week index, no categorica groups/ko (§Fase 4).
+
+    Returns:
+        Float en [0, 1]. Null si week ausente en metadata.
+    """
+    w = load_metadata(match_id).row(0, named=True).get("week")
+    if w is None:
+        return 0.0
+    return float((int(w) - 1) / (last_week - 1))
+
+
 # -- Minutos jugados --------------------------------------------------------
 
 def player_minutes(match_id: int) -> pl.DataFrame:

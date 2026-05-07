@@ -62,11 +62,12 @@ if str(_SRC_DIR) not in sys.path:
 
 from M01_loader_pff import (
     load_rosters, load_metadata, scan_tracking, list_event_match_ids,
+    load_events,
 )
 from M03_preprocess import (
     attacking_direction, pff_to_sb_match_id, sb_to_pff_match_id,
 )
-from M07_shocks import build_shocks_table
+from M07_shocks import build_shocks_table, attach_team_loo
 import M08_ataque as atk
 
 
@@ -227,6 +228,90 @@ def _def_third_pct_match(match_id: int) -> pl.DataFrame:
     return agg
 
 
+_PRESS_VALUE_SCHEMA = {
+    "pff_match_id": pl.Int64, "pff_player_id": pl.Int64,
+    "period": pl.Int64, "minute_in_period": pl.Int64,
+    "press_value_minute": pl.Float64,
+}
+
+# Pesos PFF press types (Maejima 2024 attribution + Lee 2025 exPress weighting)
+# A: attempted (intento, sin contacto efectivo)
+# L: passing-lane (cierra opcion de pase, presion sin contacto directo)
+# P: player-pressured (presion EFECTIVA — el carrier acuso la presion)
+_PRESS_TYPE_WEIGHT = {"A": 0.5, "L": 1.0, "P": 2.0}
+_BAD_TOUCH_BOOST = 1.5    # multiplica si initialTouchType ∈ {M, B}: la presion ROMPIO el touch
+
+
+def _pff_press_value_per_minute(match_id: int) -> pl.DataFrame:
+    """Maejima light: atribuye press_value al defensor que APLICA la presion.
+
+    Fuente: PFF initialTouch.initialPressurePlayerId — 100% cobertura cuando
+    initialPressureType ∈ {A, L, P}. Pesos por type + boost si la presion
+    rompe el touch (Lee et al. 2025 exPress-style: press exitosa = touch fallido).
+
+    Aprovecha que PFF ya etiqueta el defensor que aplica la presion frame-level
+    (no necesitamos nearest-defender computation, ya esta resuelto por el
+    proveedor). Diferencia con score_def_minute: este NO requiere accion
+    defensiva SPADL explicita — captura el credito por presion off-ball.
+    """
+    ev = load_events(match_id)
+    it = pl.col("initialTouch").struct
+    ge = pl.col("gameEvents").struct
+    flat = ev.select([
+        ge.field("period").alias("period"),
+        ge.field("startGameClock").alias("sgc"),
+        it.field("initialPressureType").alias("press_type"),
+        it.field("initialPressurePlayerId").cast(pl.Int64).alias("press_player_id"),
+        it.field("initialTouchType").alias("touch_type"),
+    ]).filter(
+        pl.col("press_type").is_in(["A", "L", "P"]) &
+        pl.col("press_player_id").is_not_null()
+    )
+    if flat.height == 0:
+        return pl.DataFrame(schema=_PRESS_VALUE_SCHEMA)
+
+    # period_start_sgc: minute_in_period robusto vs convencion PFF
+    p_start = (ev.select([
+        ge.field("period").alias("period"),
+        ge.field("startGameClock").alias("sgc"),
+    ]).group_by("period").agg(pl.col("sgc").min().alias("p_start")))
+
+    flat = flat.join(p_start, on="period", how="left").with_columns([
+        ((pl.col("sgc") - pl.col("p_start")) // 60).cast(pl.Int64).alias("minute_in_period"),
+        pl.col("press_type").replace_strict(_PRESS_TYPE_WEIGHT, default=0.0)
+            .cast(pl.Float64).alias("base_w"),
+        pl.col("touch_type").is_in(["M", "B"]).cast(pl.Float64).alias("bad_touch"),
+    ]).with_columns(
+        (pl.col("base_w")
+         * pl.when(pl.col("bad_touch") > 0).then(_BAD_TOUCH_BOOST).otherwise(1.0))
+            .alias("w")
+    )
+
+    return (flat.group_by(["period", "minute_in_period",
+                              pl.col("press_player_id").alias("pff_player_id")])
+                 .agg(pl.col("w").sum().alias("press_value_minute"))
+                 .with_columns(pl.lit(match_id, dtype=pl.Int64).alias("pff_match_id"))
+                 .select(list(_PRESS_VALUE_SCHEMA.keys())))
+
+
+def build_press_value_all(cache: bool = True) -> pl.DataFrame:
+    """Agrega press_value para los 64 partidos WC22."""
+    cache_path = _DERIVED / "press_value.parquet"
+    if cache and cache_path.exists():
+        return pl.read_parquet(cache_path)
+    dfs = []
+    for mid in list_event_match_ids():
+        try:
+            dfs.append(_pff_press_value_per_minute(mid))
+        except Exception as e:
+            print(f"  skip {mid}: {e}")
+    out = pl.concat(dfs) if dfs else pl.DataFrame(schema=_PRESS_VALUE_SCHEMA)
+    if cache:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        out.write_parquet(cache_path, compression="snappy")
+    return out
+
+
 def build_def_third_all(cache: bool = True) -> pl.DataFrame:
     """Agrega def_third_pct + press_intensity_frames para los 64 partidos WC22."""
     cache_path = _DERIVED / "def_third_context.parquet"
@@ -315,6 +400,32 @@ def aggregate_per_player_minute(cache: bool = True) -> pl.DataFrame:
         pl.col("sb_match_id").replace_strict(sb2pff, default=None).alias("pff_match_id"),
     ]).join(player_map, on="sb_player_id", how="left")
 
+    # Maejima light: press_value via PFF initialPressurePlayerId (peso fijo)
+    press_v = build_press_value_all(cache=True)
+    if press_v.height > 0:
+        agg = agg.join(
+            press_v, on=["pff_match_id", "pff_player_id",
+                          "period", "minute_in_period"],
+            how="left",
+        ).with_columns(pl.col("press_value_minute").fill_null(0.0))
+    else:
+        agg = agg.with_columns(pl.lit(0.0).alias("press_value_minute"))
+
+    # exPress (Lee et al. 2025): cabeza calibrada P(recovery<5s|press_event)
+    xpress_path = _DERIVED / "xpress" / "per_minute.parquet"
+    if xpress_path.exists():
+        xp = pl.read_parquet(xpress_path).select([
+            "pff_match_id", "pff_player_id", "period", "minute_in_period",
+            "xpress_value_minute",
+        ])
+        agg = agg.join(
+            xp, on=["pff_match_id", "pff_player_id",
+                     "period", "minute_in_period"],
+            how="left",
+        ).with_columns(pl.col("xpress_value_minute").fill_null(0.0))
+    else:
+        agg = agg.with_columns(pl.lit(0.0).alias("xpress_value_minute"))
+
     def_ctx = build_def_third_all(cache=True)
     if def_ctx.height > 0:
         # def_ctx publica `minute` period-relative -> renombrar a minute_in_period
@@ -342,6 +453,7 @@ def aggregate_per_player_minute(cache: bool = True) -> pl.DataFrame:
         "pff_player_id", "sb_player_id",
         "period", "minute_in_period", "sec_abs",
         "score_def_minute", "vdep_like_minute",
+        "press_value_minute", "xpress_value_minute",
         "n_def_actions", "n_actions_total",
         "def_third_pct", "press_intensity_frames", "oppo_possession_frames",
     ])
@@ -437,6 +549,53 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
             pl.col("press_frames_pre").fill_null(0),
             pl.col("press_frames_post").fill_null(0),
         ])
+    )
+
+    # LOO sobre score_def_minute (canal primario M09 -> M12/M14)
+    pm_for_loo = aggregate_per_player_minute(cache=True).filter(
+        pl.col("pff_match_id").is_not_null()
+        & pl.col("pff_player_id").is_not_null()
+    )
+    loo = attach_team_loo(
+        pm_for_loo, value_col="score_def_minute",
+    ).rename({
+        "score_def_minute_team_loo_pre":  "score_def_team_loo_pre",
+        "score_def_minute_team_loo_post": "score_def_team_loo_post",
+        "score_def_minute_relative_pre":  "score_def_relative_pre",
+        "score_def_minute_relative_post": "score_def_relative_post",
+        "score_def_minute_delta_player":  "score_def_delta_player",
+        "score_def_minute_delta_team_loo":"score_def_delta_team_loo",
+        "score_def_minute_delta_relative":"score_def_delta_relative",
+    }).select([
+        "match_id", "shock_id", "pff_player_id", "shock_type",
+        "score_def_team_loo_pre", "score_def_team_loo_post",
+        "score_def_relative_pre", "score_def_relative_post",
+        "score_def_delta_player", "score_def_delta_team_loo",
+        "score_def_delta_relative", "n_block",
+    ])
+
+    # LOO sobre press_value_minute (Maejima light, sensitivity para M14)
+    loo_press = attach_team_loo(
+        pm_for_loo, value_col="press_value_minute",
+    ).rename({
+        "press_value_minute_team_loo_pre":  "press_value_team_loo_pre",
+        "press_value_minute_team_loo_post": "press_value_team_loo_post",
+        "press_value_minute_delta_player":  "press_value_delta_player",
+        "press_value_minute_delta_team_loo":"press_value_delta_team_loo",
+        "press_value_minute_delta_relative":"press_value_delta_relative",
+    }).select([
+        "match_id", "shock_id", "pff_player_id", "shock_type",
+        "press_value_team_loo_pre", "press_value_team_loo_post",
+        "press_value_delta_player", "press_value_delta_team_loo",
+        "press_value_delta_relative",
+    ])
+
+    out = (
+        out
+        .join(loo, on=["match_id","shock_id","pff_player_id","shock_type"],
+              how="left")
+        .join(loo_press, on=["match_id","shock_id","pff_player_id","shock_type"],
+              how="left")
         .rename({"match_id": "pff_match_id"})
         .join(pff_to_sb_pl, on="pff_player_id", how="left")
         .with_columns(
@@ -448,9 +607,18 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
             "shock_id", "shock_type",
             "pff_player_id", "sb_player_id",
             "score_def_pre", "score_def_post",
+            "score_def_team_loo_pre", "score_def_team_loo_post",
+            "score_def_relative_pre", "score_def_relative_post",
+            "score_def_delta_player", "score_def_delta_team_loo",
+            "score_def_delta_relative",
+            # Maejima light press_value (sensitivity)
+            "press_value_team_loo_pre", "press_value_team_loo_post",
+            "press_value_delta_player", "press_value_delta_team_loo",
+            "press_value_delta_relative",
             "vdep_like_pre", "vdep_like_post",
             "n_def_actions_pre", "n_def_actions_post",
             "press_frames_pre", "press_frames_post",
+            "n_block",
         ])
     )
 

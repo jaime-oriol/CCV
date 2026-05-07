@@ -47,10 +47,17 @@ Depende de: M07 (shocks_table), M08-M11 (per_minute por canal).
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import numpy as np
 import polars as pl
+
+_SRC_DIR = Path(__file__).resolve().parent
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
+
+from M07_shocks import compute_team_loo_at_minute
 
 
 # -- Rutas ------------------------------------------------------------------
@@ -92,25 +99,31 @@ SHOCK_TYPES = ("GOAL_FOR", "GOAL_AGAINST")
 
 def build_event_study_panel(channel: str,
                              clean_only: bool = True,
-                             cache: bool = True) -> pl.DataFrame:
+                             cache: bool = True,
+                             relative: bool = True) -> pl.DataFrame:
     """Construye panel long-format (player x shock x relative_min) para 1 canal.
 
     relative_min = floor((sec_abs_obs - t_event_seconds) / 60), bineado a
-    enteros [-10, +10]. Filtra por period == shock.period (evita
-    contaminacion cross-period).
+    enteros [-10, +10]. Filtra por period == shock.period.
 
-    clean_only=True (default analysis primario): excluye shocks con flags
-    truncated_pre/post, overlap_flag, sub_in_window. Para sensibilidades,
-    pasar False y filtrar downstream.
+    clean_only=True: excluye shocks con flags truncated_pre/post, overlap_flag,
+    sub_in_window.
+
+    relative=True (default — propuesta nueva): el outcome del panel es
+    `outcome_player − outcome_team_loo_at_minute` (Δ_player_relative al
+    bloque, leave-one-out a granularidad minuto). relative=False conserva
+    el outcome absoluto del jugador (sensitivity para H5).
 
     Schema output:
       pff_match_id, shock_id, shock_type, pff_player_id, position_group,
-      relative_min, outcome, post (1 si relative_min>0).
+      relative_min, outcome, post, stage, leverage,
+      outcome_player_abs, outcome_team_loo (si relative).
     """
     if channel not in CHANNELS:
         raise ValueError(f"channel '{channel}' invalido; usa {list(CHANNELS)}")
 
-    cache_path = _DERIVED / f"panel_{channel}.parquet"
+    suffix = "" if relative else "_absolute"
+    cache_path = _DERIVED / f"panel_{channel}{suffix}.parquet"
     if cache and cache_path.exists():
         return pl.read_parquet(cache_path)
 
@@ -191,22 +204,82 @@ def build_event_study_panel(channel: str,
         pl.col("period").is_null() | (pl.col("period") == pl.col("shock_period"))
     )
 
-    # Fill missing outcome segun el canal
     if fill_value is not None:
         joined = joined.with_columns(pl.col("outcome").fill_null(fill_value))
-    # Para fisico (fill_value=None) las filas con outcome=NaN se dropean en
-    # los estimadores via dropna; mantenemos las filas en panel.
+
+    # outcome ABSOLUTO del jugador (preservado para H5 / sensitivity)
+    joined = joined.with_columns(
+        pl.col("outcome").cast(pl.Float64).alias("outcome_player_abs"),
+    )
+
+    if relative:
+        # LOO a granularidad minuto via helper M07 (refactorizado para hacer
+        # cross-product members × grid). Reusable, sin duplicar logica.
+        pm_min = pm.with_columns(
+            (pl.col("sec_abs") // 60).cast(pl.Int64).alias("minute_abs_join")
+        ).select([
+            "pff_match_id", "pff_player_id", "minute_abs_join", outcome_col,
+        ])
+        if fill_value is not None:
+            pm_min = pm_min.with_columns(
+                pl.col(outcome_col).fill_null(fill_value)
+            )
+        else:
+            pm_min = pm_min.filter(pl.col(outcome_col).is_not_null())
+        pm_min = pm_min.group_by(
+            ["pff_match_id", "pff_player_id", "minute_abs_join"]
+        ).agg(pl.col(outcome_col).sum())
+
+        # Grid de minutos del event-study: bins [-10, +10] del t_event de cada shock
+        bins = pl.DataFrame(
+            {"relative_min": list(range(-WINDOW_MIN, WINDOW_MIN + 1))},
+            schema={"relative_min": pl.Int64},
+        )
+        minutes_grid = shocks_slim.select([
+            "pff_match_id", "shock_id", "t_event_seconds",
+        ]).join(bins, how="cross").with_columns(
+            ((pl.col("t_event_seconds") + pl.col("relative_min") * 60) // 60)
+                .cast(pl.Int64).alias("minute_abs_join")
+        ).select(["pff_match_id", "shock_id", "minute_abs_join"]).unique()
+
+        loo = compute_team_loo_at_minute(
+            pm_min, value_col=outcome_col, minute_col="minute_abs_join",
+            minutes_grid=minutes_grid,
+            fill_value=fill_value if fill_value is not None else 0.0,
+        ).select([
+            "pff_match_id", "shock_id", "perspective", "minute_abs_join",
+            pl.col("focal_player_id").alias("pff_player_id"),
+            pl.col("outcome_team_loo").cast(pl.Float64),
+        ])
+        joined = joined.with_columns(
+            pl.col("shock_type").alias("perspective")
+        ).join(
+            loo,
+            on=["pff_match_id", "shock_id", "perspective",
+                 "pff_player_id", "minute_abs_join"],
+            how="left",
+        ).with_columns(
+            (pl.col("outcome_player_abs") - pl.col("outcome_team_loo"))
+                .alias("outcome_relative")
+        ).with_columns(
+            pl.coalesce([pl.col("outcome_relative"), pl.lit(0.0)])
+                .alias("outcome")
+        ).drop("perspective")
+    else:
+        joined = joined.with_columns([
+            pl.lit(None, dtype=pl.Float64).alias("outcome_team_loo"),
+            pl.col("outcome_player_abs").alias("outcome"),
+        ])
 
     out = joined.with_columns([
         (pl.col("relative_min") > 0).cast(pl.Int64).alias("post"),
-        # Cast outcome a Float64 para schema unificado entre canales
-        # (M08/M09 vienen Float32, M10/M11 vienen Float64)
         pl.col("outcome").cast(pl.Float64),
     ]).select([
         "pff_match_id", "shock_id", "shock_type",
         "pff_player_id", "position_group",
-        "relative_min", "outcome", "post",
-        "stage", "leverage",
+        "relative_min", "outcome",
+        "outcome_player_abs", "outcome_team_loo",
+        "post", "stage", "leverage",
     ])
 
     if cache:
@@ -215,10 +288,11 @@ def build_event_study_panel(channel: str,
     return out
 
 
-def build_all_panels(clean_only: bool = True, cache: bool = True
-                      ) -> dict[str, pl.DataFrame]:
-    """Construye paneles para los 4 canales."""
-    return {ch: build_event_study_panel(ch, clean_only=clean_only, cache=cache)
+def build_all_panels(clean_only: bool = True, cache: bool = True,
+                      relative: bool = True) -> dict[str, pl.DataFrame]:
+    """Construye paneles para los 4 canales (relative=True por defecto)."""
+    return {ch: build_event_study_panel(ch, clean_only=clean_only,
+                                          cache=cache, relative=relative)
             for ch in CHANNELS}
 
 

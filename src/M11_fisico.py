@@ -71,7 +71,7 @@ if str(_SRC_DIR) not in sys.path:
 from M01_loader_pff import (
     load_metadata, load_rosters, scan_tracking, list_event_match_ids,
 )
-from M07_shocks import build_shocks_table
+from M07_shocks import build_shocks_table, attach_team_loo
 
 
 # -- Rutas ------------------------------------------------------------------
@@ -871,6 +871,36 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
               how="left")
         .join(post, on=["match_id", "shock_id", "pff_player_id", "shock_type"],
               how="left")
+    )
+
+    # LOO sobre score_phys (residual z-score multivariate del modelo bayesiano)
+    pm_for_loo = pm.rename({"match_id": "pff_match_id"}).filter(
+        pl.col("pff_match_id").is_not_null()
+        & pl.col("pff_player_id").is_not_null()
+        & pl.col("score_phys").is_not_null()
+    )
+    loo = attach_team_loo(
+        pm_for_loo, value_col="score_phys",
+    ).rename({
+        "score_phys_team_loo_pre":  "score_phys_team_loo_pre",
+        "score_phys_team_loo_post": "score_phys_team_loo_post",
+        "score_phys_relative_pre":  "score_phys_relative_pre",
+        "score_phys_relative_post": "score_phys_relative_post",
+        "score_phys_delta_player":  "score_phys_delta_player",
+        "score_phys_delta_team_loo":"score_phys_delta_team_loo",
+        "score_phys_delta_relative":"score_phys_delta_relative",
+    }).select([
+        "match_id", "shock_id", "pff_player_id", "shock_type",
+        "score_phys_team_loo_pre", "score_phys_team_loo_post",
+        "score_phys_relative_pre", "score_phys_relative_post",
+        "score_phys_delta_player", "score_phys_delta_team_loo",
+        "score_phys_delta_relative", "n_block",
+    ])
+
+    out = (
+        out
+        .join(loo, on=["match_id", "shock_id", "pff_player_id", "shock_type"],
+              how="left")
         .rename({"match_id": "pff_match_id"})
         .join(pff_to_sb_pl, on="pff_player_id", how="left")
         .with_columns(
@@ -882,9 +912,14 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
             "shock_id", "shock_type",
             "pff_player_id", "sb_player_id",
             "score_phys_pre", "score_phys_post",
+            "score_phys_team_loo_pre", "score_phys_team_loo_post",
+            "score_phys_relative_pre", "score_phys_relative_post",
+            "score_phys_delta_player", "score_phys_delta_team_loo",
+            "score_phys_delta_relative",
             "z_psv95_pre", "z_psv95_post",
             "z_meanspd_pre", "z_meanspd_post",
             "z_hsr_pre", "z_hsr_post",
+            "n_block",
         ])
     )
 

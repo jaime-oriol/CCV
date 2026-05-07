@@ -53,7 +53,9 @@ if str(_SRC_DIR) not in sys.path:
 from M01_loader_pff import (
     list_event_match_ids, load_events, load_metadata, list_goals,
 )
-from M03_preprocess import goals_timeline, player_minutes
+from M03_preprocess import (
+    goals_timeline, player_minutes, week_index_continuous,
+)
 
 
 # -- Rutas ------------------------------------------------------------------
@@ -126,16 +128,24 @@ def _truncated_by_period(t_event: int, period: int,
 
 def build_shocks_table(cache: bool = True,
                        overwrite: bool = False) -> pl.DataFrame:
-    """Construye la tabla larga de shocks por jugador-shock.
+    """Construye la tabla larga de shocks por jugador-shock + tabla auxiliar
+    `shocks_team_members.parquet` con la composicion del bloque por shock.
 
     Cada gol -> multiples filas (una por jugador en campo), con perspectiva
-    GOAL_FOR / GOAL_AGAINST + ventanas + flags.
+    GOAL_FOR / GOAL_AGAINST + ventanas + flags + moduladores continuos
+    (minute_norm, week_idx_norm, score_diff_post) + n_teammates_in_field.
+
+    `shocks_team_members.parquet` (1 fila por (shock_id, team_id, player_id)):
+    feeder de leave-one-out para M08-M11 (Δ_player_relative al bloque).
     """
     cache_path = _DERIVED / "shocks_table.parquet"
-    if cache and cache_path.exists() and not overwrite:
+    members_path = _DERIVED / "shocks_team_members.parquet"
+    if (cache and cache_path.exists() and members_path.exists()
+            and not overwrite):
         return pl.read_parquet(cache_path)
 
     all_rows = []
+    team_member_rows: list[dict] = []
     shock_id_counter = 0
 
     # Stage map: week 1-3 = groups (48 partidos), 4-8 = ko (16 partidos)
@@ -174,6 +184,9 @@ def build_shocks_table(cache: bool = True,
         # Pre-compute overlap table: for each goal, does another goal fall in ±10min?
         goal_times = goals["start_game_clock"].to_list()
 
+        # Modulador continuo "fase del torneo" (week_idx ∈ [0,1])
+        match_week_idx_norm = week_index_continuous(mid)
+
         for i, g in enumerate(goals.iter_rows(named=True)):
             shock_id_counter += 1
             t = int(g["start_game_clock"])
@@ -193,6 +206,14 @@ def build_shocks_table(cache: bool = True,
 
             et_flag = p in (3, 4)
 
+            # Marcador POST-shock: cum_home/away del propio gol ya incluyen
+            # ese gol via cum_sum de goals_timeline. NO recomputar.
+            sh_post = int(g["cum_home"])
+            sa_post = int(g["cum_away"])
+
+            # Modulador continuo: minuto normalizado a [0, ~1.33] (ET=hasta 120/90)
+            minute_norm = minute_goal / 90.0
+
             # Jugadores en campo al minuto del gol
             # minute_in/minute_out de player_minutes (en MINUTOS)
             minute_threshold = minute_goal
@@ -201,6 +222,33 @@ def build_shocks_table(cache: bool = True,
                 (pl.col("minute_in") <= minute_threshold) &
                 (pl.col("minute_out") >= minute_threshold)
             )
+
+            # Bloque por team: composicion del LOO downstream
+            scoring_team_block = on_field.filter(
+                pl.col("team_id") == scoring_team_id
+            )["player_id"].to_list()
+            other_team_block = on_field.filter(
+                pl.col("team_id") != scoring_team_id
+            )["player_id"].to_list()
+
+            # Persistir composicion del bloque por (shock, team, perspective)
+            for pid in scoring_team_block:
+                team_member_rows.append({
+                    "match_id": mid, "shock_id": shock_id_counter,
+                    "team_id": scoring_team_id, "perspective": "GOAL_FOR",
+                    "player_id": int(pid),
+                })
+            # team_id del rival: cualquier jugador del other_team_block tiene el mismo
+            other_team_id = (int(on_field.filter(
+                pl.col("team_id") != scoring_team_id
+            )["team_id"][0]) if other_team_block else None)
+            if other_team_id is not None:
+                for pid in other_team_block:
+                    team_member_rows.append({
+                        "match_id": mid, "shock_id": shock_id_counter,
+                        "team_id": other_team_id, "perspective": "GOAL_AGAINST",
+                        "player_id": int(pid),
+                    })
 
             for pl_row in on_field.iter_rows(named=True):
                 player_team_id = int(pl_row["team_id"])
@@ -222,11 +270,27 @@ def build_shocks_table(cache: bool = True,
                 ep_home = elim_prox_home_map.get((mid, minute_goal), 0.0)
                 ep_away = elim_prox_away_map.get((mid, minute_goal), 0.0)
                 ep_player = ep_home if player_team_id == home_team_id else ep_away
+
+                # score_diff_post desde la perspectiva del jugador
+                score_diff_post = (
+                    (sh_post - sa_post)
+                    if player_team_id == home_team_id
+                    else (sa_post - sh_post)
+                )
+                # n_teammates_in_field: companeros del bloque del focal (excluido el focal)
+                team_block_size = (
+                    len(scoring_team_block)
+                    if player_team_id == scoring_team_id
+                    else len(other_team_block)
+                )
+                n_teammates_in_field = max(0, team_block_size - 1)
+
                 all_rows.append({
                     "match_id":           mid,
                     "shock_id":           shock_id_counter,
                     "stage":              match_stage,
                     "match_week":         match_week,
+                    "week_idx_norm":      match_week_idx_norm,   # modulador continuo fase
                     "leverage_at_shock":  shock_leverage,
                     "elim_prox_home_at_shock": ep_home,
                     "elim_prox_away_at_shock": ep_away,
@@ -234,6 +298,11 @@ def build_shocks_table(cache: bool = True,
                     "t_event_seconds":    t,
                     "period":             p,
                     "minute":             minute_goal,
+                    "minute_norm":        minute_norm,             # modulador continuo
+                    "score_home_post":    sh_post,
+                    "score_away_post":    sa_post,
+                    "score_diff_post":    score_diff_post,         # modulador continuo (player-pov)
+                    "n_teammates_in_field": n_teammates_in_field,
                     "scoring_team_id":    scoring_team_id,
                     "is_own_goal":        bool(g["is_own_goal"]),
                     "player_id":          int(pl_row["player_id"]),
@@ -254,10 +323,265 @@ def build_shocks_table(cache: bool = True,
                 })
 
     df = pl.DataFrame(all_rows)
+    members_df = pl.DataFrame(team_member_rows, schema={
+        "match_id": pl.Int64, "shock_id": pl.Int64, "team_id": pl.Int64,
+        "perspective": pl.String, "player_id": pl.Int64,
+    })
     if cache:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         df.write_parquet(cache_path, compression="snappy", statistics=True)
+        members_path.parent.mkdir(parents=True, exist_ok=True)
+        members_df.write_parquet(members_path, compression="snappy", statistics=True)
     return df
+
+
+def load_team_members(cache: bool = True) -> pl.DataFrame:
+    """`shocks_team_members.parquet` con la composicion del bloque por shock.
+
+    Schema: (match_id, shock_id, team_id, perspective, player_id).
+    Generado por `build_shocks_table`. Feeder de leave-one-out en M08-M11.
+    """
+    p = _DERIVED / "shocks_team_members.parquet"
+    if not p.exists() and cache:
+        build_shocks_table(cache=True, overwrite=False)
+    return pl.read_parquet(p)
+
+
+def attach_team_loo(per_minute: pl.DataFrame, value_col: str,
+                     match_col: str = "pff_match_id",
+                     player_col: str = "pff_player_id") -> pl.DataFrame:
+    """Para cada (shock, focal_player), agrega:
+       value_pre, value_post           (suma del focal en ventana ±10 min)
+       value_team_loo_pre, _post       (mean per-teammate excluyendo al focal)
+       value_relative_pre, _post       (focal - team_loo, mismo sentido)
+       value_delta_relative            ((post - pre)_focal - (post - pre)_team_loo)
+
+    Mecanica:
+      1. Per (shock, member): suma value_col del MIEMBRO del bloque en ventana.
+      2. Per (shock, perspective): team_total = SUM members; n_block = count.
+      3. Per (shock, focal): team_loo = (team_total - focal_sum) / (n_block - 1).
+
+    Args:
+        per_minute: DataFrame con cols [match_col, player_col, period, sec_abs,
+                    value_col]. Cualquiera de M08-M11 cumple X3.
+        value_col:  Nombre de la col a agregar (e.g., 'score_atk_minute').
+
+    Returns:
+        DataFrame por (match_id, shock_id, focal_player_id, shock_type) con
+        las 5 cols nuevas. Filtra shocks_table igual que el wrapper actual.
+    """
+    shocks = build_shocks_table(cache=True, overwrite=False)
+    members = load_team_members(cache=True)
+
+    # 1) Para cada miembro del bloque, suma de value_col en ventana pre y post
+    sh_slim = shocks.select([
+        "match_id", "shock_id", "shock_type",
+        "window_pre_start", "window_pre_end",
+        "window_post_start", "window_post_end",
+        pl.col("period").alias("shock_period"),
+    ]).unique(subset=["match_id", "shock_id"])
+
+    pm = per_minute.rename({match_col: "match_id", player_col: "member_player_id"})
+
+    # join shocks <- members <- per_minute via (match_id, member_player_id)
+    member_with_window = members.rename({"player_id": "member_player_id"}).join(
+        sh_slim, on=["match_id", "shock_id"], how="left"
+    )
+    joined = member_with_window.join(
+        pm.select(["match_id", "member_player_id", "period", "sec_abs", value_col]),
+        on=["match_id", "member_player_id"], how="left",
+    )
+    pre_member = joined.filter(
+        (pl.col("sec_abs") >= pl.col("window_pre_start")) &
+        (pl.col("sec_abs") < pl.col("window_pre_end")) &
+        (pl.col("period") == pl.col("shock_period"))
+    ).group_by(["match_id", "shock_id", "perspective", "team_id",
+                 "member_player_id"]).agg(
+        pl.col(value_col).sum().alias("member_pre")
+    )
+    post_member = joined.filter(
+        (pl.col("sec_abs") >= pl.col("window_post_start")) &
+        (pl.col("sec_abs") <= pl.col("window_post_end")) &
+        (pl.col("period") == pl.col("shock_period"))
+    ).group_by(["match_id", "shock_id", "perspective", "team_id",
+                 "member_player_id"]).agg(
+        pl.col(value_col).sum().alias("member_post")
+    )
+    member_full = (members.rename({"player_id": "member_player_id"})
+                   .join(pre_member,
+                         on=["match_id", "shock_id", "perspective",
+                              "team_id", "member_player_id"], how="left")
+                   .join(post_member,
+                         on=["match_id", "shock_id", "perspective",
+                              "team_id", "member_player_id"], how="left"))
+    member_full = member_full.with_columns([
+        pl.col("member_pre").fill_null(0.0),
+        pl.col("member_post").fill_null(0.0),
+    ])
+
+    # 2) Per (shock, perspective): team_total + n_block
+    team_total = member_full.group_by(["match_id", "shock_id", "perspective"]).agg([
+        pl.col("member_pre").sum().alias("team_total_pre"),
+        pl.col("member_post").sum().alias("team_total_post"),
+        pl.col("member_player_id").n_unique().alias("n_block"),
+    ])
+
+    # 3) Per (shock, focal) — focal_pre/post (= member_pre/post del focal) + LOO
+    focal = (shocks.select([
+        "match_id", "shock_id", "shock_type",
+        pl.col("player_id").alias("focal_player_id"),
+        pl.col("player_team_id").alias("focal_team_id"),
+    ]).unique(subset=["match_id", "shock_id", "focal_player_id"]))
+
+    # focal_pre/post desde member_full (focal_player_id == member_player_id)
+    focal_self = member_full.select([
+        "match_id", "shock_id", "perspective",
+        pl.col("member_player_id").alias("focal_player_id"),
+        pl.col("member_pre").alias(f"{value_col}_pre"),
+        pl.col("member_post").alias(f"{value_col}_post"),
+    ])
+    # join: focal por shock_type == perspective
+    focal_with_self = (focal
+        .with_columns(
+            pl.when(pl.col("shock_type") == "GOAL_FOR").then(pl.lit("GOAL_FOR"))
+              .otherwise(pl.lit("GOAL_AGAINST")).alias("perspective")
+        )
+        .join(focal_self,
+              on=["match_id", "shock_id", "perspective", "focal_player_id"],
+              how="left")
+        .join(team_total, on=["match_id", "shock_id", "perspective"], how="left"))
+
+    out = focal_with_self.with_columns([
+        pl.col(f"{value_col}_pre").fill_null(0.0),
+        pl.col(f"{value_col}_post").fill_null(0.0),
+        pl.col("team_total_pre").fill_null(0.0),
+        pl.col("team_total_post").fill_null(0.0),
+        pl.col("n_block").fill_null(0).cast(pl.Int64),
+    ]).with_columns([
+        pl.when(pl.col("n_block") > 1)
+          .then((pl.col("team_total_pre") - pl.col(f"{value_col}_pre"))
+                / (pl.col("n_block") - 1))
+          .otherwise(pl.lit(None, dtype=pl.Float64))
+          .alias(f"{value_col}_team_loo_pre"),
+        pl.when(pl.col("n_block") > 1)
+          .then((pl.col("team_total_post") - pl.col(f"{value_col}_post"))
+                / (pl.col("n_block") - 1))
+          .otherwise(pl.lit(None, dtype=pl.Float64))
+          .alias(f"{value_col}_team_loo_post"),
+    ]).with_columns([
+        (pl.col(f"{value_col}_pre") - pl.col(f"{value_col}_team_loo_pre"))
+            .alias(f"{value_col}_relative_pre"),
+        (pl.col(f"{value_col}_post") - pl.col(f"{value_col}_team_loo_post"))
+            .alias(f"{value_col}_relative_post"),
+    ]).with_columns([
+        ((pl.col(f"{value_col}_post") - pl.col(f"{value_col}_pre"))
+         - (pl.col(f"{value_col}_team_loo_post")
+            - pl.col(f"{value_col}_team_loo_pre")))
+            .alias(f"{value_col}_delta_relative"),
+        ((pl.col(f"{value_col}_post") - pl.col(f"{value_col}_pre")))
+            .alias(f"{value_col}_delta_player"),
+        ((pl.col(f"{value_col}_team_loo_post")
+          - pl.col(f"{value_col}_team_loo_pre")))
+            .alias(f"{value_col}_delta_team_loo"),
+    ]).select([
+        "match_id", "shock_id", "shock_type",
+        pl.col("focal_player_id").alias("pff_player_id"),
+        f"{value_col}_pre", f"{value_col}_post",
+        f"{value_col}_team_loo_pre", f"{value_col}_team_loo_post",
+        f"{value_col}_relative_pre", f"{value_col}_relative_post",
+        f"{value_col}_delta_player", f"{value_col}_delta_team_loo",
+        f"{value_col}_delta_relative",
+        pl.col("n_block"),
+    ])
+    return out
+
+
+def compute_team_loo_at_minute(per_minute: pl.DataFrame, value_col: str,
+                                 minute_col: str = "minute_abs_join",
+                                 minutes_grid: pl.DataFrame | None = None,
+                                 fill_value: float | None = 0.0,
+                                 ) -> pl.DataFrame:
+    """LOO a granularidad MINUTO: para cada (shock, perspective, focal, minute)
+    devuelve `team_total`, `n_block`, `outcome_team_loo`, `outcome_relative`.
+
+    Mecanica:
+      1. cross-product (shock × member × minute_grid) → cobertura completa,
+         miembros sin actividad cuentan como `fill_value` (0 default — un
+         minuto sin accion del miembro contribuye 0 al team_total).
+      2. Per (shock, perspective, minute): SUM members + count distinct.
+      3. Per (shock, perspective, minute, focal): team_loo = (team_total -
+         focal_outcome) / (n_block - 1).
+
+    Args:
+        per_minute: cols [pff_match_id, pff_player_id, minute_col, value_col].
+        minutes_grid: opcional, DataFrame con [pff_match_id, shock_id, minute_col]
+                      restringiendo el grid (e.g., bins de event-study). Si None,
+                      cross con TODOS los minutos donde algun miembro del bloque
+                      tiene fila — equivalente a la cobertura natural.
+        fill_value: relleno para miembros sin actividad en ese minuto (0 para
+                    canales aditivos; None = drop esos miembros).
+
+    Returns:
+        DataFrame columns: pff_match_id, shock_id, perspective, focal_player_id,
+        minute_col, team_total, n_block, outcome_team_loo, outcome_relative.
+    """
+    members = load_team_members(cache=True).rename({
+        "match_id": "pff_match_id", "player_id": "member_player_id",
+    })
+    pm = per_minute.rename({"pff_player_id": "member_player_id"}).select([
+        "pff_match_id", "member_player_id", minute_col, value_col,
+    ])
+
+    # Grid de (shock × minute) sobre el que hacer LOO
+    if minutes_grid is None:
+        # Cobertura natural: minutos donde algun miembro de algun bloque tiene fila.
+        minutes_grid = (members.join(pm, on=["pff_match_id", "member_player_id"],
+                                       how="inner")
+                        .select(["pff_match_id", "shock_id", minute_col])
+                        .unique())
+
+    # cross members × grid: cada miembro aparece para cada minuto del grid del shock
+    members_grid = members.join(
+        minutes_grid, on=["pff_match_id", "shock_id"], how="inner"
+    )
+    members_pm = members_grid.join(
+        pm, on=["pff_match_id", "member_player_id", minute_col], how="left"
+    )
+    if fill_value is not None:
+        members_pm = members_pm.with_columns(
+            pl.col(value_col).fill_null(fill_value)
+        )
+    else:
+        members_pm = members_pm.filter(pl.col(value_col).is_not_null())
+
+    team_aggs = members_pm.group_by(
+        ["pff_match_id", "shock_id", "perspective", minute_col]
+    ).agg([
+        pl.col(value_col).sum().alias("team_total"),
+        pl.col("member_player_id").n_unique().alias("n_block"),
+    ])
+
+    # focal_outcome = el outcome del propio focal en ese minute (= member_pre/post
+    # cuando el focal es el member). Lo sacamos del members_pm pre-aggregado.
+    focal_self = members_pm.select([
+        "pff_match_id", "shock_id", "perspective", minute_col,
+        pl.col("member_player_id").alias("focal_player_id"),
+        pl.col(value_col).alias("outcome_focal"),
+    ])
+    out = focal_self.join(
+        team_aggs,
+        on=["pff_match_id", "shock_id", "perspective", minute_col], how="left",
+    ).with_columns([
+        pl.when(pl.col("n_block") > 1)
+          .then((pl.col("team_total") - pl.col("outcome_focal"))
+                / (pl.col("n_block") - 1))
+          .otherwise(pl.lit(None, dtype=pl.Float64))
+          .alias("outcome_team_loo"),
+    ]).with_columns(
+        (pl.col("outcome_focal") - pl.col("outcome_team_loo"))
+          .alias("outcome_relative")
+    )
+    return out
 
 
 def summary_shocks(df: pl.DataFrame) -> pl.DataFrame:

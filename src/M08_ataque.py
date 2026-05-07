@@ -57,14 +57,17 @@ if str(_SRC_DIR) not in sys.path:
 
 # M01/M07 PFF-side
 from M01_loader_pff import load_rosters
-from M07_shocks import build_shocks_table
-# Z01 VAEP infraestructura (CatBoost + socceraction)
-import Z01_vaep as vaep_mod
+from M07_shocks import build_shocks_table, attach_team_loo
 
-# socceraction
-import socceraction.spadl as spadl
-from socceraction.data.statsbomb import StatsBombLoader
-from socceraction.atomic.spadl import convert_to_atomic, add_names as atomic_add_names
+# socceraction + Z01 se importan lazy en las funciones que los usan
+# (evita disparar el bug numpy 2.0 / pandera al solo cargar M08).
+def _import_vaep_stack():
+    """Lazy: socceraction + Z01_vaep solo cuando se entrena/aplica modelo."""
+    import Z01_vaep as vaep_mod
+    import socceraction.spadl as spadl
+    from socceraction.data.statsbomb import StatsBombLoader
+    from socceraction.atomic.spadl import convert_to_atomic, add_names as atomic_add_names
+    return vaep_mod, spadl, StatsBombLoader, convert_to_atomic, atomic_add_names
 
 
 # -- Rutas y constantes ----------------------------------------------------
@@ -82,7 +85,16 @@ TRAINING_COMPS = [
 ]
 WC22_COMP = ("WC22", 43, 106)
 
-SB_LOADER = StatsBombLoader(root=str(_SB_JSON_DIR), getter="local")
+_SB_LOADER_CACHE: object | None = None
+
+
+def _get_sb_loader():
+    """Lazy SB loader: solo se instancia cuando build_atomic_actions / mapping lo usa."""
+    global _SB_LOADER_CACHE
+    if _SB_LOADER_CACHE is None:
+        _, _, StatsBombLoader, _, _ = _import_vaep_stack()
+        _SB_LOADER_CACHE = StatsBombLoader(root=str(_SB_JSON_DIR), getter="local")
+    return _SB_LOADER_CACHE
 
 
 # ===========================================================================
@@ -96,9 +108,12 @@ def _build_atomic_actions(comps: list[tuple], cache_name: str,
     if cache_path.exists() and not overwrite:
         return pd.read_parquet(cache_path)
 
+    _, spadl, _, convert_to_atomic, atomic_add_names = _import_vaep_stack()
+    sb_loader = _get_sb_loader()
+
     all_atomic = []
     for alias, cid, sid in comps:
-        games = SB_LOADER.games(competition_id=cid, season_id=sid)
+        games = sb_loader.games(competition_id=cid, season_id=sid)
         print(f"  [{alias}] {len(games)} partidos...", flush=True)
         for _, g in games.iterrows():
             # Suprime warnings de socceraction (xy_fidelity_version inferido +
@@ -108,7 +123,7 @@ def _build_atomic_actions(comps: list[tuple], cache_name: str,
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 try:
-                    events = SB_LOADER.events(game_id=int(g.game_id))
+                    events = sb_loader.events(game_id=int(g.game_id))
                     actions = spadl.statsbomb.convert_to_actions(
                         events, home_team_id=int(g.home_team_id),
                     )
@@ -208,6 +223,7 @@ def train_vaep_model(atomic_df: pd.DataFrame,
     from sklearn.isotonic import IsotonicRegression
     from sklearn.metrics import roc_auc_score, brier_score_loss, log_loss
 
+    vaep_mod, *_ = _import_vaep_stack()
     X_all  = vaep_mod.compute_features(atomic_df, atomic=True, provider="statsbomb_atk")
     ys_all, yc_all = vaep_mod.compute_labels(atomic_df, atomic=True, provider="statsbomb_atk")
     ys = ys_all.values.ravel().astype(np.int32)
@@ -311,6 +327,7 @@ def save_models(fit: dict, path_prefix: Path | None = None) -> Path:
     if path_prefix is None:
         _MODEL_DIR.mkdir(parents=True, exist_ok=True)
         path_prefix = _MODEL_DIR / "vaep_atk"
+    vaep_mod, *_ = _import_vaep_stack()
     vaep_mod.save_models(fit["model_s"], fit["model_c"], str(path_prefix))
     # calibradores + metrics en pkl aparte
     with open(f"{path_prefix}_meta.pkl", "wb") as f:
@@ -327,6 +344,7 @@ def load_models(path_prefix: Path | None = None) -> dict:
     import pickle
     if path_prefix is None:
         path_prefix = _MODEL_DIR / "vaep_atk"
+    vaep_mod, *_ = _import_vaep_stack()
     m_s, m_c = vaep_mod.load_models(str(path_prefix))
     meta_path = Path(f"{path_prefix}_meta.pkl")
     meta = {}
@@ -348,6 +366,7 @@ def apply_vaep_to_wc22(fit: dict,
     """
     if wc22_atomic is None:
         wc22_atomic = build_wc22_atomic(overwrite=False)
+    vaep_mod, *_ = _import_vaep_stack()
     X = vaep_mod.compute_features(wc22_atomic, atomic=True, provider="statsbomb_wc22")
     # Schema consistency check vs training
     expected_cols = getattr(fit["model_s"], "feature_names_", None)
@@ -468,10 +487,11 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
                    for r in sb_matches.iter_rows(named=True)}
 
     sb_rows = []
-    games = SB_LOADER.games(competition_id=43, season_id=106)
+    sb_loader = _get_sb_loader()
+    games = sb_loader.games(competition_id=43, season_id=106)
     for _, g in games.iterrows():
         gid = int(g.game_id)
-        players = SB_LOADER.players(game_id=gid)
+        players = sb_loader.players(game_id=gid)
         home_tid, home_tname = home_lookup.get(gid, (None, None))
         away_tid, away_tname = away_lookup.get(gid, (None, None))
         for _, p in players.iterrows():
@@ -518,11 +538,6 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
         pff.select(["pff_player_id", "pff_player_name", "team_name", "name_norm"]),
         on=["name_norm", "team_name"], how="left",
     )
-
-    # PASE 2 ELIMINADO: matchear por last_norm causa falsos positivos en
-    # nombres hispanos. SB "Pablo Sarabia García".last = "garcia", coincide
-    # con PFF "Eric García".last = "garcia" → mapping incorrecto. El pase 3
-    # tokens-subset lo cubre correctamente sin falsos positivos.
 
     # Enrichment: cargar firstName + lastName del CSV original (data_mundial/
     # players.csv) para cubrir casos donde PFF roster usa solo el nickname
@@ -827,6 +842,34 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
             pl.col("n_actions_pre").fill_null(0),
             pl.col("n_actions_post").fill_null(0),
         ])
+    )
+
+    # LOO: attach_team_loo opera sobre per_minute con value_col=score_atk_minute
+    # Devuelve cols *_team_loo_pre/post y *_delta_relative por (shock, focal).
+    loo = attach_team_loo(
+        per_minute.filter(pl.col("pff_match_id").is_not_null()
+                          & pl.col("pff_player_id").is_not_null()),
+        value_col="score_atk_minute",
+    ).rename({
+        "score_atk_minute_team_loo_pre":  "score_atk_team_loo_pre",
+        "score_atk_minute_team_loo_post": "score_atk_team_loo_post",
+        "score_atk_minute_relative_pre":  "score_atk_relative_pre",
+        "score_atk_minute_relative_post": "score_atk_relative_post",
+        "score_atk_minute_delta_player":  "score_atk_delta_player",
+        "score_atk_minute_delta_team_loo":"score_atk_delta_team_loo",
+        "score_atk_minute_delta_relative":"score_atk_delta_relative",
+    }).select([
+        "match_id", "shock_id", "pff_player_id", "shock_type",
+        "score_atk_team_loo_pre", "score_atk_team_loo_post",
+        "score_atk_relative_pre", "score_atk_relative_post",
+        "score_atk_delta_player", "score_atk_delta_team_loo",
+        "score_atk_delta_relative", "n_block",
+    ])
+
+    out = (
+        out
+        .join(loo, on=["match_id","shock_id","pff_player_id","shock_type"],
+              how="left")
         .rename({"match_id": "pff_match_id"})
         .join(pff_to_sb_pl, on="pff_player_id", how="left")
         .with_columns(
@@ -838,7 +881,11 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
             "shock_id", "shock_type",
             "pff_player_id", "sb_player_id",
             "score_atk_pre", "score_atk_post",
-            "n_actions_pre", "n_actions_post",
+            "score_atk_team_loo_pre", "score_atk_team_loo_post",
+            "score_atk_relative_pre", "score_atk_relative_post",
+            "score_atk_delta_player", "score_atk_delta_team_loo",
+            "score_atk_delta_relative",
+            "n_actions_pre", "n_actions_post", "n_block",
         ])
     )
 
