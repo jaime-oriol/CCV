@@ -33,9 +33,12 @@ Output:
     wc22_atomic.parquet          # atomic actions WC22 (cached)
     model/vaep_atk_{scores,concedes}.cbm + vaep_atk_meta.pkl
     per_minute.parquet           # ambos ids + period + minute_in_period + sec_abs
-                                 #   + score_atk_minute, vaep_minute, n_actions
+                                 #   + score_atk_v2_minute (= atomic-VAEP + un-xPass),
+                                 #   score_atk_minute (legacy), unxpass_value_minute,
+                                 #   vaep_minute, n_actions
     per_shock_window.parquet     # (pff_match_id, sb_match_id, shock_id,
-                                 #   pff_player_id, sb_player_id, shock_type, pre/post)
+                                 #   pff_player_id, sb_player_id, shock_type) +
+                                 #   v2 pre/post + LOO + delta_relative + legacy
     sb_to_pff_player_map.parquet # mapping explicito
 
 Acceptance (ARCHITECTURE): distribucion score_atk por rol coherente (CFs > CBs).
@@ -398,9 +401,9 @@ def aggregate_per_player_minute(wc22_with_vaep: pd.DataFrame,
                                  cache: bool = True) -> pl.DataFrame:
     """Agrega atomic-VAEP por (sb_match_id, sb_player_id, period, minute_in_period).
 
-    Schema extendido (X3): incluye `pff_match_id`, `pff_player_id`, `sec_abs`
-    (segundos absolutos desde inicio de partido) para que M12 DiD pueda alinear
-    con M07 windows sin reconvertir time_seconds. minute_in_period es 0..44.
+    Schema: incluye `pff_match_id`, `pff_player_id`, `sec_abs` (segundos
+    absolutos desde inicio de partido) para que M12 DiD pueda alinear con
+    M07 windows sin reconvertir time_seconds. minute_in_period es 0..44.
     """
     cache_path = _DERIVED / "per_minute.parquet"
     if cache and cache_path.exists():
@@ -435,7 +438,7 @@ def aggregate_per_player_minute(wc22_with_vaep: pd.DataFrame,
         "period_id": "period",
     })
 
-    # Anadir pff ids via mappings publicos (X1+X2)
+    # Anadir pff_match_id (M03 mapping) + pff_player_id (cascada SB→PFF)
     sb2pff_match = sb_to_pff_match_id()
     pmap = build_sb_to_pff_player_map(cache=True).select([
         pl.col("sb_player_id").cast(pl.Int64),
@@ -591,7 +594,7 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
     else:
         pff = pff.with_columns(pl.col("name_norm").alias("name_norm_enriched"))
 
-    # Pase 3: tokens-subset matching con name_norm_enriched (nickname +
+    # Pase 2: tokens-subset matching con name_norm_enriched (nickname +
     # firstName + lastName del CSV). Cubre:
     #   - Apellidos hispanos: SB "Pablo Sarabia García" → PFF "Pablo Sarabia"
     #   - Nicknames: SB "Rodrigo Hernández Cascante" → PFF "Rodri" (firstName
@@ -607,7 +610,7 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
         "sb_player_id", "team_name", "name_norm",
     ]).with_columns(pl.col("name_norm").str.split(" ").alias("sb_tokens"))
 
-    rows_pass3 = []
+    rows_pass2 = []
     if unmapped_sb.height > 0:
         for sb_row in unmapped_sb.iter_rows(named=True):
             cands = pff_tokens.filter(pl.col("team_name") == sb_row["team_name"])
@@ -624,20 +627,20 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
                 if pff_set.issubset(sb_set) or len(inter) >= 2:
                     matches.append((c["pff_player_id"], c["name_norm_enriched"]))
             if len(matches) == 1:
-                rows_pass3.append({
+                rows_pass2.append({
                     "sb_player_id": sb_row["sb_player_id"],
-                    "pff_id_pass3": matches[0][0],
+                    "pff_id_pass2": matches[0][0],
                 })
-    if rows_pass3:
-        pass3_df = pl.DataFrame(rows_pass3, schema={
-            "sb_player_id": pl.Int64, "pff_id_pass3": pl.Int64,
+    if rows_pass2:
+        pass2_df = pl.DataFrame(rows_pass2, schema={
+            "sb_player_id": pl.Int64, "pff_id_pass2": pl.Int64,
         })
-        mapping = mapping.join(pass3_df, on="sb_player_id", how="left").with_columns(
-            pl.coalesce(["pff_player_id", "pff_id_pass3"]).alias("pff_player_id")
-        ).drop("pff_id_pass3")
+        mapping = mapping.join(pass2_df, on="sb_player_id", how="left").with_columns(
+            pl.coalesce(["pff_player_id", "pff_id_pass2"]).alias("pff_player_id")
+        ).drop("pff_id_pass2")
 
-    # Pase 4: fuzzy Levenshtein distance per-token. Cubre casos edge que
-    # pase 3 perdio: diacriticos especiales (Mæhle, Højbjerg → NFKD strip),
+    # Pase 3: fuzzy Levenshtein distance per-token. Cubre casos edge que
+    # pase 2 perdio: diacriticos especiales (Mæhle, Højbjerg → NFKD strip),
     # nombres con caracteres no-latinos transliterados, abreviaciones (Maxi
     # vs Maximiliano). Match si: para CADA token PFF significativo (>=4
     # chars), existe un token SB con Levenshtein <= 2. UNICO en equipo.
@@ -658,7 +661,7 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
     unmapped_sb2 = mapping.filter(pl.col("pff_player_id").is_null()).select([
         "sb_player_id", "team_name", "name_norm",
     ]).with_columns(pl.col("name_norm").str.split(" ").alias("sb_tokens"))
-    rows_pass4 = []
+    rows_pass3 = []
     if unmapped_sb2.height > 0:
         for sb_row in unmapped_sb2.iter_rows(named=True):
             cands = pff_tokens.filter(pl.col("team_name") == sb_row["team_name"])
@@ -677,19 +680,19 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
                     matches.append((c["pff_player_id"], c["name_norm_enriched"]))
             unique_matches = list({m[0]: m for m in matches}.values())
             if len(unique_matches) == 1:
-                rows_pass4.append({
+                rows_pass3.append({
                     "sb_player_id": sb_row["sb_player_id"],
-                    "pff_id_pass4": unique_matches[0][0],
+                    "pff_id_pass3": unique_matches[0][0],
                 })
-    if rows_pass4:
-        pass4_df = pl.DataFrame(rows_pass4, schema={
-            "sb_player_id": pl.Int64, "pff_id_pass4": pl.Int64,
+    if rows_pass3:
+        pass3_df = pl.DataFrame(rows_pass3, schema={
+            "sb_player_id": pl.Int64, "pff_id_pass3": pl.Int64,
         })
-        mapping = mapping.join(pass4_df, on="sb_player_id", how="left").with_columns(
-            pl.coalesce(["pff_player_id", "pff_id_pass4"]).alias("pff_player_id")
-        ).drop("pff_id_pass4")
+        mapping = mapping.join(pass3_df, on="sb_player_id", how="left").with_columns(
+            pl.coalesce(["pff_player_id", "pff_id_pass3"]).alias("pff_player_id")
+        ).drop("pff_id_pass3")
 
-    # Pase 5: difflib SequenceMatcher ratio sobre nombre enriquecido completo.
+    # Pase 4: difflib SequenceMatcher ratio sobre nombre enriquecido completo.
     # Cubre transliteraciones arabes ("Salman Mohammed Al Faraj" vs "Salman
     # Al-Faraj") y abreviaciones ("Phil" vs "Philip"). Match si ratio >= 0.55
     # Y es el UNICO PFF del equipo arriba de ese umbral.
@@ -697,7 +700,7 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
     unmapped_sb3 = mapping.filter(pl.col("pff_player_id").is_null()).select([
         "sb_player_id", "team_name", "name_norm",
     ])
-    rows_pass5 = []
+    rows_pass4 = []
     if unmapped_sb3.height > 0:
         for sb_row in unmapped_sb3.iter_rows(named=True):
             cands = pff_tokens.filter(pl.col("team_name") == sb_row["team_name"])
@@ -710,19 +713,19 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
             scored.sort(reverse=True)
             # match si el TOP es claramente mejor que el siguiente (gap > 0.10)
             if scored and (len(scored) == 1 or scored[0][0] - scored[1][0] > 0.10):
-                rows_pass5.append({
+                rows_pass4.append({
                     "sb_player_id": sb_row["sb_player_id"],
-                    "pff_id_pass5": scored[0][1],
+                    "pff_id_pass4": scored[0][1],
                 })
-    if rows_pass5:
-        pass5_df = pl.DataFrame(rows_pass5, schema={
-            "sb_player_id": pl.Int64, "pff_id_pass5": pl.Int64,
+    if rows_pass4:
+        pass4_df = pl.DataFrame(rows_pass4, schema={
+            "sb_player_id": pl.Int64, "pff_id_pass4": pl.Int64,
         })
-        mapping = mapping.join(pass5_df, on="sb_player_id", how="left").with_columns(
-            pl.coalesce(["pff_player_id", "pff_id_pass5"]).alias("pff_player_id")
-        ).drop("pff_id_pass5")
+        mapping = mapping.join(pass4_df, on="sb_player_id", how="left").with_columns(
+            pl.coalesce(["pff_player_id", "pff_id_pass4"]).alias("pff_player_id")
+        ).drop("pff_id_pass4")
 
-    # Pase 6: manual overrides hardcoded para los casos edge donde ningun
+    # Pase 5: manual overrides hardcoded para los casos edge donde ningun
     # algoritmo automatico llega (transliteraciones arabes con tokens
     # ambiguos, abreviaciones idiosincraticas). Validados manualmente
     # contra rosters PFF (data_mundial/players.csv + nombres oficiales WC22).
@@ -785,7 +788,7 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
                                 cache: bool = True) -> pl.DataFrame:
     """Por cada (shock, player), suma score_atk en pre/post windows.
 
-    Schema (X3): publica `pff_match_id`, `sb_match_id`, `pff_player_id`,
+    Schema: publica `pff_match_id`, `sb_match_id`, `pff_player_id`,
     `sb_player_id` y filtra por `sec_abs` real (no minute*60 sintetico).
 
     Args:
@@ -820,11 +823,11 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
         per_min, on=["match_id", "pff_player_id"], how="left",
     )
 
-    # Filtra por sec_abs real (X3+X4) Y period == shock_period. PFF sgc usa
-    # convencion period-displayed-clock, asi que sec_abs de un evento period 1
-    # stoppage (e.g., 2820) puede colisionar con sec_abs de un evento period 2
-    # minuto 2 (tambien 2820). Sin filtrar period, ~8% de eventos contaminan
-    # cross-period (medido empiricamente). Pre [t-600, t), post (t, t+600].
+    # Filtra por sec_abs real Y period == shock_period. SB sec_abs = (p-1)*45*60
+    # + time_seconds, asi que un evento period 1 minuto 47 stoppage (sec_abs=2820)
+    # colisiona con un evento period 2 minuto 2 (tambien 2820). Sin filtrar
+    # period, ~8% de eventos contaminan cross-period (medido empiricamente).
+    # Pre [t-600, t), post (t, t+600].
     pre = joined.filter(
         (pl.col("sec_abs") >= pl.col("window_pre_start")) &
         (pl.col("sec_abs") < pl.col("window_pre_end")) &
@@ -1048,7 +1051,7 @@ if __name__ == "__main__":
     print(summary)
 
     # Sanity acceptance: score_atk por rol (CFs > CBs).
-    # per_min ya trae pff_player_id (schema X3 estandarizado).
+    # per_min ya trae pff_player_id desde aggregate_per_player_minute.
     print("\n[8] Acceptance — distribucion score_atk por rol:")
     pm_with_role = per_min.filter(pl.col("pff_player_id").is_not_null()).join(
         load_rosters().select(["player_id","position_group"])
