@@ -6,8 +6,8 @@ sobre los 4 canales explotando que, dado pre-shot xG en rango comparable, que
 el balon entre o no es practicamente azar (variacion exogena del outcome).
 
 Diseno de identificacion:
-  - Universe: 127 goles SB con xg_baseline ∈ [0.15, 0.85] + 57 near-miss M06
-              (12 palo + 38 save psxg≥0.6 + 5 offside cercano + 2 GLC) = 184 shots
+  - Universe: 127 goles SB con xg_baseline ∈ [0.15, 0.85] + 66 near-miss M06
+              (12 palo + 38 save psxg>=0.6 + 5 offside cercano + 2 GLC + 9 GLT)
   - Cluster: cada shot es 1 cluster (interferencia parcial Hudgens-Halloran 2008)
   - Unit: player-in-field at shot moment (22 players por cluster)
   - Treatment: 1 si is_goal else 0
@@ -37,14 +37,16 @@ Cluster errors: por sb_match_id (Cameron-Gelbach-Miller 2011 implem doubleml).
 
 Outputs (data/parquet/derived/aipw/):
   panel_master.parquet            (event_uuid x pff_player_id x covariables)
-  att_aipw.parquet                (channel x shock_type -> ATT AIPW + IC + N)
-  att_dml_plr.parquet             (channel x shock_type -> ATT PLR + IC)
-  att_dr_learner.parquet          (channel x shock_type -> ATT DR-learner + IC)
-  att_rdd.parquet                 (channel x bandwidth -> ATT RDD + IC)
-  spec_curve.parquet              (def_near_miss x channel x shock_type -> ATT)
-  balance.parquet                 (covariable -> SMD pre-balanceo)
-  sensitivity.parquet             (channel x shock_type -> robustness value)
+  att_aipw.parquet                (channel x perspective -> ATT AIPW + IC + N)
+  att_dml_plr.parquet             (channel x perspective -> ATT PLR + IC)
+  att_dr_learner.parquet          (channel x perspective -> ATT DR-learner + IC)
+  att_rdd.parquet                 (channel x perspective x bandwidth -> ATT RDD + IC)
+  spec_curve.parquet              (spec x channel x perspective -> ATT AIPW)
+  balance.parquet                 (covariable x channel x perspective -> SMD)
+  sensitivity.parquet             (channel x perspective -> robustness value)
   comparison_m12.parquet          (canal x shock_type -> ATE M12 vs ATT M13)
+                                  [unico output que renombra perspective→shock_type
+                                   para join con M12.ate_population]
 
 Depende de: M03 (sb_to_pff_match_id, player_minutes), M05 (shots + wc22 cov),
 M06 (nearmiss_table), M07 (shocks_table mapeo), M08-M11 (per_minute por canal).
@@ -79,12 +81,13 @@ SHOCK_TYPES     = ("GOAL_FOR", "GOAL_AGAINST")
 
 # Mapeo canal -> (path per_minute, outcome col, fill_value)
 CHANNELS: dict[str, tuple[str, str, float | None]] = {
-    # Canal ataque v2 SOTA: atomic-VAEP + un-xPass creative residual.
+    # Canal ataque SOTA: atomic-VAEP (Decroos 2020) + un-xPass (Robberechts 2023).
     "ataque":  ("ataque/per_minute.parquet",  "score_atk_v2_minute", 0.0),
-    # Canal defensa v2 SOTA (vdep_like + xpress_value calibrado, Lee 2025 + Toda 2022)
-    # Canal defensa v4 SOTA: vdep_strict (Toda 2022) + xpress (Lee 2025) + maejima (2024).
+    # Canal defensa SOTA: vdep_strict (Toda 2022) + xpress (Lee 2025) + maejima (2024).
     "defensa": ("defensa/per_minute.parquet", "score_def_v4_minute", 0.0),
-    "offball": ("offball/per_minute.parquet", "obso_mean",        0.0),
+    # c_obso_mean (counterfactual Teranishi 2022) — canonical en M12. Raw
+    # obso_mean descartado tras validacion (signo invertido vs PFF off grades).
+    "offball": ("offball/per_minute.parquet", "c_obso_mean",      0.0),
     "fisico":  ("fisico/per_minute.parquet",  "score_phys",       None),
 }
 
