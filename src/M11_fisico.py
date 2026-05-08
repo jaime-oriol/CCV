@@ -522,9 +522,24 @@ def _phys_metrics_per_minute(match_id: int) -> pl.DataFrame:
 
 
 def _phys_metrics_safe(mid: int) -> pl.DataFrame | None:
-    """Wrapper top-level para multiprocessing.Pool."""
+    """Wrapper top-level para multiprocessing.Pool con cache por partido.
+
+    Cache en derived/fisico/raw_per_match/{match_id}.parquet → resume tras
+    crash sin reprocesar partidos completos.
+    """
+    cache_dir = _DERIVED / "raw_per_match"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / f"{mid}.parquet"
+    if cache_path.exists():
+        try:
+            return pl.read_parquet(cache_path)
+        except Exception:
+            cache_path.unlink(missing_ok=True)
     try:
-        return _phys_metrics_per_minute(mid)
+        df = _phys_metrics_per_minute(mid)
+        if df is not None and df.height > 0:
+            df.write_parquet(cache_path, compression="snappy")
+        return df
     except Exception as e:
         print(f"  skip {mid}: {e}", flush=True)
         return None
@@ -550,10 +565,9 @@ def build_raw_per_minute(cache: bool = True, overwrite: bool = False,
 
     if n_workers == 1:
         for i, mid in enumerate(mids):
-            try:
-                dfs.append(_phys_metrics_per_minute(mid))
-            except Exception as e:
-                print(f"  skip {mid}: {e}")
+            res = _phys_metrics_safe(mid)
+            if res is not None:
+                dfs.append(res)
             if (i + 1) % 10 == 0:
                 print(f"  {i+1}/{len(mids)} en {time.time()-t0:.1f}s", flush=True)
     else:

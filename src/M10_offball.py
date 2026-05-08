@@ -457,13 +457,25 @@ def compute_obso_match(match_id: int, xg_grid: np.ndarray,
 def _compute_obso_match_safe(args: tuple) -> pl.DataFrame | None:
     """Wrapper top-level para multiprocessing.Pool (necesita ser pickleable).
 
-    Cada worker procesa 1 partido completo (PPCF Z02 25Hz). Pico RAM por
-    worker ~0.5-1 GB. Con N_WORKERS=16 sobre 64 partidos, ~4 batches,
-    ~12-15 min total (vs ~5h serial).
+    Cache por partido en derived/offball/per_match/{match_id}.parquet:
+    si existe, lo lee y skipea. Permite resumir tras crash sin reprocesar
+    partidos ya completos. Cada worker procesa 1 partido (PPCF Z02 25Hz),
+    pico RAM ~0.5-1 GB. Con N_WORKERS=16 sobre 64 partidos, ~12-15 min total.
     """
     mid, xg_grid = args
+    cache_dir = _DERIVED / "per_match"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / f"{mid}.parquet"
+    if cache_path.exists():
+        try:
+            return pl.read_parquet(cache_path)
+        except Exception:
+            cache_path.unlink(missing_ok=True)
     try:
-        return compute_obso_match(mid, xg_grid)
+        df = compute_obso_match(mid, xg_grid)
+        if df is not None and df.height > 0:
+            df.write_parquet(cache_path, compression="snappy")
+        return df
     except Exception as e:
         print(f"  skip {mid}: {e}", flush=True)
         return None
@@ -494,10 +506,9 @@ def aggregate_per_player_minute(cache: bool = True,
     if n_workers == 1:
         for i, mid in enumerate(mids):
             t_m = time.time()
-            try:
-                dfs.append(compute_obso_match(mid, xg_grid))
-            except Exception as e:
-                print(f"  skip {mid}: {e}", flush=True)
+            res = _compute_obso_match_safe((mid, xg_grid))
+            if res is not None:
+                dfs.append(res)
             elapsed = time.time() - t_m
             if (i+1) % 5 == 0 or elapsed > 60:
                 print(f"  {i+1}/{len(mids)} en {time.time()-t0:.0f}s "
