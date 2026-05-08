@@ -815,9 +815,9 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
     pm = cache_score_phys()
     shocks = build_shocks_table(cache=True, overwrite=False)
 
-    # Schema X3: M11 per_minute publica sec_abs ya alineado con M07 windows
-    # (que tambien estan en sec_abs PFF). Join por (pff_match_id, pff_player_id)
-    # y filter por window selecciona automaticamente period correcto.
+    # M11 per_minute publica sec_abs ya alineado con M07 windows (ambos en sec
+    # PFF). Join por (pff_match_id, pff_player_id) + filter por window pre/post
+    # selecciona automaticamente period correcto.
     pm = pm.rename({"pff_match_id": "match_id"})
     shocks_slim = shocks.select([
         "match_id", "shock_id", "player_id", "shock_type",
@@ -854,7 +854,7 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
         "match_id", "shock_id", "player_id", "shock_type"
     ]).rename({"player_id": "pff_player_id"}).unique()
 
-    # ids canonicos (X3): sb_match_id + sb_player_id via mappings publicos.
+    # ids canonicos: sb_match_id (M03 mapping) + sb_player_id (M08 cascada inversa)
     from M03_preprocess import pff_to_sb_match_id
     import M08_ataque as atk
     pff2sb_match = pff_to_sb_match_id()
@@ -873,23 +873,15 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
               how="left")
     )
 
-    # LOO sobre score_phys (residual z-score multivariate del modelo bayesiano)
+    # LOO sobre score_phys (residual z-score multivariate del modelo bayesiano).
+    # value_col=score_phys -> attach_team_loo emite ya los nombres finales
+    # (score_phys_team_loo_pre, ...) sin necesidad de rename.
     pm_for_loo = pm.rename({"match_id": "pff_match_id"}).filter(
         pl.col("pff_match_id").is_not_null()
         & pl.col("pff_player_id").is_not_null()
         & pl.col("score_phys").is_not_null()
     )
-    loo = attach_team_loo(
-        pm_for_loo, value_col="score_phys",
-    ).rename({
-        "score_phys_team_loo_pre":  "score_phys_team_loo_pre",
-        "score_phys_team_loo_post": "score_phys_team_loo_post",
-        "score_phys_relative_pre":  "score_phys_relative_pre",
-        "score_phys_relative_post": "score_phys_relative_post",
-        "score_phys_delta_player":  "score_phys_delta_player",
-        "score_phys_delta_team_loo":"score_phys_delta_team_loo",
-        "score_phys_delta_relative":"score_phys_delta_relative",
-    }).select([
+    loo = attach_team_loo(pm_for_loo, value_col="score_phys").select([
         "match_id", "shock_id", "pff_player_id", "shock_type",
         "score_phys_team_loo_pre", "score_phys_team_loo_post",
         "score_phys_relative_pre", "score_phys_relative_post",
@@ -990,7 +982,8 @@ if __name__ == "__main__":
     print(f"  per_minute: {pm.height:,} filas en {time.time()-t0:.1f}s")
     print(f"  score_phys range: [{pm['score_phys'].min():.3f}, {pm['score_phys'].max():.3f}]")
     print(f"  score_phys mean (esperado ~0): {pm['score_phys'].mean():+.4f}")
-    print(f"  score_phys std (esperado ~1):  {pm['score_phys'].std():.4f}")
+    print(f"  score_phys std (esperado ~0.85, avg z-3-targets correlados): "
+          f"{pm['score_phys'].std():.4f}")
     print(f"  z_psv95 / z_meanspd / z_hsr means: "
           f"{pm['z_psv95'].mean():+.4f} / {pm['z_meanspd'].mean():+.4f} / {pm['z_hsr'].mean():+.4f}")
 
