@@ -66,7 +66,6 @@ def validate_attacking_direction(match_id: int) -> tuple[bool, str]:
     Util para QA antes de pipelines downstream que confian en flips coords
     (M09, M10, M11). Verificado en los 64 partidos WC22: 0 mismatches.
     """
-    sys.path.insert(0, str(_SRC_DIR := Path(__file__).resolve().parent))
     from M01_loader_pff import scan_tracking
     try:
         tr = scan_tracking(match_id).filter(pl.col("period") == 1).head(50).collect()
@@ -405,7 +404,7 @@ def week_index_continuous(match_id: int,
                            last_week: int = _WC22_LAST_WEEK) -> float:
     """Week index normalizado a [0, 1] (modulador continuo de fase del torneo).
 
-    WC22: J1=1, J2=2, J3=3, Octavos=4, Cuartos=5, Semis=6, Final/3rd=7.
+    WC22: J1=1, J2=2, J3=3, Octavos=4, Cuartos=5, Semis=6, 3rd-place=7, Final=8.
     Devuelve `(week - 1) / (last_week - 1)`. La propuesta nueva exige fase
     continua via week index, no categorica groups/ko (§Fase 4).
 
