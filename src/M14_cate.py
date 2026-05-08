@@ -107,12 +107,11 @@ CHANNELS: dict[str, tuple[str, str, str, str]] = {
     # per_shock_window de M08-M11 (PASO 2). Lo usamos directo sin recomputar.
     "ataque":  ("ataque/per_shock_window.parquet",  "score_atk_pre", "score_atk_post",
                 "score_atk_delta_relative"),
-    # Canal defensa v3 SOTA TOP REAL: vdep_strict (Toda 2022 cabeza dedicada
-    # P(recovery)-C*P(attacked) AUC 0.80) + xpress_value (Lee 2025 tracking
-    # 25Hz AUC 0.62). Captura acciones defensivas valoradas + pressing
-    # calibrado, alineado con propuesta §Solidez Defensiva.
-    "defensa": ("defensa/per_shock_window.parquet", "score_def_v3_pre", "score_def_v3_post",
-                "score_def_v3_delta_relative"),
+    # Canal defensa v4 SOTA TOP REAL FULL: vdep_strict (Toda 2022) + xpress
+    # (Lee 2025 tracking 25Hz) + maejima (Maejima 2024 nearest-defender
+    # frame-level via tracking). Tres componentes complementarios.
+    "defensa": ("defensa/per_shock_window.parquet", "score_def_v4_pre", "score_def_v4_post",
+                "score_def_v4_delta_relative"),
     "offball": ("offball/per_shock_window.parquet", "c_obso_pre",    "c_obso_post",
                 "c_obso_delta_relative"),
     "fisico":  ("fisico/per_shock_window.parquet",  "score_phys_pre","score_phys_post",
