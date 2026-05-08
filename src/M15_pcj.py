@@ -11,7 +11,7 @@ maestra `outputs/pcj_table.parquet`.
      captura "el que aguanta cuando hay que aguantar"
   3. **Pressure Response** — eta_pressure[i,:] (pendiente individual respecto
      a elim_prox_z) — captura "el que aparece cuando estamos a punto de ser
-     eliminados", absorbido en M14 desde M14b binario.
+     eliminados". 3a eta del modelo M14 unificado junto a eta_ga + eta_gf.
 
 Decisiones de diseno:
   - Threshold 270 min (3 partidos completos = squad estandar scout)
@@ -57,18 +57,19 @@ _FISICO_PM   = _REPO / "data" / "parquet" / "derived" / "fisico" / "per_minute.p
 _ATAQUE_PM   = _REPO / "data" / "parquet" / "derived" / "ataque" / "per_minute.parquet"
 _DEFENSA_PM  = _REPO / "data" / "parquet" / "derived" / "defensa" / "per_minute.parquet"
 _PLAYERS_CSV = _REPO / "data_mundial" / "players.csv"
-_METADATA    = _REPO / "data" / "parquet" / "pff" / "metadata.parquet"
 _OUT_DIR     = _REPO / "outputs"
 _AUX_DIR     = _OUT_DIR / "pcj_aux"
 
 MIN_MINUTES = 270
-# Probability of direction threshold para flag Sig. 0.85 = "probabilidad de
-# direccion" Makowski 2019 — estandar bayesiano scout-friendly (90%+ es muy
-# conservador con N=172 shocks WC22; 95% queda fuera de alcance honesto).
-# Dual flag con strong_thr para reportar nivel maximo confianza.
+# Probability of direction (Makowski 2019). 0.85 = umbral principal Sig
+# scout-friendly (90%+ ya muy conservador con N=172 shocks WC22). 0.95 =
+# bonus tier "strong" para los pocos jugadores que SI alcanzan ese nivel
+# de certeza posterior — dual flag para reportar maximo nivel de confianza.
 SIG_THRESHOLD = 0.85
 SIG_STRONG_THRESHOLD = 0.95
-ACUTE_WINDOW = 5              # T2.7 hallazgo: efectos son ACUTOS
+# Acute window +-5min: M12B window_sensitivity mostro decay 7x de w3 a w10
+# en fisico/offball; +-10 dilute el efecto, +-5 captura el numero scout.
+ACUTE_WINDOW = 5
 HIGH_LEVERAGE_THRESHOLD = 0.05   # M04 leverage > 0.05 = "high stress" shock
 
 
@@ -109,7 +110,7 @@ PCJ_REQUIRED_COLS: dict[str, type] = {
     # Tier + Sig (4)
     "tier_chasing_global": pl.String, "tier_protecting_global": pl.String,
     "sig_chasing": pl.String, "sig_protecting": pl.String,
-    # Pressure response 3a dimension (M14b)
+    # Pressure response 3a dimension (eta_pressure de M14 unificado)
     "pressure_response_idx": pl.Float64,
     "pressure_response_lo80": pl.Float64,
     "pressure_response_hi80": pl.Float64,
@@ -172,8 +173,8 @@ def _load_m14() -> dict:
 def _load_m14_pressure_from_posterior(fit: dict) -> pl.DataFrame:
     """Pressure response (3a dimension) desde el modelo unificado M14.
 
-    Tras PASO 6 (eliminacion de M14b), `eta_pressure[i,k]` es la pendiente
-    individual respecto a elim_prox dentro del CATE multivariate jerarquico.
+    `eta_pressure[i,k]` es la pendiente individual respecto a elim_prox_z
+    dentro del CATE multivariate jerarquico (3a eta junto a eta_ga + eta_gf).
     pressure_response_idx = mean across canales del eta_pressure[i,:].
     """
     s = fit["samples"]
@@ -263,7 +264,7 @@ def _load_channel_credibility() -> pl.DataFrame:
 
 
 def _load_power_flags() -> pl.DataFrame:
-    """Per (channel, shock_type) flag de poder estadistico desde T2.5."""
+    """Per (channel, shock_type) flag de poder estadistico desde M12B power_analysis."""
     pwr = pl.read_parquet(_DIDV_DIR / "power_analysis.parquet").select(
         ["channel", "shock_type", "power_observed", "n_effective"])
     return pwr.with_columns(
@@ -404,8 +405,9 @@ def _compute_acute_window_per_player(window: int = ACUTE_WINDOW) -> pl.DataFrame
     """Per (player, channel, shock_type): within-player diff (post-pre) en
     ventana ACUTA +-window min, computed desde per_minute parquets.
 
-    T2.7 hallazgo: efectos son acutos (decay 7x de w3 a w10 en fisico/offball).
-    El M14 a +-10 DILUYE el efecto. Esta col da el numero scout-relevante.
+    M12B window_sensitivity mostro que los efectos son acutos (decay 7x de
+    w3 a w10 en fisico/offball). El M14 a +-10 DILUYE el efecto. Esta col
+    da el numero scout-relevante.
     """
     sh = (pl.read_parquet(_SHOCKS).rename({"player_id": "pff_player_id",
                                             "match_id": "pff_match_id"})
@@ -647,7 +649,7 @@ def _add_tiers(df: pl.DataFrame) -> pl.DataFrame:
             pl.col("position_group").count().over("position_group"))
             .alias("pct_protecting_in_position"),
     ])
-    # Pressure_response tiers (si M14b corrio)
+    # Pressure_response tiers (eta_pressure de M14 unificado)
     if "pressure_response_idx" in df.columns:
         df = df.with_columns([
             (pl.col("pressure_response_idx").rank(method="ordinal") / n)
@@ -784,7 +786,7 @@ def build_pcj_table() -> pl.DataFrame:
     print("[M15] Vector PCJ summary 4-canal directional...")
     cate_wide = _build_pcj_summary_vector(cate_wide)
 
-    print("[M15] Acute window CATE +-5 min per player (T2.7 hallazgo)...")
+    print("[M15] Acute window CATE +-5 min per player (M12B window_sensitivity)...")
     acute = _compute_acute_window_per_player(window=ACUTE_WINDOW)
     print(f"  acute: {acute.height} jugadores con acute deltas")
 
@@ -794,7 +796,7 @@ def build_pcj_table() -> pl.DataFrame:
     print("[M15] Channel credibility (M12 pre-trend + M13 AIPW + sensitivity)...")
     cred = _load_channel_credibility()
 
-    print("[M15] Power flags per channel desde T2.5...")
+    print("[M15] Power flags per channel desde M12B power_analysis...")
     pwr = _load_power_flags()
 
     print("[M15] Player metadata (age, height) desde players.csv...")
@@ -913,7 +915,7 @@ def build_pcj_table() -> pl.DataFrame:
              "tier_chasing_global_certain", "tier_protecting_global_certain",
              "tier_chasing_in_position", "tier_protecting_in_position",
              "sig_chasing", "sig_protecting",
-             # Pressure response 3a dimension (M14b)
+             # Pressure response 3a dimension (eta_pressure de M14 unificado)
              "pressure_response_idx", "pressure_response_sd",
              "pressure_response_lo80", "pressure_response_hi80",
              "p_pressure_clutch_positive",
@@ -970,7 +972,7 @@ def build_aux_tables(pcj: pl.DataFrame) -> dict:
                        "dual_score", "p_chasing_positive", "p_protecting_positive",
                        "p_dual_positive", "minutes_played"]))
     aux["dual_clutch_top"] = dual
-    # Top10 pressure response per position (M14b 3a dimension)
+    # Top10 pressure response per position (eta_pressure de M14 unificado)
     if "pressure_response_idx" in pcj.columns:
         aux["top10_pressure_per_position"] = (pcj
             .filter(pl.col("pressure_response_idx").is_not_null())
