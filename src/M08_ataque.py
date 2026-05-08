@@ -448,12 +448,38 @@ def aggregate_per_player_minute(wc22_with_vaep: pd.DataFrame,
                               .alias("pff_match_id"),
     ]).join(pmap, on="sb_player_id", how="left")
 
+    # un-xPass light (Robberechts 2023): creative decision rating
+    unxp_path = _DERIVED.parent / "ataque" / "unxpass" / "per_minute.parquet"
+    if unxp_path.exists():
+        unxp = pl.read_parquet(unxp_path).select([
+            "pff_match_id", "pff_player_id", "period", "minute_in_period",
+            "unxpass_value_minute",
+        ])
+        agg = agg.join(
+            unxp, on=["pff_match_id", "pff_player_id",
+                       "period", "minute_in_period"],
+            how="left",
+        ).with_columns(pl.col("unxpass_value_minute").fill_null(0.0))
+    else:
+        agg = agg.with_columns(pl.lit(0.0).alias("unxpass_value_minute"))
+
+    # Canal ataque v2 SOTA: atomic-VAEP (valor on-ball) + un-xPass (creative
+    # decision residual). Captura tanto valor de la accion como
+    # "decisiones inesperadas exitosas" (Robberechts 2023 KDD).
+    agg = agg.with_columns(
+        (pl.col("score_atk_minute") + pl.col("unxpass_value_minute"))
+            .alias("score_atk_v2_minute")
+    )
+
     # Orden final canonico: ids -> tiempo -> metricas
     agg = agg.select([
         "pff_match_id", "sb_match_id",
         "pff_player_id", "sb_player_id",
         "period", "minute_in_period", "sec_abs",
-        "score_atk_minute", "vaep_minute", "n_actions",
+        "score_atk_v2_minute",                   # OUTCOME PRINCIPAL: VAEP + un-xPass
+        "score_atk_minute",                      # legacy atomic-VAEP solo
+        "unxpass_value_minute",                  # componente un-xPass
+        "vaep_minute", "n_actions",
     ])
 
     if cache:
@@ -804,7 +830,9 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
         (pl.col("sec_abs") < pl.col("window_pre_end")) &
         (pl.col("period") == pl.col("shock_period"))
     ).group_by(["match_id","shock_id","pff_player_id","shock_type"]).agg([
+        pl.col("score_atk_v2_minute").sum().alias("score_atk_v2_pre"),
         pl.col("score_atk_minute").sum().alias("score_atk_pre"),
+        pl.col("unxpass_value_minute").sum().alias("unxpass_pre"),
         pl.col("n_actions").sum().cast(pl.Int64).alias("n_actions_pre"),
     ])
     post = joined.filter(
@@ -812,7 +840,9 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
         (pl.col("sec_abs") <= pl.col("window_post_end")) &
         (pl.col("period") == pl.col("shock_period"))
     ).group_by(["match_id","shock_id","pff_player_id","shock_type"]).agg([
+        pl.col("score_atk_v2_minute").sum().alias("score_atk_v2_post"),
         pl.col("score_atk_minute").sum().alias("score_atk_post"),
+        pl.col("unxpass_value_minute").sum().alias("unxpass_post"),
         pl.col("n_actions").sum().cast(pl.Int64).alias("n_actions_post"),
     ])
 
@@ -837,19 +867,44 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
         .join(post, on=["match_id","shock_id","pff_player_id","shock_type"],
               how="left")
         .with_columns([
+            pl.col("score_atk_v2_pre").fill_null(0.0),
+            pl.col("score_atk_v2_post").fill_null(0.0),
             pl.col("score_atk_pre").fill_null(0.0),
             pl.col("score_atk_post").fill_null(0.0),
+            pl.col("unxpass_pre").fill_null(0.0),
+            pl.col("unxpass_post").fill_null(0.0),
             pl.col("n_actions_pre").fill_null(0),
             pl.col("n_actions_post").fill_null(0),
         ])
     )
 
-    # LOO: attach_team_loo opera sobre per_minute con value_col=score_atk_minute
-    # Devuelve cols *_team_loo_pre/post y *_delta_relative por (shock, focal).
+    pm_for_loo = per_minute.filter(
+        pl.col("pff_match_id").is_not_null()
+        & pl.col("pff_player_id").is_not_null()
+    )
+
+    # LOO outcome principal v2 (atomic-VAEP + un-xPass)
+    loo_v2 = attach_team_loo(
+        pm_for_loo, value_col="score_atk_v2_minute",
+    ).rename({
+        "score_atk_v2_minute_team_loo_pre":  "score_atk_v2_team_loo_pre",
+        "score_atk_v2_minute_team_loo_post": "score_atk_v2_team_loo_post",
+        "score_atk_v2_minute_relative_pre":  "score_atk_v2_relative_pre",
+        "score_atk_v2_minute_relative_post": "score_atk_v2_relative_post",
+        "score_atk_v2_minute_delta_player":  "score_atk_v2_delta_player",
+        "score_atk_v2_minute_delta_team_loo":"score_atk_v2_delta_team_loo",
+        "score_atk_v2_minute_delta_relative":"score_atk_v2_delta_relative",
+    }).select([
+        "match_id", "shock_id", "pff_player_id", "shock_type",
+        "score_atk_v2_team_loo_pre", "score_atk_v2_team_loo_post",
+        "score_atk_v2_relative_pre", "score_atk_v2_relative_post",
+        "score_atk_v2_delta_player", "score_atk_v2_delta_team_loo",
+        "score_atk_v2_delta_relative", "n_block",
+    ])
+
+    # LOO legacy atomic-VAEP (sensitivity)
     loo = attach_team_loo(
-        per_minute.filter(pl.col("pff_match_id").is_not_null()
-                          & pl.col("pff_player_id").is_not_null()),
-        value_col="score_atk_minute",
+        pm_for_loo, value_col="score_atk_minute",
     ).rename({
         "score_atk_minute_team_loo_pre":  "score_atk_team_loo_pre",
         "score_atk_minute_team_loo_post": "score_atk_team_loo_post",
@@ -863,11 +918,13 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
         "score_atk_team_loo_pre", "score_atk_team_loo_post",
         "score_atk_relative_pre", "score_atk_relative_post",
         "score_atk_delta_player", "score_atk_delta_team_loo",
-        "score_atk_delta_relative", "n_block",
+        "score_atk_delta_relative",
     ])
 
     out = (
         out
+        .join(loo_v2, on=["match_id","shock_id","pff_player_id","shock_type"],
+              how="left")
         .join(loo, on=["match_id","shock_id","pff_player_id","shock_type"],
               how="left")
         .rename({"match_id": "pff_match_id"})
@@ -880,11 +937,19 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
             "pff_match_id", "sb_match_id",
             "shock_id", "shock_type",
             "pff_player_id", "sb_player_id",
+            # Outcome principal v2 SOTA: atomic-VAEP + un-xPass
+            "score_atk_v2_pre", "score_atk_v2_post",
+            "score_atk_v2_team_loo_pre", "score_atk_v2_team_loo_post",
+            "score_atk_v2_relative_pre", "score_atk_v2_relative_post",
+            "score_atk_v2_delta_player", "score_atk_v2_delta_team_loo",
+            "score_atk_v2_delta_relative",
+            # Legacy (sensitivity)
             "score_atk_pre", "score_atk_post",
             "score_atk_team_loo_pre", "score_atk_team_loo_post",
             "score_atk_relative_pre", "score_atk_relative_post",
             "score_atk_delta_player", "score_atk_delta_team_loo",
             "score_atk_delta_relative",
+            "unxpass_pre", "unxpass_post",
             "n_actions_pre", "n_actions_post", "n_block",
         ])
     )

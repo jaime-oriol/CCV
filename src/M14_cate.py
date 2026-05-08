@@ -105,8 +105,9 @@ CHANNELS: dict[str, tuple[str, str, str, str]] = {
     # (path, col_pre_abs, col_post_abs, col_delta_relative).
     # delta_relative ya viene computed via attach_team_loo de M07 en los
     # per_shock_window de M08-M11 (PASO 2). Lo usamos directo sin recomputar.
-    "ataque":  ("ataque/per_shock_window.parquet",  "score_atk_pre", "score_atk_post",
-                "score_atk_delta_relative"),
+    # Canal ataque v2 SOTA: atomic-VAEP (Decroos 2020) + un-xPass (Robberechts 2023).
+    "ataque":  ("ataque/per_shock_window.parquet", "score_atk_v2_pre", "score_atk_v2_post",
+                "score_atk_v2_delta_relative"),
     # Canal defensa v4 SOTA TOP REAL FULL: vdep_strict (Toda 2022) + xpress
     # (Lee 2025 tracking 25Hz) + maejima (Maejima 2024 nearest-defender
     # frame-level via tracking). Tres componentes complementarios.
