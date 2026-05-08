@@ -62,7 +62,7 @@ _SB_PITCH_Y   = 80.0
 _SB_GOAL_X    = 120.0
 _SB_GOAL_Y    = 40.0
 _SB_GOAL_HALF = 4.0          # half-width del gol (y in [36, 44])
-_NEAR_ENDPOINT_RADIUS = 3.0  # metros (en coords SB ~0.75m por unidad)
+_NEAR_ENDPOINT_RADIUS = 3.0  # unidades SB (1 unit ≈ 1 yard ≈ 0.91m, ~2.74m)
 
 
 # ===========================================================================
