@@ -242,12 +242,13 @@ def predict_per_event(fit: dict, atomic_df) -> pl.DataFrame:
     X = df.select(fit["feature_cols"]).to_numpy().astype(np.float32)
     p = fit["model"].predict_proba(X)[:, 1]
     p_cal = fit["calibrator"].predict(p)
-    df = df.with_columns([
-        pl.Series("p_success", p_cal).cast(pl.Float64),
-        (pl.col("success_obs") - pl.Series("p_success_tmp", p_cal).cast(pl.Float64))
-            .alias("unexpected"),
-    ])
+    # 2 with_columns separados: las cols nuevas no son visibles dentro del
+    # mismo with_columns en polars, asi que `unexpected` necesita ver `p_success`
+    # ya materializada.
+    df = df.with_columns(pl.Series("p_success", p_cal).cast(pl.Float64))
     df = df.with_columns(
+        (pl.col("success_obs") - pl.col("p_success")).alias("unexpected")
+    ).with_columns(
         (pl.col("unexpected") * pl.col("vaep_value")).alias("unxpass_value")
     )
     return df.select([

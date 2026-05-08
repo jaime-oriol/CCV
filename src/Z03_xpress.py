@@ -4,10 +4,10 @@ Building block reutilizable. Predice probabilidad de que un evento de presion
 PFF resulte en recovery por el equipo defensor dentro de 5s. Reemplaza el
 peso-fijo de Maejima light por una probabilidad aprendida frame-event level.
 
-Diseno conservador (events-only, sin tracking 25Hz alignment):
+Diseno (event-features + tracking 25Hz alignment, fiel a Lee et al. 2025):
   - Outcome binario: en los proximos 5s post-press_event, el siguiente
     game_event tiene team_id == defensor_team_id  →  recovery=1.
-  - Features pre-press disponibles en events PFF:
+  - Features pre-press de events PFF (8 cols, FEATURE_COLS_EVENTS):
       * press_type ∈ {A, L, P}                — tipo segun PFF
       * touch_type del carrier               — initialTouchType (calidad del
                                                 first touch bajo presion)
@@ -17,16 +17,19 @@ Diseno conservador (events-only, sin tracking 25Hz alignment):
       * period                                — fase
       * is_home_ball                          — posesion local/visitante
       * score_diff_at_event                   — marcador
+  - Features tracking 25Hz (9 cols, FEATURE_COLS_TRACKING) — geometria del
+    frame del press event via asof BACKWARD por videoTimeMs:
+      * dist_def_ball, dist_def_carrier
+      * def_speed, carrier_speed (diff con frame ~1s anterior)
+      * dist_ball_to_goal (signada por direccion ataque del carrier)
+      * n_def_within_5m, n_att_within_5m
+      * ball_x_norm (normalizado a direccion ataque carrier)
+      * def_ahead_of_carrier (1 si defensor entre carrier y goal)
   - Modelo: LightGBM con 5-fold CV by match (no leakage shot-shot mismo
     partido) + Optuna 30 trials + isotonic calibration.
   - Loss: log-loss (P(recovery|press)).
   - Acceptance: AUC OOF > baseline (P=0.40, A=0.10, L=0.20 fixed) por at
     least 0.05.
-
-Limitacion documentada: NO usa tracking 25Hz (dist defensor-balon, vel,
-n_defenders_within_5m). El paper original Lee et al. 2025 si lo usa.
-Esta es la version CPU-friendly que reproduce la idea con mismo gold
-standard outcome (recovery binario en 5s).
 
 Outputs (cuando se invoca desde M09):
   - data/parquet/derived/defensa/xpress/training.parquet     (features + label)
@@ -479,15 +482,12 @@ def predict_per_event(fit: dict, df: pl.DataFrame) -> pl.DataFrame:
     X = df.select(fit["feature_cols"]).to_numpy().astype(np.float32)
     raw = fit["model"].predict_proba(X)[:, 1]
     cal = fit["calibrator"].predict(raw)
-    # minute_in_period via period_start lookup (replicado de M03/M11 convention)
-    period_start_min = {1: 0, 2: 45, 3: 90, 4: 105}
+    # PFF sgc es period-relative (resetea cada period), asi minute_in_period
+    # = sgc // 60 directo (incluye stoppage time como minutos > 45 en p1).
     return df.with_columns([
         pl.Series("p_recovery", cal).cast(pl.Float64),
-    ]).with_columns(
-        ((pl.col("sgc") - pl.col("period").replace_strict(
-            {p: 0 for p in (1, 2, 3, 4)}, default=0
-        )) // 60).cast(pl.Int64).alias("minute_in_period")
-    ).select([
+        (pl.col("sgc") // 60).cast(pl.Int64).alias("minute_in_period"),
+    ]).select([
         "match_id", "period", "sgc", "minute_in_period",
         pl.col("press_player_id").alias("pff_player_id"),
         "p_recovery",
