@@ -62,7 +62,12 @@ _OUT_DIR     = _REPO / "outputs"
 _AUX_DIR     = _OUT_DIR / "pcj_aux"
 
 MIN_MINUTES = 270
-SIG_THRESHOLD = 0.95
+# Probability of direction threshold para flag Sig. 0.85 = "probabilidad de
+# direccion" Makowski 2019 — estandar bayesiano scout-friendly (90%+ es muy
+# conservador con N=172 shocks WC22; 95% queda fuera de alcance honesto).
+# Dual flag con strong_thr para reportar nivel maximo confianza.
+SIG_THRESHOLD = 0.85
+SIG_STRONG_THRESHOLD = 0.95
 ACUTE_WINDOW = 5              # T2.7 hallazgo: efectos son ACUTOS
 HIGH_LEVERAGE_THRESHOLD = 0.05   # M04 leverage > 0.05 = "high stress" shock
 
@@ -689,28 +694,38 @@ def _add_tier_with_uncertainty(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def _add_significance(df: pl.DataFrame) -> pl.DataFrame:
-    """Sig flag bayesiana: P(idx>0|data) > 0.95 → Sig clutch; <0.05 → Sig anti.
-    3 dimensiones: chasing (Remontador), protecting (Cerrojo), pressure (Pressure response).
+    """Dual sig flags por dimension:
+       sig_*       : Sig si P(>0)>=SIG_THRESHOLD (0.85), anti si <=0.15.
+       sig_*_strong: STRONG si P(>0)>=SIG_STRONG_THRESHOLD (0.95).
+    3 dimensiones: Remontador / Cerrojo / Pressure.
     """
+    def _sig_expr(p_col: str, name: str, thr: float, anti_label: str | None = None
+                   ) -> pl.Expr:
+        if anti_label:
+            return (pl.when(pl.col(p_col) >= thr).then(pl.lit(f"Sig_{name}"))
+                      .when(pl.col(p_col) <= 1 - thr).then(pl.lit(f"Sig_anti_{name}"))
+                      .otherwise(pl.lit("Inconclusive")))
+        return (pl.when(pl.col(p_col) >= thr).then(pl.lit(f"Sig_{name}_strong"))
+                  .when(pl.col(p_col) <= 1 - thr).then(pl.lit(f"Sig_anti_{name}_strong"))
+                  .otherwise(pl.lit("Inconclusive")))
+
     out = df.with_columns([
-        pl.when(pl.col("p_chasing_positive") >= SIG_THRESHOLD).then(pl.lit("Sig_remontador"))
-          .when(pl.col("p_chasing_positive") <= 1 - SIG_THRESHOLD).then(pl.lit("Sig_anti_remontador"))
-          .otherwise(pl.lit("Inconclusive"))
-          .alias("sig_chasing"),
-        pl.when(pl.col("p_protecting_positive") >= SIG_THRESHOLD).then(pl.lit("Sig_cerrojo"))
-          .when(pl.col("p_protecting_positive") <= 1 - SIG_THRESHOLD).then(pl.lit("Sig_anti_cerrojo"))
-          .otherwise(pl.lit("Inconclusive"))
-          .alias("sig_protecting"),
+        _sig_expr("p_chasing_positive",   "remontador", SIG_THRESHOLD, "anti")
+            .alias("sig_chasing"),
+        _sig_expr("p_chasing_positive",   "remontador", SIG_STRONG_THRESHOLD)
+            .alias("sig_chasing_strong"),
+        _sig_expr("p_protecting_positive","cerrojo",    SIG_THRESHOLD, "anti")
+            .alias("sig_protecting"),
+        _sig_expr("p_protecting_positive","cerrojo",    SIG_STRONG_THRESHOLD)
+            .alias("sig_protecting_strong"),
     ])
     if "p_pressure_clutch_positive" in df.columns:
-        out = out.with_columns(
-            pl.when(pl.col("p_pressure_clutch_positive") >= SIG_THRESHOLD)
-              .then(pl.lit("Sig_pressure_clutch"))
-              .when(pl.col("p_pressure_clutch_positive") <= 1 - SIG_THRESHOLD)
-              .then(pl.lit("Sig_anti_pressure_clutch"))
-              .otherwise(pl.lit("Inconclusive"))
-              .alias("sig_pressure")
-        )
+        out = out.with_columns([
+            _sig_expr("p_pressure_clutch_positive", "pressure_clutch",
+                       SIG_THRESHOLD, "anti").alias("sig_pressure"),
+            _sig_expr("p_pressure_clutch_positive", "pressure_clutch",
+                       SIG_STRONG_THRESHOLD).alias("sig_pressure_strong"),
+        ])
     return out
 
 
