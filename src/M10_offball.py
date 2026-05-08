@@ -25,8 +25,9 @@ Velocidades:
   finitas entre frames consecutivos sampleados. Z02 PPCF usa vel para proyectar
   reach en reaction_time=0.7s.
 
-Sampling: 25 Hz (todos los frames, full PFF quality). ~135k frames/match,
-activa -> ~2500 PPCF calls/match × 2 (contrafactual) × 11 players × 64 matches.
+Sampling: 25 Hz full-quality (todos los frames PFF). ~135k frames/match.
+PPCF Z02 vectoriza N targets simultaneos; C-OBSO recomputa PPCF 1 vez por
+jugador atacante con lagged_pos valido (cap maxlen=20 en el deque historico).
 
 Features output per (match_id, player_id, minute):
   - obso_mean     : OBSO medio (PPCF × T × S) sobre frames atacantes del minuto
@@ -254,7 +255,7 @@ def compute_obso_match(match_id: int, xg_grid: np.ndarray,
     pitch_l = float(md.get("pitch_length") or 105.0)
     pitch_w = float(md.get("pitch_width") or 68.0)
     fps = float(md.get("fps") or 25.0)
-    dt_sec_sample = _SAMPLE_EVERY_N_FRAMES / fps      # 1.0s si fps=25
+    dt_sec_sample = _SAMPLE_EVERY_N_FRAMES / fps      # 0.04s si fps=25 y sample=1
     cobso_lag_frames = int(round(_COBSO_LAG_SEC * fps))
 
     ro = load_rosters(match_id)
@@ -290,7 +291,9 @@ def compute_obso_match(match_id: int, xg_grid: np.ndarray,
 
     if frames.height == 0:
         return pl.DataFrame(schema={
-            "pff_match_id": pl.Int64, "player_id": pl.Int64, "minute": pl.Int64,
+            "pff_match_id": pl.Int64, "pff_player_id": pl.Int64,
+            "period": pl.Int64, "minute_in_period": pl.Int64,
+            "sec_abs": pl.Int64,
             "obso_mean": pl.Float64, "obso_max": pl.Float64,
             "c_obso_mean": pl.Float64, "attacking_frames": pl.Int64,
         })
@@ -481,7 +484,7 @@ def aggregate_per_player_minute(cache: bool = True) -> pl.DataFrame:
 def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
     """OBSO + C-OBSO agregados por ventana pre/post de cada shock.
 
-    Schema (X3): pff_match_id + sb_match_id + pff_player_id. Filtra por
+    Schema: pff_match_id + sb_match_id + pff_player_id. Filtra por
     sec_abs real (no minute*60 sintetico). M10 es PFF-native asi que no
     hay sb_player_id directamente; se recupera desde el mapping de M08.
     """
@@ -531,7 +534,7 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
         "match_id", "shock_id", "player_id", "shock_type"
     ]).rename({"player_id": "pff_player_id"}).unique()
 
-    # sb_match_id + sb_player_id via mappings publicos (X1+X2)
+    # sb_match_id (M03 mapping) + sb_player_id (M08 cascada SB→PFF inversa)
     from M03_preprocess import pff_to_sb_match_id
     import M08_ataque as atk
     pff2sb_match = pff_to_sb_match_id()
