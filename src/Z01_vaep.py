@@ -31,8 +31,25 @@ from __future__ import annotations
 import warnings
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from catboost import CatBoostClassifier
+
+# Compat numpy 2.0+: pandera 0.17 (deps de socceraction 1.5.3) usa varios
+# aliases removidos en numpy 2.0 (np.string_, np.float_, np.complex_, etc.).
+# Re-aliamos antes de importar socceraction.
+for _old, _new in (
+    ("string_",  "bytes_"),
+    ("unicode_", "str_"),
+    ("float_",   "float64"),
+    ("complex_", "complex128"),
+    ("int_",     "int_"),       # int_ se mantiene en np 2 pero por si acaso
+    ("longfloat","longdouble"),
+    ("singlecomplex", "complex64"),
+    ("cfloat",   "complex128"),
+):
+    if not hasattr(np, _old) and hasattr(np, _new):
+        setattr(np, _old, getattr(np, _new))
 
 # socceraction VAEP clasico
 from socceraction.vaep import features as _vf
