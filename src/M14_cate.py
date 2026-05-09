@@ -480,8 +480,12 @@ def fit_cate_nuts(panel: pl.DataFrame,
     print(f"  warmup={num_warmup}, samples={num_samples}, chains={num_chains}")
 
     kernel = NUTS(_model_mvbcf, target_accept_prob=0.95)
+    # chain_method="vectorized": las N chains corren en BATCH dentro de la
+    # misma GPU (vmap), no secuencial. Mismo resultado matematico, ~3-4x
+    # mas rapido en single-GPU.
     mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples,
-                 num_chains=num_chains, progress_bar=True)
+                 num_chains=num_chains, chain_method="vectorized",
+                 progress_bar=True)
     mcmc.run(
         jax.random.PRNGKey(seed),
         player_idx, shock_idx, channel_idx,
