@@ -80,3 +80,6 @@ logs/
 # catboost_info/ -> training info / learn-test errors
 cache/
 catboost_info/
+
+# Scripts operativos (monitor con IP/puerto del pod, no metodologia)
+scripts/

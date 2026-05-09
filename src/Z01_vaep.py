@@ -51,6 +51,19 @@ for _old, _new in (
     if not hasattr(np, _old) and hasattr(np, _new):
         setattr(np, _old, getattr(np, _new))
 
+# Compat pandera >= 0.20: SchemaModel renombrado a DataFrameModel y kwarg
+# allow_duplicates de Field reemplazado por unique. socceraction 1.1.1 / 1.5.3
+# usan API vieja, asi que aliamos antes del import.
+import pandera as _pa
+if not hasattr(_pa, "SchemaModel") and hasattr(_pa, "DataFrameModel"):
+    _pa.SchemaModel = _pa.DataFrameModel
+_orig_Field = _pa.Field
+def _Field_compat(*args, **kw):
+    if "allow_duplicates" in kw:
+        kw.setdefault("unique", not kw.pop("allow_duplicates"))
+    return _orig_Field(*args, **kw)
+_pa.Field = _Field_compat
+
 # socceraction VAEP clasico
 from socceraction.vaep import features as _vf
 from socceraction.vaep import labels as _vl
@@ -144,6 +157,8 @@ def compute_features(
         else:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
+                # Reset index: socceraction asume index 0..n-1 dentro del game.
+                group = group.reset_index(drop=True)
                 gamestates = fmod.gamestates(group, nb_prev_actions=nb_prev)
                 X = pd.concat([fn(gamestates) for fn in fns], axis=1)
             X.to_parquet(cache_path, index=False)
@@ -189,6 +204,10 @@ def compute_labels(
         else:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
+                # socceraction.vaep.labels.scores hace y[c][len(y)-1] que asume
+                # index 0..n-1. groupby() mantiene index original -> KeyError.
+                # Reset index antes de pasar al label module.
+                group = group.reset_index(drop=True)
                 y_s = lmod.scores(group, nr_actions=nr_actions)
                 y_c = lmod.concedes(group, nr_actions=nr_actions)
             pd.concat([y_s, y_c], axis=1).to_parquet(cache_path, index=False)

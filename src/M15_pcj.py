@@ -72,6 +72,19 @@ SIG_STRONG_THRESHOLD = 0.95
 ACUTE_WINDOW = 5
 HIGH_LEVERAGE_THRESHOLD = 0.05   # M04 leverage > 0.05 = "high stress" shock
 
+# Mapping 16 labels PFF -> 4 buckets scout-friendly (GK / DEF / MED / ATA).
+# Buckets dan sample size suficiente (~50-100 jug/bucket) para rankings
+# significativos vs los 16 granulares (10-30 por label, ranking ruidoso).
+# AM (attacking mid / "10") va a ATA por perfil ofensivo (Griezmann, Neymar),
+# LWB/RWB van a DEF (carrileros tacticos defensivos aunque suban).
+POS_BUCKET_MAP: dict[str, str] = {
+    "GK":  "GK",
+    "LCB": "DEF", "MCB": "DEF", "RCB": "DEF",
+    "LB":  "DEF", "RB":  "DEF", "LWB": "DEF", "RWB": "DEF",
+    "DM":  "MED", "CM":  "MED", "LM":  "MED", "RM":  "MED",
+    "AM":  "ATA", "LW":  "ATA", "RW":  "ATA", "CF":  "ATA",
+}
+
 
 # ----------------------------------------------------------------------------
 # Schema contract estable de la tabla PCJ
@@ -80,9 +93,10 @@ HIGH_LEVERAGE_THRESHOLD = 0.05   # M04 leverage > 0.05 = "high stress" shock
 # mensaje claro antes de persistir — protege a downstream consumers
 # (notebooks scout, exports, etc.) de schemas rotos.
 PCJ_REQUIRED_COLS: dict[str, type] = {
-    # Identidad (5)
+    # Identidad (6)
     "pff_player_id": pl.Int64, "player_name": pl.String,
     "team_name": pl.String, "position_group": pl.String,
+    "position_bucket": pl.String,
     "age_years": pl.Float64,
     # Exposicion (10)
     "minutes_played": pl.Int64, "n_matches_played": pl.UInt32,
@@ -104,10 +118,12 @@ PCJ_REQUIRED_COLS: dict[str, type] = {
     # PCJ 4-vec summary (4)
     "pcj_atk": pl.Float64, "pcj_def": pl.Float64,
     "pcj_off": pl.Float64, "pcj_phys": pl.Float64,
-    # Rankings (4)
+    # Rankings (6) global + within-position (16) + within-bucket (4)
     "rank_chasing_global": pl.UInt32, "rank_protecting_global": pl.UInt32,
     "rank_chasing_in_position": pl.UInt32,
     "rank_protecting_in_position": pl.UInt32,
+    "rank_chasing_in_bucket": pl.UInt32,
+    "rank_protecting_in_bucket": pl.UInt32,
     # Tier + Sig (4)
     "tier_chasing_global": pl.String, "tier_protecting_global": pl.String,
     "sig_chasing": pl.String, "sig_protecting": pl.String,
@@ -218,7 +234,14 @@ def _load_player_meta() -> pl.DataFrame:
     ).unique("pff_player_id")
     grades = pl.read_parquet(_PFF_GRADES).select(
         ["pff_player_id", "team_name", "position_group"])
-    return players.join(grades, on="pff_player_id", how="inner")
+    out = players.join(grades, on="pff_player_id", how="inner")
+    # 16 labels PFF -> 4 buckets (GK/DEF/MED/ATA). Granular para inferencia
+    # M14, agrupado para rankings scout-facing en M15.
+    out = out.with_columns(
+        pl.col("position_group").replace_strict(POS_BUCKET_MAP, default="UNK")
+            .alias("position_bucket")
+    )
+    return out
 
 
 def _load_player_age_height() -> pl.DataFrame:
@@ -728,6 +751,12 @@ def _add_tiers(df: pl.DataFrame) -> pl.DataFrame:
         (pl.col("protecting_clutch_idx").rank(method="ordinal").over("position_group") /
             pl.col("position_group").count().over("position_group"))
             .alias("pct_protecting_in_position"),
+        (pl.col("chasing_clutch_idx").rank(method="ordinal").over("position_bucket") /
+            pl.col("position_bucket").count().over("position_bucket"))
+            .alias("pct_chasing_in_bucket"),
+        (pl.col("protecting_clutch_idx").rank(method="ordinal").over("position_bucket") /
+            pl.col("position_bucket").count().over("position_bucket"))
+            .alias("pct_protecting_in_bucket"),
     ])
     # Pressure_response tiers (eta_pressure de M14 unificado)
     if "pressure_response_idx" in df.columns:
@@ -737,6 +766,9 @@ def _add_tiers(df: pl.DataFrame) -> pl.DataFrame:
             (pl.col("pressure_response_idx").rank(method="ordinal").over("position_group") /
                 pl.col("position_group").count().over("position_group"))
                 .alias("pct_pressure_in_position"),
+            (pl.col("pressure_response_idx").rank(method="ordinal").over("position_bucket") /
+                pl.col("position_bucket").count().over("position_bucket"))
+                .alias("pct_pressure_in_bucket"),
         ])
     pct_cols = [c for c in df.columns if c.startswith("pct_")]
     for col in pct_cols:
@@ -815,7 +847,9 @@ def _add_significance(df: pl.DataFrame) -> pl.DataFrame:
 # Rankings (global + in-position)
 # ----------------------------------------------------------------------------
 def _add_rankings(df: pl.DataFrame) -> pl.DataFrame:
-    """Rankings global + within-position para las 3 dimensiones."""
+    """Rankings global + within-position (16 labels) + within-bucket (4 grupos)
+    para las 3 dimensiones.
+    """
     out = df.with_columns([
         pl.col("chasing_clutch_idx").rank(method="ordinal", descending=True)
             .alias("rank_chasing_global"),
@@ -825,6 +859,10 @@ def _add_rankings(df: pl.DataFrame) -> pl.DataFrame:
             .over("position_group").alias("rank_chasing_in_position"),
         pl.col("protecting_clutch_idx").rank(method="ordinal", descending=True)
             .over("position_group").alias("rank_protecting_in_position"),
+        pl.col("chasing_clutch_idx").rank(method="ordinal", descending=True)
+            .over("position_bucket").alias("rank_chasing_in_bucket"),
+        pl.col("protecting_clutch_idx").rank(method="ordinal", descending=True)
+            .over("position_bucket").alias("rank_protecting_in_bucket"),
     ])
     if "pressure_response_idx" in df.columns:
         out = out.with_columns([
@@ -832,6 +870,8 @@ def _add_rankings(df: pl.DataFrame) -> pl.DataFrame:
                 .alias("rank_pressure_global"),
             pl.col("pressure_response_idx").rank(method="ordinal", descending=True)
                 .over("position_group").alias("rank_pressure_in_position"),
+            pl.col("pressure_response_idx").rank(method="ordinal", descending=True)
+                .over("position_bucket").alias("rank_pressure_in_bucket"),
         ])
     return out
 
@@ -1049,6 +1089,23 @@ def build_aux_tables(pcj: pl.DataFrame) -> dict:
                  "protecting_clutch_lo80", "protecting_clutch_hi80",
                  "p_protecting_positive", "tier_protecting_in_position",
                  "sig_protecting", "minutes_played"]))
+    # Top10 por bucket (4 grupos: GK/DEF/MED/ATA) — ranking scout-friendly
+    # con sample size suficiente. Excluye GK del scout principal de outfield.
+    outfield = pcj.filter(pl.col("position_bucket") != "GK")
+    aux["top10_chasing_per_bucket"] = (outfield.sort("chasing_clutch_idx", descending=True)
+        .group_by("position_bucket", maintain_order=True).head(10)
+        .select(["position_bucket", "position_group", "rank_chasing_in_bucket",
+                 "player_name", "team_name", "chasing_clutch_idx",
+                 "chasing_clutch_lo80", "chasing_clutch_hi80",
+                 "p_chasing_positive", "tier_chasing_in_bucket",
+                 "sig_chasing", "minutes_played"]))
+    aux["top10_protecting_per_bucket"] = (outfield.sort("protecting_clutch_idx", descending=True)
+        .group_by("position_bucket", maintain_order=True).head(10)
+        .select(["position_bucket", "position_group", "rank_protecting_in_bucket",
+                 "player_name", "team_name", "protecting_clutch_idx",
+                 "protecting_clutch_lo80", "protecting_clutch_hi80",
+                 "p_protecting_positive", "tier_protecting_in_bucket",
+                 "sig_protecting", "minutes_played"]))
     # Dual clutch top: (chasing + protecting), filtered to both significant
     dual = (pcj.with_columns(
                 (pl.col("chasing_clutch_idx") + pl.col("protecting_clutch_idx"))
@@ -1070,6 +1127,15 @@ def build_aux_tables(pcj: pl.DataFrame) -> dict:
                      "player_name", "team_name", "pressure_response_idx",
                      "pressure_response_lo80", "pressure_response_hi80",
                      "p_pressure_clutch_positive", "tier_pressure_in_position",
+                     "sig_pressure", "minutes_played"]))
+        aux["top10_pressure_per_bucket"] = (outfield
+            .filter(pl.col("pressure_response_idx").is_not_null())
+            .sort("pressure_response_idx", descending=True)
+            .group_by("position_bucket", maintain_order=True).head(10)
+            .select(["position_bucket", "position_group", "rank_pressure_in_bucket",
+                     "player_name", "team_name", "pressure_response_idx",
+                     "pressure_response_lo80", "pressure_response_hi80",
+                     "p_pressure_clutch_positive", "tier_pressure_in_bucket",
                      "sig_pressure", "minutes_played"]))
     # Por equipo: agg de minutos + indices
     by_team = (pcj.group_by("team_name").agg([

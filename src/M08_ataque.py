@@ -140,6 +140,12 @@ def _build_atomic_actions(comps: list[tuple], cache_name: str,
                 warnings.simplefilter("ignore")
                 try:
                     events = sb_loader.events(game_id=int(g.game_id))
+                    # socceraction.spadl.statsbomb.convert_to_actions hace
+                    # events.fillna(0, inplace=True) que rompe con pandas 2.2+
+                    # en columnas string[pyarrow] (TypeError int->str).
+                    # Downcast Arrow strings -> object antes del convert.
+                    for _c in events.select_dtypes(include=["string"]).columns:
+                        events[_c] = events[_c].astype(object)
                     actions = spadl.statsbomb.convert_to_actions(
                         events, home_team_id=int(g.home_team_id),
                     )

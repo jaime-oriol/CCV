@@ -54,7 +54,7 @@ N_WORKERS_M10="${N_WORKERS_M10:-$N_CORES}"
 N_WORKERS_M11="${N_WORKERS_M11:-$N_CORES}"
 if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L 2>/dev/null | grep -qi gpu; then
     CATBOOST_GPU="${CATBOOST_GPU:-1}"
-    JAX_PLATFORMS="${JAX_PLATFORMS:-gpu}"
+    JAX_PLATFORMS="${JAX_PLATFORMS:-cuda}"
     GPU_INFO=$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null | head -1)
 else
     CATBOOST_GPU="${CATBOOST_GPU:-0}"
