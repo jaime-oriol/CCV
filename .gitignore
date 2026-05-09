@@ -1,6 +1,13 @@
-# Datos (raw + extraidos a parquet)
-data/
+# Datos RAW (NO versionar): originales + extraidos parquet
 data_mundial/
+data/public/
+data/parquet/pff/
+data/parquet/wyscout/
+data/parquet/statsbomb/
+# Caches derivadas SI se versionan (output regenerable del pipeline,
+# pero util tenerlas trackeadas para reproducir resultados sin recomputar):
+#   data/parquet/derived/    -> SI versionar
+#   cache/vaep/              -> SI versionar (compute_features/labels VAEP)
 
 # Documentacion interna del proyecto
 docs/
@@ -64,10 +71,8 @@ env/
 Thumbs.db
 desktop.ini
 
-# Modelos / pesos grandes
-*.cbm
-*.pkl
-*.joblib
+# Modelos grandes (pero los del pipeline derivado SI se versionan dentro
+# de data/parquet/derived/*/model/)
 *.pt
 *.ckpt
 
@@ -75,11 +80,11 @@ desktop.ini
 *.log
 logs/
 
-# Artefactos de runtime de los modelos
-# cache/         -> cache socceraction (StatsBombLoader)
-# catboost_info/ -> training info / learn-test errors
-cache/
+# Cache socceraction StatsBombLoader (raw API cache, no necesario)
 catboost_info/
 
 # Scripts operativos (monitor con IP/puerto del pod, no metodologia)
 scripts/
+
+# Claude Code session metadata
+.claude/

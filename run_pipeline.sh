@@ -31,7 +31,7 @@ cd "$(dirname "$0")"
 PYTHON="${PYTHON:-python}"
 LOGS_DIR="logs"
 DERIVED="data/parquet/derived"
-N_TRIALS="${N_TRIALS_OPTUNA:-30}"
+N_TRIALS="${N_TRIALS_OPTUNA:-15}"
 
 mkdir -p "$LOGS_DIR"
 

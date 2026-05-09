@@ -571,15 +571,23 @@ def build_raw_per_minute(cache: bool = True, overwrite: bool = False,
             if (i + 1) % 10 == 0:
                 print(f"  {i+1}/{len(mids)} en {time.time()-t0:.1f}s", flush=True)
     else:
-        from multiprocessing import Pool
-        print(f"  M11 raw paralelo: {n_workers} workers x {len(mids)} matches",
+        # spawn + 1 thread/worker para evitar deadlock fork+polars y
+        # oversubscription (24 workers x 24 threads internos = 576 -> 24).
+        import multiprocessing as mp
+        os.environ.setdefault("POLARS_MAX_THREADS", "1")
+        os.environ.setdefault("OMP_NUM_THREADS", "1")
+        os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+        os.environ.setdefault("MKL_NUM_THREADS", "1")
+        os.environ.setdefault("RAYON_NUM_THREADS", "1")
+        ctx = mp.get_context("spawn")
+        print(f"  M11 raw paralelo: {n_workers} workers x {len(mids)} matches (spawn, 1 thread/worker)",
               flush=True)
-        with Pool(processes=n_workers) as pool:
+        with ctx.Pool(processes=n_workers) as pool:
             for i, res in enumerate(pool.imap_unordered(
                     _phys_metrics_safe, mids, chunksize=1)):
                 if res is not None:
                     dfs.append(res)
-                if (i+1) % 16 == 0:
+                if (i+1) % 8 == 0:
                     print(f"  {i+1}/{len(mids)} done en {time.time()-t0:.1f}s",
                           flush=True)
 

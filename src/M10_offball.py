@@ -514,15 +514,26 @@ def aggregate_per_player_minute(cache: bool = True,
                 print(f"  {i+1}/{len(mids)} en {time.time()-t0:.0f}s "
                       f"(last {elapsed:.0f}s)", flush=True)
     else:
-        from multiprocessing import Pool
-        print(f"  M10 paralelo: {n_workers} workers x {len(mids)} matches", flush=True)
-        with Pool(processes=n_workers) as pool:
+        # 1. spawn (no fork): polars/pyarrow tienen threads tokio internos
+        #    que con fork() causan deadlock en Pool al primer .collect().
+        # 2. Limitar threads internos a 1 por worker (con 24 workers x 1 thread
+        #    interno cada uno = 24 cores, sin oversubscription). Las envs se
+        #    setean ANTES del spawn -> los hijos las heredan al import polars.
+        import multiprocessing as mp
+        os.environ.setdefault("POLARS_MAX_THREADS", "1")
+        os.environ.setdefault("OMP_NUM_THREADS", "1")
+        os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+        os.environ.setdefault("MKL_NUM_THREADS", "1")
+        os.environ.setdefault("RAYON_NUM_THREADS", "1")
+        ctx = mp.get_context("spawn")
+        print(f"  M10 paralelo: {n_workers} workers x {len(mids)} matches (spawn, 1 thread/worker)", flush=True)
+        with ctx.Pool(processes=n_workers) as pool:
             args = [(mid, xg_grid) for mid in mids]
             for i, res in enumerate(pool.imap_unordered(
                     _compute_obso_match_safe, args, chunksize=1)):
                 if res is not None:
                     dfs.append(res)
-                if (i+1) % 8 == 0:
+                if (i+1) % 4 == 0:
                     print(f"  {i+1}/{len(mids)} done en {time.time()-t0:.0f}s",
                           flush=True)
         print(f"  M10 paralelo total: {time.time()-t0:.0f}s", flush=True)

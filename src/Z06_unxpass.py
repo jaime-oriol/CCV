@@ -147,7 +147,7 @@ def fit_unxpass(df: pl.DataFrame, n_folds: int = 5, n_trials: int = 25,
             tr_mask = ~val_mask
             if y[tr_mask].sum() == 0 or y[tr_mask].sum() == tr_mask.sum():
                 continue
-            m = lgb.LGBMClassifier(**params, random_state=seed + fi, verbose=-1)
+            m = lgb.LGBMClassifier(**params, random_state=seed + fi, verbose=-1, n_jobs=8)
             m.fit(X[tr_mask], y[tr_mask],
                   eval_set=[(X[val_mask], y[val_mask])],
                   callbacks=[lgb.early_stopping(20, verbose=False)])
@@ -177,7 +177,7 @@ def fit_unxpass(df: pl.DataFrame, n_folds: int = 5, n_trials: int = 25,
 
     cal = IsotonicRegression(out_of_bounds="clip"); cal.fit(oof, y)
     oof_cal = cal.predict(oof)
-    final = lgb.LGBMClassifier(**best, random_state=seed, verbose=-1)
+    final = lgb.LGBMClassifier(**best, random_state=seed, verbose=-1, n_jobs=8)
     final.fit(X, y)
 
     metrics = {

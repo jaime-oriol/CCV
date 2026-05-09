@@ -398,7 +398,7 @@ def fit_xpress(df: pl.DataFrame, n_folds: int = 5,
         for fi, val_m in enumerate(folds):
             val_mask = np.isin(match_ids, val_m)
             tr_mask = ~val_mask
-            m = lgb.LGBMClassifier(**params, random_state=seed + fi, verbose=-1)
+            m = lgb.LGBMClassifier(**params, random_state=seed + fi, verbose=-1, n_jobs=8)
             m.fit(X[tr_mask], y[tr_mask],
                   eval_set=[(X[val_mask], y[val_mask])],
                   callbacks=[lgb.early_stopping(20, verbose=False)])
@@ -423,6 +423,9 @@ def fit_xpress(df: pl.DataFrame, n_folds: int = 5,
 
     study = optuna.create_study(direction="maximize",
                                  sampler=optuna.samplers.TPESampler(seed=seed))
+    # Optuna secuencial: TPE converge bien, race conditions evitadas.
+    # LGBM n_jobs=8 dentro de cada trial -> 3 Z procesos paralelos x 8 cores
+    # = 24 cores exactos sin oversubscription.
     study.optimize(objective, n_trials=n_trials, show_progress_bar=False)
     best_params = study.best_params
     oof = _oof(best_params)
@@ -432,7 +435,7 @@ def fit_xpress(df: pl.DataFrame, n_folds: int = 5,
     cal.fit(oof, y)
     oof_cal = cal.predict(oof)
 
-    final = lgb.LGBMClassifier(**best_params, random_state=seed, verbose=-1)
+    final = lgb.LGBMClassifier(**best_params, random_state=seed, verbose=-1, n_jobs=8)
     final.fit(X, y)
 
     # Baseline naive: pesos fijos Maejima light

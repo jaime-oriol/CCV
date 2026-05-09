@@ -219,7 +219,7 @@ def fit_vdep(df: pl.DataFrame, n_folds: int = 5, n_trials: int = 25,
             # Salta folds con una sola clase en train (sin signal)
             if y[tr_mask].sum() == 0 or y[tr_mask].sum() == tr_mask.sum():
                 continue
-            m = lgb.LGBMClassifier(**params, random_state=seed + fi, verbose=-1)
+            m = lgb.LGBMClassifier(**params, random_state=seed + fi, verbose=-1, n_jobs=8)
             m.fit(X[tr_mask], y[tr_mask],
                   eval_set=[(X[val_mask], y[val_mask])],
                   callbacks=[lgb.early_stopping(20, verbose=False)])
@@ -259,9 +259,9 @@ def fit_vdep(df: pl.DataFrame, n_folds: int = 5, n_trials: int = 25,
     oof_rec_cal = cal_rec.predict(oof_rec)
     oof_att_cal = cal_att.predict(oof_att)
 
-    final_rec = lgb.LGBMClassifier(**s_rec.best_params, random_state=seed, verbose=-1)
+    final_rec = lgb.LGBMClassifier(**s_rec.best_params, random_state=seed, verbose=-1, n_jobs=8)
     final_rec.fit(X, y_rec)
-    final_att = lgb.LGBMClassifier(**s_att.best_params, random_state=seed, verbose=-1)
+    final_att = lgb.LGBMClassifier(**s_att.best_params, random_state=seed, verbose=-1, n_jobs=8)
     final_att.fit(X, y_att)
 
     # C: ratio mean(attacked) / mean(recovery) sobre OOF cal — calibracion
