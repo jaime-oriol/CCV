@@ -860,7 +860,7 @@ def mean_brier(X: pl.DataFrame, fit_result: dict) -> float:
 
 
 # ===========================================================================
-#  SECCION 6 — ET (Poisson goal-rate) + Penaltis (Tijms 2019)
+#  SECCION 6 — ET goal-rate empirico (Poisson)
 # ===========================================================================
 
 def et_goal_rate_empirical() -> tuple[float, float]:

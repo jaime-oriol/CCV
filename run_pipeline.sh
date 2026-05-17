@@ -11,8 +11,7 @@
 #   N_WORKERS_M10    : workers paralelos M10 OBSO (recomendado: nproc, default 1)
 #   N_WORKERS_M11    : workers paralelos M11 raw  (recomendado: nproc, default 1)
 #   CATBOOST_GPU     : =1 → CatBoost en GPU (requiere catboost+CUDA build)
-#   N_TRIALS_OPTUNA  : trials Optuna (default 30 — al MAX para Z03/Z04/Z06/M08;
-#                                       M05 tiene su propio default 60)
+#   N_TRIALS_OPTUNA  : trials Optuna (default 15; M05 usa su propio default 60)
 #   FORCE_CLEAN      : =1 borra derived/* antes
 #   SKIP_M10         : =1 salta M10 (debug rapido)
 #   SKIP_M14         : =1 salta M14 NUTS

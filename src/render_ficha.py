@@ -20,6 +20,10 @@ _TABLE = _REPO / "outputs" / "pcj_table.parquet"
 
 CHANNEL_LABELS = {"atk": "Ataque", "def": "Defensa",
                    "off": "Off-ball", "phys": "Físico"}
+# Reverse map: nombres cortos -> nombres canal completos (las cols cate_*
+# usan ataque/defensa/offball/fisico). Definido aqui para render_ficha.
+CHANNEL_LABELS_REV = {"atk": "ataque", "def": "defensa",
+                       "off": "offball", "phys": "fisico"}
 
 
 def _bar(value: float, lo: float = -0.6, hi: float = +0.6, width: int = 10) -> str:
@@ -141,11 +145,6 @@ def render_ficha(player_row: dict) -> str:
 
     out.append("═" * 72)
     return "\n".join(out)
-
-
-# Reverse map para CHANNEL_LABELS (cate uses full names: ataque/defensa/...)
-CHANNEL_LABELS_REV = {"atk": "ataque", "def": "defensa",
-                       "off": "offball", "phys": "fisico"}
 
 
 def find_player(query: str, df: pl.DataFrame) -> dict | None:

@@ -22,12 +22,13 @@ Diseno:
   - Filtro: acciones del equipo que NO tiene posesion del balon previo a la
             accion (es decir, defensive actions desde la perspectiva del
             defensor que actua).
-  - Targets:
-      y_recovery[a] = 1 si en accs[a+1 .. a+N] el carrier_team == defender_team
-                       OR la accion misma es interception/tackle/clearance/keeper_*
-                       que recupera el balon.
-      y_attacked[a] = 1 si en accs[a+1 .. a+N] hay shot que termina en gol del
-                       opponent_team (i.e., el equipo del defensor concede).
+  - Targets (sobre las acciones SPADL siguientes):
+      y_recovery[a] = 1 si en las proximas HORIZON_REC acciones el equipo del
+                       defensor encadena >=2 acciones ofensivas (pass/dribble/
+                       cross/shot): proxy de consolidacion de la posesion.
+      y_attacked[a] = 1 si en las proximas HORIZON_ATT acciones el rival ejecuta
+                       un shot. Proxy de "el equipo del defensor es atacado";
+                       NO exige que el shot acabe en gol.
   - Model: LightGBM x 2 (recovery, attacked) + 5-fold CV by match + isotonic.
   - Apply: VDEP = P_rec_cal - C * P_att_cal sobre WC22 acciones defensivas.
 
@@ -99,8 +100,10 @@ def _build_atomic_features(atomic_df) -> pl.DataFrame:
         (pl.col("time_seconds") / 5400.0).alias("time_seconds_norm"),  # /90min
         pl.col("period_id").cast(pl.Int64),
     ])
-    # score_diff + is_home_action: aprox via cum_sum de shots con outcome=success
-    # (las acciones atomic no traen score state nativo; aproximamos con 0).
+    # score_diff e is_home_action: las acciones atomic-SPADL no traen score
+    # state nativo. Se dejan en 0 constante (placeholder) — LightGBM las ignora
+    # por varianza nula; se mantienen en FEATURE_COLS solo por estabilidad de
+    # schema. Feature no aprovechada (documentado como limitacion).
     df = df.with_columns([
         pl.lit(0).cast(pl.Int64).alias("score_diff"),
         pl.lit(0).cast(pl.Int64).alias("is_home_action"),

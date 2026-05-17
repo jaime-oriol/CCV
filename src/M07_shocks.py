@@ -51,7 +51,7 @@ if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
 from M01_loader_pff import (
-    list_event_match_ids, load_events, load_metadata, list_goals,
+    list_event_match_ids, load_events, load_metadata,
 )
 from M03_preprocess import (
     goals_timeline, player_minutes, week_index_continuous,

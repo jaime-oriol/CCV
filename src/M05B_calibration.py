@@ -16,7 +16,6 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 from sklearn.metrics import roc_auc_score, brier_score_loss, log_loss
-from sklearn.model_selection import KFold
 
 _REPO = Path(__file__).resolve().parents[1]
 _PSXG_DIR = _REPO / "data" / "parquet" / "derived" / "psxg"
@@ -116,15 +115,22 @@ def compute_all() -> None:
     y_tr = train["_label"].to_numpy()
     sb_xg_tr = train["_sb_xg"].to_numpy()
 
-    # Recompute OOF (5-fold CV) via the same approach as M05
-    kf = KFold(n_splits=5, shuffle=True, random_state=42)
-    oof_raw = np.zeros(len(y_tr))
+    # Recompute OOF con folds POR PARTIDO (identico a M05._get_folds): evita
+    # leakage shot-shot dentro de la misma jugada. Un KFold plano mezclaria
+    # disparos del mismo partido entre train/val e inflaria el OOF, haciendolo
+    # incomparable con el OOF real de M05.
     import lightgbm as lgb
     best_params = {k: v for k, v in fit["metrics"]["best_params"].items()}
-    for fold_idx, (tr_idx, val_idx) in enumerate(kf.split(X_tr)):
+    match_ids_tr = train["_match_id"].to_numpy()
+    uniq_m = np.array(sorted(set(match_ids_tr)))
+    np.random.default_rng(42).shuffle(uniq_m)
+    oof_raw = np.zeros(len(y_tr))
+    for val_m in np.array_split(uniq_m, 5):
+        val_mask = np.isin(match_ids_tr, val_m)
+        tr_mask = ~val_mask
         m = lgb.LGBMClassifier(**best_params, random_state=42, verbose=-1)
-        m.fit(X_tr[tr_idx], y_tr[tr_idx])
-        oof_raw[val_idx] = m.predict_proba(X_tr[val_idx])[:, 1]
+        m.fit(X_tr[tr_mask], y_tr[tr_mask])
+        oof_raw[val_mask] = m.predict_proba(X_tr[val_mask])[:, 1]
     oof_cal = calibrator.predict(oof_raw)
 
     # --- WC22 holdout ---

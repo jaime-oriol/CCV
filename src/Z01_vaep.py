@@ -52,8 +52,8 @@ for _old, _new in (
         setattr(np, _old, getattr(np, _new))
 
 # Compat pandera >= 0.20: SchemaModel renombrado a DataFrameModel y kwarg
-# allow_duplicates de Field reemplazado por unique. socceraction 1.1.1 / 1.5.3
-# usan API vieja, asi que aliamos antes del import.
+# allow_duplicates de Field reemplazado por unique. socceraction 1.5.3 usa
+# la API vieja, asi que aliamos antes del import.
 import pandera as _pa
 if not hasattr(_pa, "SchemaModel") and hasattr(_pa, "DataFrameModel"):
     _pa.SchemaModel = _pa.DataFrameModel

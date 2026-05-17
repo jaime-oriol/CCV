@@ -27,7 +27,7 @@ TFM/
 │   ├── M02_loader_public.py                       # API Wyscout + StatsBomb (polars nativo)
 │   ├── M03_preprocess.py                          # direction, score state (SB ground truth), minutos, enrich_events
 │   ├── M04_wp.py                                  # Win Probability bayesiana (numpyro SVI ordered logistic)
-│   │                                              #   + leverage + ET Poisson + tanda Tijms + MC group elim_prox
+│   │                                              #   + leverage + ET Poisson + tanda parametrica + MC group elim_prox
 │   ├── M05_psxg.py                                # Post shot xG (LightGBM + Optuna 60 + isotonic + freeze 360)
 │   │                                              #   AUC OOF 0.974, holdout WC22 0.976 (vs SB 0.827)
 │   ├── M05B_calibration.py                        # PSxG calibration (curve, ECE/MCE, Brier Murphy 1973)

@@ -1,9 +1,11 @@
 """
 M10_offball - Canal Inteligencia Espacial Off-ball via OBSO completo (Spearman 2018).
 
-Fase 2 PCJ, canal 3 de 4. Implementacion ELITE: OBSO completo = PPCF × T × S
-con el PPCF SOTA del building block Z02 pitch_control (vectorizado Spearman
-2018 sobre tracking 25fps), NO una simplificacion.
+Fase 2 PCJ, canal 3 de 4. OBSO 3-factor = PPCF × T × S con el PPCF SOTA del
+building block Z02 pitch_control (vectorizado Spearman 2018 sobre tracking
+25fps). PPCF y el contrafactual C-OBSO son completos; T(r) se aproxima con un
+kernel gaussiano (ver _transition_probability), simplificacion fisica
+deliberada documentada.
 
 Referencias SOTA (implementadas):
   - Spearman (2018, MIT Sloan) "Beyond Expected Goals" — OBSO 3-factor:

@@ -121,6 +121,15 @@ def build_training_table(match_ids: list[int] | None = None,
                 .alias("score_diff_carrier")
         )
 
+        # minute_in_period: PFF startGameClock es acumulado de partido (no
+        # resetea por period). Se resta el inicio de cada period para que el
+        # join de M09 alinee — M09 usa SPADL time_seconds, period-relativo.
+        p_start = flat.group_by("period").agg(
+            pl.col("sgc").min().alias("p_start"))
+        flat = flat.join(p_start, on="period", how="left").with_columns(
+            ((pl.col("sgc") - pl.col("p_start")) // 60)
+                .cast(pl.Int64).alias("minute_in_period"))
+
         press = flat.filter(
             pl.col("press_type").is_in(["A", "L", "P"]) &
             pl.col("press_player_id").is_not_null() &
@@ -165,6 +174,7 @@ def build_training_table(match_ids: list[int] | None = None,
             "f_press_type", "f_touch_type", "f_facing",
             "f_open_play", "f_time_norm", "f_period",
             "f_is_home_ball", "f_score_diff",
+            "minute_in_period",
             "recovery",
         ])
         # Anadir features de tracking 25Hz
@@ -485,12 +495,12 @@ def predict_per_event(fit: dict, df: pl.DataFrame) -> pl.DataFrame:
     X = df.select(fit["feature_cols"]).to_numpy().astype(np.float32)
     raw = fit["model"].predict_proba(X)[:, 1]
     cal = fit["calibrator"].predict(raw)
-    # PFF sgc es period-relative (resetea cada period), asi minute_in_period
-    # = sgc // 60 directo (incluye stoppage time como minutos > 45 en p1).
-    return df.with_columns([
+    # minute_in_period viene period-relativo desde build_training_table (a
+    # PFF startGameClock, acumulado de partido, ya se le resto el inicio de
+    # cada period — necesario para que el join de M09 no pierda la 2a parte).
+    return df.with_columns(
         pl.Series("p_recovery", cal).cast(pl.Float64),
-        (pl.col("sgc") // 60).cast(pl.Int64).alias("minute_in_period"),
-    ]).select([
+    ).select([
         "match_id", "period", "sgc", "minute_in_period",
         pl.col("press_player_id").alias("pff_player_id"),
         "p_recovery",
