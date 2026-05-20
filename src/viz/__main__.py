@@ -1,11 +1,10 @@
-"""Runner unico: renderiza las figuras core del PCJ a outputs/viz/.
+"""Runner unico de la capa viz. Renderiza las figuras core a outputs/viz/.
 
 Uso:
     python -m src.viz                        # PPCF + scatter + event-study + report
-    python -m src.viz radar "Messi"          # solo el radar
+    python -m src.viz radar "Messi"          # solo el radar geometrico
     python -m src.viz report "Messi"         # radar_report (radar + tabla)
 """
-
 from __future__ import annotations
 
 import sys
@@ -24,7 +23,7 @@ _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
 
 
 def _render_radar(df: pl.DataFrame, query: str) -> Path:
-    """Radar individual de un jugador (id o substring de nombre)."""
+    """Render del radar geometrico standalone (con header + logo)."""
     pid = radar._find(df, query)
     r = df.filter(pl.col("pff_player_id") == pid).row(0, named=True)
     out = _OUT / f"radar_{pid}.png"
@@ -32,18 +31,19 @@ def _render_radar(df: pl.DataFrame, query: str) -> Path:
         df, pid,
         title=f"{r['player_name']}  ·  Perfil Clutch del Jugador",
         subtitle=f"{r['team_name']}  ·  {r['position_group']}  ·  "
-                 f"{int(r['minutes_played'])} min  —  Mundial Qatar 2022",
+                  f"{int(r['minutes_played'])} min  ·  Mundial Qatar 2022",
         save_path=out)
     return out
 
 
 def make_all() -> None:
-    """Renderiza PPCF + scatter + event-study + report (jugador portada)."""
-    print("[viz] PPCF — gol de Messi (ARG-MEX, periodo 2 min 63)...")
+    """Renderiza las 4 figuras core para la portada del repo / TFM."""
+    print("[viz] PPCF — gol de Messi (ARG-MEX, min 63.5)...")
+    # 3812-3 = ~3 s antes del remate del gol de Messi (frame del buildup)
     fnum = ppcf.frame_for_clock(3835, period=2, clock_s=3812 - 3)
     ppcf.plot_ppcf(3835, fnum, save_path=_OUT / "ppcf_messi_arg_mex.png")
 
-    print("[viz] Scatter Remontador x Cerrojo...")
+    print("[viz] Scatter Remontador x Cerrojo (511 jug)...")
     scatter.diamond_scatter(pl.read_parquet(_TABLE),
                              save_path=_OUT / "scatter_remontador_cerrojo.png")
 

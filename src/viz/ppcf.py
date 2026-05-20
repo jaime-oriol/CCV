@@ -1,13 +1,18 @@
 """ppcf - Superficie Pitch Control (Spearman 2018) sobre el campo.
 
-Layout pitch-aligned (header + pitch + footer en el MISMO ancho horizontal)
-portado de jaime-oriol/Diagonality_3D (viz/passes_plot.py): header con
-escudo de la seleccion atacante + titulo auto + logo JO; footer con 3
-bloques (leyenda colormap PPCF, direccion de ataque, stats del frame).
+Layout pitch-aligned: header + pitch + footer comparten el MISMO ancho
+horizontal (el del campo). Header con escudo de la seleccion atacante,
+titulo auto-generado desde metadata, logo JO. Footer 3 bloques: gradiente
+PPCF + direccion de ataque + N jugadores + reloj.
+
+Z02_pitch_control hace el computo del PPCF; este modulo arma la malla del
+campo, el adapter del frame de tracking PFF 25/30 Hz al schema Z02, y el
+render con identidad visual propia.
 
 Uso:
-    python -m src.viz.ppcf <match_id> <period> <minute>
-    python -m src.viz.ppcf                          # default Messi ARG-MEX
+    python -m src.viz.ppcf <match_id> <match_minute>
+    python -m src.viz.ppcf 3835 63                # ARG-MEX, min 63
+    python -m src.viz.ppcf                        # default: ARG-MEX min 63.5
 """
 from __future__ import annotations
 
@@ -19,9 +24,8 @@ import numpy as np
 import pandas as pd
 import polars as pl
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 import matplotlib.patches as mpatches
+from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 from PIL import Image
 
 _SRC = Path(__file__).resolve().parents[1]
@@ -36,8 +40,8 @@ from viz.common import (ATT, BALL, BG, DEF, GK, PE_S, PITCH_LENGTH,
 
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"
 
-# pff team_name -> iso3 slug (sportlogos/sport.db.logos) — necesario para
-# escoger el escudo correcto a partir del team_id atacante.
+# pff team_name -> iso3 slug (sportlogos/sport.db.logos). Necesario para
+# escoger el escudo del equipo atacante en el header.
 _TEAM_TO_SLUG = {
     "Argentina":"arg","Brazil":"bra","Ecuador":"ecu","Uruguay":"uru","Belgium":"bel",
     "Croatia":"cro","Denmark":"den","England":"eng","France":"fra","Germany":"ger",
@@ -48,8 +52,7 @@ _TEAM_TO_SLUG = {
     "United States":"usa","Costa Rica":"crc","Australia":"aus",
 }
 
-# Lag (frames) para derivar velocidades por diferencias finitas (~0.5 s).
-_VEL_LAG_FRAMES = 15
+_VEL_LAG_FRAMES = 15            # ~0.5 s a 30 fps. Lag para velocidades por diff finita.
 _SPEED_CAP_MPS  = 12.0          # cap anti-teleport del tracking
 
 
@@ -57,7 +60,7 @@ _SPEED_CAP_MPS  = 12.0          # cap anti-teleport del tracking
 
 def _load_frame_z02(match_id: int, frame_num: int,
                      vel_lag: int = _VEL_LAG_FRAMES) -> tuple:
-    """Construye el DataFrame schema-Z02 de un frame de tracking PFF.
+    """Construye el DataFrame Z02 de un frame de tracking PFF.
 
     Velocidades por diferencia finita contra el frame `vel_lag` atras.
     Devuelve (frame_df, ball_pos, att_team_id, meta).
@@ -66,20 +69,21 @@ def _load_frame_z02(match_id: int, frame_num: int,
     home_id, away_id = int(md["home_team_id"]), int(md["away_team_id"])
     home_name = str(md.get("home_team_name") or "")
     away_name = str(md.get("away_team_name") or "")
-    date_iso = str(md.get("date") or "")[:10]   # YYYY-MM-DD
+    date_iso = str(md.get("date") or "")[:10]               # YYYY-MM-DD
     comp = md.get("competition") or {}
     comp_name = str(comp.get("name") if isinstance(comp, dict) else "")
     fps = float(md.get("fps") or 29.97)
     pitch_l = float(md.get("pitch_length") or PITCH_LENGTH)
     pitch_w = float(md.get("pitch_width") or PITCH_WIDTH)
-    dt = vel_lag / fps
+    dt = vel_lag / fps                                       # delta_t entre frames cur y prev
 
-    # Jerseys de portero por equipo (rosters)
+    # Jerseys de portero por equipo (para colorear distinto en el render)
     gk: set[tuple[int, int]] = set()
     for r in load_rosters(match_id).iter_rows(named=True):
         if r["position_group"] == "GK" and r["shirt_number"] is not None:
             gk.add((int(r["team_id"]), int(r["shirt_number"])))
 
+    # Pillo frame actual + el de hace vel_lag (para velocidades)
     tr = scan_tracking(match_id).select([
         "frameNum",
         pl.col("homePlayersSmoothed").alias("home"),
@@ -110,10 +114,10 @@ def _load_frame_z02(match_id: int, frame_num: int,
             if j is None or x is None:
                 continue
             j, x, y = int(j), float(x), float(p["y"])
-            px, py = prev_xy[side].get(j, (x, y))
+            px, py = prev_xy[side].get(j, (x, y))            # si no estaba antes, vel=0
             vx, vy = (x - px) / dt, (y - py) / dt
             sp = float(np.hypot(vx, vy))
-            if sp > _SPEED_CAP_MPS:
+            if sp > _SPEED_CAP_MPS:                           # capa teleports del tracking
                 vx, vy = vx * _SPEED_CAP_MPS / sp, vy * _SPEED_CAP_MPS / sp
             rows.append(dict(x_tracking=x, y_tracking=y, vx=vx, vy=vy,
                               team_id=tid, is_ball=0,
@@ -125,6 +129,7 @@ def _load_frame_z02(match_id: int, frame_num: int,
                           is_goalkeeper=0, jersey=-1))
     df = pd.DataFrame(rows)
 
+    # Equipo atacante = el del jugador mas cercano al balon (heuristica simple)
     ball_pos = pc.get_ball_pos(df)
     field = df[df["is_ball"] == 0]
     d = np.hypot(field["x_tracking"] - ball_pos[0], field["y_tracking"] - ball_pos[1])
@@ -136,7 +141,7 @@ def _load_frame_z02(match_id: int, frame_num: int,
 
 
 def frame_for_clock(match_id: int, period: int, clock_s: float) -> int:
-    """frameNum cuyo periodGameClockTime es el mas cercano a clock_s (su periodo)."""
+    """frameNum cuyo periodGameClockTime es el mas cercano a clock_s (en su periodo)."""
     tr = scan_tracking(match_id).select(
         ["frameNum", "period", "periodGameClockTime"]
     ).filter(pl.col("period") == period).collect()
@@ -149,7 +154,7 @@ def frame_for_clock(match_id: int, period: int, clock_s: float) -> int:
 def compute_ppcf_grid(frame_df: pd.DataFrame, att_team_id: int,
                        ball_pos: np.ndarray, pitch_l: float, pitch_w: float,
                        n_x: int = 80, n_y: int = 52) -> np.ndarray:
-    """PPCF del equipo atacante sobre una malla n_y x n_x del campo (Z02)."""
+    """PPCF del equipo atacante en una malla n_y x n_x del campo (via Z02)."""
     xs = np.linspace(-pitch_l / 2, pitch_l / 2, n_x)
     ys = np.linspace(-pitch_w / 2, pitch_w / 2, n_y)
     XX, YY = np.meshgrid(xs, ys)
@@ -159,32 +164,33 @@ def compute_ppcf_grid(frame_df: pd.DataFrame, att_team_id: int,
 
 
 # ---- Layout pitch-aligned (header + pitch + footer al mismo ancho) ----
-# Portado de Diagonality_3D/viz/passes_plot.py. Campo aspect 105/68 = 1.544.
-# Header / footer comparten ancho horizontal exacto con el pitch.
+# Campo aspect = 105/68 = 1.544. Anclo header/footer al ancho exacto del pitch.
 
 FIGSIZE = (14.0, 10.5)
-PITCH_RATIO = PITCH_LENGTH / PITCH_WIDTH
+PITCH_RATIO = PITCH_LENGTH / PITCH_WIDTH       # 1.544
 
-H_HEADER = 0.10
-H_PITCH = 0.68
-H_FOOTER = 0.18
-PAD_TOP = 0.015
-PAD_HEADER_PITCH = 0.0
-PAD_PITCH_FOOTER = 0.005
-PAD_BOTTOM = 0.020
+# Alturas (fraccion del alto fig). Suma + pads <= 1.
+H_HEADER = 0.10                                # ↑ header MAS ALTO -> mas espacio titulo
+H_PITCH  = 0.68                                # ↑ pitch MAS ALTO -> campo MAS GRANDE
+H_FOOTER = 0.18                                # ↑ footer MAS ALTO -> leyenda MAS GRANDE
+PAD_TOP            = 0.015
+PAD_HEADER_PITCH   = 0.0                       # ↑ separa header del pitch
+PAD_PITCH_FOOTER   = 0.005                     # ↑ separa pitch del footer
+PAD_BOTTOM         = 0.020
 
 
 def _layout(figsize=FIGSIZE) -> dict:
+    """Computa posiciones absolutas de header/pitch/footer ancladas al pitch."""
     fw, fh = figsize
     pitch_h_in = H_PITCH * fh
     pitch_w_in = pitch_h_in * PITCH_RATIO
-    pitch_w_frac = pitch_w_in / fw
-    left = (1.0 - pitch_w_frac) / 2.0
+    pitch_w_frac = pitch_w_in / fw                # ancho del pitch (frac fig)
+    left = (1.0 - pitch_w_frac) / 2.0             # centra el pitch en horizontal
 
     y_footer_bot = PAD_BOTTOM
     y_footer_top = y_footer_bot + H_FOOTER
-    y_pitch_bot = y_footer_top + PAD_PITCH_FOOTER
-    y_pitch_top = y_pitch_bot + H_PITCH
+    y_pitch_bot  = y_footer_top + PAD_PITCH_FOOTER
+    y_pitch_top  = y_pitch_bot + H_PITCH
     y_header_bot = y_pitch_top + PAD_HEADER_PITCH
     return {
         "left": left, "width": pitch_w_frac,
@@ -195,7 +201,7 @@ def _layout(figsize=FIGSIZE) -> dict:
 
 
 def _make_block_axes(fig, left, bottom, width, height):
-    """Sub-axes limpio dentro del footer (sin spines, lim 0-1)."""
+    """Sub-axes limpio (sin spines, lim 0-1). Para los bloques del footer."""
     ax = fig.add_axes([left, bottom, width, height])
     ax.set_xlim(0, 1); ax.set_ylim(0, 1)
     ax.set_xticks([]); ax.set_yticks([])
@@ -205,98 +211,98 @@ def _make_block_axes(fig, left, bottom, width, height):
     return ax
 
 
-# ---- Header ----
+# ---- Header (strip superior anclado al pitch) ----
 
 def _draw_header(ax: plt.Axes, title: str, subtitle,
                   team_logo_path: Optional[str] = None,
                   project_logo_path: Optional[str] = None) -> None:
-    """Strip superior anclado al ancho del campo: escudo seleccion (izq),
-    titulo + subtitulo, logo JO (derecha)."""
+    """Escudo seleccion (izq) + titulo + subtitulo + logo JO (dcha)."""
     ax.set_facecolor(BG)
     ax.set_xlim(0, 1); ax.set_ylim(0, 1)
     ax.set_xticks([]); ax.set_yticks([])
     for s in ax.spines.values():
         s.set_visible(False)
 
-    text_x = 0.135
+    # ---- Escudo team a la izquierda del header ----
+    text_x = 0.135                                       # ↑ texto MAS a la DERECHA (defecto sin escudo)
     if team_logo_path and Path(team_logo_path).exists():
         try:
             img = plt.imread(str(team_logo_path))
-            # zoom 0.70 escudo team — match passes_plot proporcion vs header
-            ab = AnnotationBbox(OffsetImage(img, zoom=0.70),
-                                 (0.0, 0.50), frameon=False,
-                                 box_alignment=(0.0, 0.5))
-            ab.set_clip_on(False)
+            ab = AnnotationBbox(
+                OffsetImage(img, zoom=0.70),             # ↑ zoom -> escudo MAS GRANDE
+                (0.0, 0.50), frameon=False,              # X=0 -> pegado al borde IZQ; Y=0.5 -> centro vertical
+                box_alignment=(0.0, 0.5))                # ancla LEFT-edge en X
+            ab.set_clip_on(False)                        # permite render fuera del axes
             ax.add_artist(ab)
-            text_x = 0.12
+            text_x = 0.12                                # con escudo, texto se desplaza un pelin a la izq
         except Exception:
             pass
 
+    # ---- Titulo + subtitulos (acepta str o list) ----
     sub_lines = list(subtitle) if isinstance(subtitle, (list, tuple)) else [subtitle]
     n_sub = len(sub_lines)
-    title_y = 0.82 if n_sub >= 2 else 0.55
-    gap_title_sub = 0.36
-    gap_sub_sub = 0.26
+    title_y       = 0.82 if n_sub >= 2 else 0.55         # ↑ titulo MAS ARRIBA (en multi-linea)
+    gap_title_sub = 0.36                                  # ↑ MAS SEPARACION titulo - sub1
+    gap_sub_sub   = 0.26                                  # ↑ MAS SEPARACION sub1 - sub2
 
     ax.text(text_x, title_y, title, color=WHITE,
              fontsize=22, fontweight="bold", ha="left", va="center")
     y = title_y
     for i, line in enumerate(sub_lines):
         y -= gap_title_sub if i == 0 else gap_sub_sub
-        # Subtitulos en BLANCO puro (sin alpha) — homogeneo con titulo
         ax.text(text_x, y, line, color=WHITE,
                  fontsize=13, ha="left", va="center")
 
+    # ---- Logo JO a la derecha del header ----
     if project_logo_path and Path(project_logo_path).exists():
         try:
             img = plt.imread(str(project_logo_path))
-            # zoom 0.12 logo JO (antes 0.08, muy pequeno)
-            ab = AnnotationBbox(OffsetImage(img, zoom=0.12),
-                                 (1.0, 0.42), frameon=False,
-                                 box_alignment=(1.0, 0.5))
+            ab = AnnotationBbox(
+                OffsetImage(img, zoom=0.12),             # ↑ zoom -> logo JO MAS GRANDE
+                (1.0, 0.42), frameon=False,              # X=1 -> pegado al borde DCHA; ↓ Y -> logo BAJA
+                box_alignment=(1.0, 0.5))                # ancla RIGHT-edge en X
             ab.set_clip_on(False)
             ax.add_artist(ab)
         except Exception:
             pass
 
 
-# ---- Footer (3 bloques: leyenda colormap + direccion + stats) ----
+# ---- Footer (3 bloques: leyenda + direccion + stats) ----
 
 def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
                   def_team_name: str, n_att: int, n_def: int,
                   match_clock: str, period: int,
                   attacking_right: bool = True) -> None:
-    """Footer 3 bloques 40/20/40 del ancho del campo.
-
-    Block 1 (40%): barra de gradiente PPCF + etiquetas de control.
-    Block 2 (20%): triangulos direccion ataque + nombre del equipo atacante.
-    Block 3 (40%): stats — N jugadores atacante / defensor + match clock.
+    """Footer 3 bloques 40/20/40 del ancho del pitch:
+      block 1 (40%) — barra gradiente PPCF + etiquetas de control
+      block 2 (20%) — triangulos direccion ataque + nombre del atacante
+      block 3 (40%) — N jugadores att/def + match clock
     """
     fl = L["left"]; fw = L["width"]
     fb = L["footer"][1]; fh = L["footer"][3]
-    b1_w, b2_w, b3_w = fw * 0.40, fw * 0.20, fw * 0.40
+    b1_w, b2_w, b3_w = fw * 0.40, fw * 0.20, fw * 0.40    # split 40/20/40 del ancho del pitch
     ax_b1 = _make_block_axes(fig, fl, fb, b1_w, fh)
     ax_b2 = _make_block_axes(fig, fl + b1_w, fb, b2_w, fh)
     ax_b3 = _make_block_axes(fig, fl + b1_w + b2_w, fb, b3_w, fh)
 
-    # ---- BLOCK 1: barra de gradiente PPCF horizontal + etiquetas ----
-    bar_y = 0.65
-    bar_h = 0.18
-    bar_x0 = 0.10
-    bar_x1 = 0.90
-    n_steps = 200
+    # ---- BLOCK 1: barra gradiente horizontal del PPCF + etiquetas ----
+    bar_y  = 0.65                                         # ↑ barra SUBE / ↓ BAJA dentro del block
+    bar_h  = 0.18                                         # ↑ barra MAS ALTA
+    bar_x0 = 0.10                                         # ↑ extremo izq MAS a la DERECHA
+    bar_x1 = 0.90                                         # ↑ extremo dcha MAS a la DERECHA
+    n_steps = 200                                          # mas pasos = gradiente mas suave
     xs = np.linspace(bar_x0, bar_x1, n_steps + 1)
     for i in range(n_steps):
         c = PPCF_CMAP(i / (n_steps - 1))
         ax_b1.add_patch(mpatches.Rectangle(
             (xs[i], bar_y - bar_h / 2), xs[i + 1] - xs[i], bar_h,
             facecolor=c, edgecolor="none", transform=ax_b1.transAxes, zorder=2))
-    # Borde fino + ticks
+    # Borde fino blanco alrededor de la barra
     ax_b1.add_patch(mpatches.Rectangle(
         (bar_x0, bar_y - bar_h / 2), bar_x1 - bar_x0, bar_h,
         facecolor="none", edgecolor=WHITE, lw=0.7,
         transform=ax_b1.transAxes, zorder=3))
-    # Etiquetas debajo del bar — TODAS en blanco
+    # Etiquetas debajo de la barra (todas blancas)
     ax_b1.text(bar_x0, bar_y - bar_h / 2 - 0.10, "100% defensor",
                 ha="left", va="top", fontsize=10, color=WHITE,
                 transform=ax_b1.transAxes, fontweight="bold")
@@ -306,6 +312,7 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
     ax_b1.text(bar_x1, bar_y - bar_h / 2 - 0.10, "100% atacante",
                 ha="right", va="top", fontsize=10, color=WHITE,
                 transform=ax_b1.transAxes, fontweight="bold")
+    # Titulo + descripcion sobre la barra
     ax_b1.text(0.5, bar_y + bar_h / 2 + 0.18, "Pitch Control (PPCF)",
                 ha="center", va="bottom", fontsize=11, color=WHITE,
                 transform=ax_b1.transAxes, fontweight="bold")
@@ -314,28 +321,29 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
                 ha="center", va="bottom", fontsize=9, color=WHITE,
                 transform=ax_b1.transAxes, style="italic")
 
-    # ---- BLOCK 2: triangulos direccion ataque + nombre equipo ----
-    n_tri = 4
-    tri_w = 0.10
-    tri_h = 0.16
-    spacing = 0.06
+    # ---- BLOCK 2: triangulos direccion ataque + nombre del equipo atacante ----
+    n_tri   = 4                                           # ↑ MAS triangulos / ↓ menos
+    tri_w   = 0.10                                        # ↑ triangulo MAS ANCHO
+    tri_h   = 0.16                                        # ↑ triangulo MAS ALTO
+    spacing = 0.06                                        # ↑ MAS hueco entre triangulos
     total_w = n_tri * tri_w + (n_tri - 1) * spacing
-    start_x = (1.0 - total_w) / 2.0
-    y_tri = 0.62
+    start_x = (1.0 - total_w) / 2.0                       # centra los triangulos en el bloque
+    y_tri   = 0.62                                        # ↑ triangulos SUBEN
     for i in range(n_tri):
         cx = start_x + i * (tri_w + spacing)
-        if attacking_right:
+        if attacking_right:                               # triangulos apuntando a la DERECHA
             verts = [(cx, y_tri + tri_h / 2),
                       (cx + tri_w, y_tri),
                       (cx, y_tri - tri_h / 2)]
-        else:
+        else:                                             # triangulos apuntando a la IZQUIERDA
             verts = [(cx + tri_w, y_tri + tri_h / 2),
                       (cx, y_tri),
                       (cx + tri_w, y_tri - tri_h / 2)]
-        alpha = 0.32 + i * 0.18
+        alpha = 0.32 + i * 0.18                           # ↑ base/step -> triangulos MAS OPACOS
         ax_b2.add_patch(mpatches.Polygon(
             verts, closed=True, facecolor=ATT, edgecolor="none",
             alpha=alpha, transform=ax_b2.transAxes, zorder=10))
+    # Etiquetas debajo de los triangulos
     ax_b2.text(0.5, 0.36, f"{att_team_name} ataca",
                 ha="center", va="center", fontsize=11, color=WHITE,
                 transform=ax_b2.transAxes, fontweight="bold")
@@ -343,11 +351,10 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
                 ha="center", va="center", fontsize=9, color=WHITE,
                 transform=ax_b2.transAxes, style="italic")
 
-    # ---- BLOCK 3: stats — N jugadores + reloj ----
-    # 3 cells: ataque jugadores | defensa jugadores | reloj
-    cx1, cx2, cx3 = 0.18, 0.52, 0.85
-    y_num = 0.66
-    y_lbl = 0.34
+    # ---- BLOCK 3: stats — N jug ATT (azul) | N jug DEF (rojo) | reloj ----
+    cx1, cx2, cx3 = 0.18, 0.52, 0.85                      # X de cada cell (↑ -> mas a la DERECHA)
+    y_num = 0.66                                          # ↑ numero SUBE
+    y_lbl = 0.34                                          # ↑ etiqueta SUBE (cerca del numero)
     ax_b3.text(cx1, y_num, f"{n_att}", ha="center", va="center",
                 fontsize=22, fontweight="bold", color=ATT,
                 transform=ax_b3.transAxes)
@@ -375,24 +382,24 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
                attacking_right: Optional[bool] = None) -> plt.Figure:
     """Render del frame: header + superficie PPCF + jugadores + footer.
 
-    Titulo y subtitulo auto-generados desde metadata si no se especifican.
+    Si title/subtitle son None, se generan automaticamente desde metadata.
     """
     df, ball_pos, att, meta = _load_frame_z02(match_id, frame_num)
     grid = compute_ppcf_grid(df, att, ball_pos, meta["pitch_l"], meta["pitch_w"])
 
-    # Nombres atacante / defensor
+    # Nombres atacante / defensor (resueltos desde el equipo del jug mas cercano al balon)
     att_team_name = meta["home_name"] if att == meta["home_id"] else meta["away_name"]
     def_team_name = meta["away_name"] if att == meta["home_id"] else meta["home_name"]
     att_slug = _TEAM_TO_SLUG.get(att_team_name)
     team_logo = (_LOGOS / f"{att_slug}.png") if att_slug else None
 
-    # Attacking direction: mediana x del equipo atacante < ball.x => ataca a la dcha
+    # Direccion de ataque: si mediana x del equipo atacante < ball.x -> ataca a la dcha
     if attacking_right is None:
         att_x_med = float(df[(df["is_ball"] == 0) & (df["team_id"] == att)]
                             ["x_tracking"].median())
         attacking_right = att_x_med < ball_pos[0]
 
-    # Match clock formateado: periodGameClockTime es absoluto al partido
+    # Reloj y minuto. periodGameClockTime es absoluto al partido (no period-relative).
     tr_row = scan_tracking(match_id).select([
         "frameNum", "period", "periodGameClockTime"
     ]).filter(pl.col("frameNum") == frame_num).collect()
@@ -402,7 +409,7 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
     second_in_min = int(clock_s % 60)
     clock_str = f"{minute_abs:02d}:{second_in_min:02d}"
 
-    # Titulo auto desde metadata: "Pitch Control · {home} vs {away}"
+    # Titulo y subtitulo auto-generados desde metadata
     home_name = meta["home_name"]; away_name = meta["away_name"]
     if title is None:
         title = f"Pitch Control  ·  {home_name} vs {away_name}"
@@ -426,16 +433,18 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
     draw_pitch(ax_pitch, meta["pitch_l"], meta["pitch_w"])
     L_h, W_h = meta["pitch_l"] / 2, meta["pitch_w"] / 2
 
-    # Superficie PPCF
+    # ---- Superficie PPCF sobre el campo ----
     ax_pitch.imshow(grid, extent=[-L_h, L_h, -W_h, W_h], origin="lower",
                      cmap=PPCF_CMAP, vmin=0, vmax=1, alpha=0.72,
                      interpolation="spline36", zorder=1, aspect="auto")
 
     field = df[df["is_ball"] == 0]
-    # Flechas de velocidad (estilo Diagonality_3D ppcf_plot): mas visibles —
-    # umbral bajo de 0.3 m/s (captura tambien jugadores en movimiento lento)
-    # + scale=110 (mas grandes), alpha=0.85, width=0.005. Asi se entiende
-    # quien empuja arriba y quien se cierra atras.
+
+    # ---- Flechas de velocidad por equipo ----
+    # ↓ umbral 0.3 m/s captura tambien jugadores lentos (vs 0.6 que ocultaba muchos)
+    # ↑ scale -> flechas MAS PEQUENAS; ↓ scale -> MAS GRANDES
+    # ↑ width -> trazo MAS GRUESO
+    # ↑ alpha -> MAS OPACO (mas visible sobre el PPCF)
     for is_att, color in ((True, ATT), (False, DEF)):
         sub = field[(field["team_id"] == att) == is_att]
         sub = sub[np.hypot(sub["vx"], sub["vy"]) > 0.3]
@@ -445,7 +454,10 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
                               scale_units="width", width=0.005, headwidth=4.0,
                               headlength=4.5, headaxislength=4.0, alpha=0.85,
                               zorder=3)
-    # Jugadores + dorsales
+
+    # ---- Jugadores (circulo grande + dorsal con contorno BG) ----
+    # ↑ ms -> jugador MAS GRANDE
+    # ↑ markeredgewidth -> borde blanco MAS GRUESO
     for _, p in field.iterrows():
         color = (GK if p["is_goalkeeper"]
                   else (ATT if p["team_id"] == att else DEF))
@@ -455,7 +467,8 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
         ax_pitch.text(p["x_tracking"], p["y_tracking"], str(int(p["jersey"])),
                        color=WHITE, fontsize=8.5, ha="center", va="center",
                        fontweight="bold", zorder=6, path_effects=PE_S)
-    # Balon
+
+    # ---- Balon ----
     ax_pitch.plot(ball_pos[0], ball_pos[1], "o", ms=11, color=BALL,
                     markeredgecolor="black", markeredgewidth=0.9, zorder=10)
 
@@ -470,25 +483,26 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
     if save_path:
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
+        # bbox_inches=None (NO 'tight') porque el layout esta absoluto en fig coords
         fig.savefig(save_path, dpi=200, facecolor=BG, bbox_inches=None)
     return fig
 
 
-# ---- Sanity / hero figure ----
+# ---- CLI ----
 
 if __name__ == "__main__":
-    # CLI generico: <match_id> <match_minute>
+    # python -m src.viz.ppcf <match_id> <match_minute>
     # ej:  python -m src.viz.ppcf 3835 63    (ARG-MEX, minuto 63 del partido)
-    # ej:  python -m src.viz.ppcf            (default Messi ARG-MEX min 63)
+    # ej:  python -m src.viz.ppcf            (default Messi ARG-MEX, min 63.5)
     if len(sys.argv) >= 3:
         mid = int(sys.argv[1]); match_min = float(sys.argv[2])
         slug = f"{mid}_min{int(match_min)}"
     else:
-        mid, match_min = 3835, 63.5    # ARG-MEX, buildup ~3s antes gol Messi
+        mid, match_min = 3835, 63.5           # ARG-MEX, buildup ~3s antes gol Messi
         slug = "messi_arg_mex"
-    # periodGameClockTime es ABSOLUTO al partido; periodo se infiere
+    # Periodo se infiere desde endPeriod1: si el minuto pedido entra en P1, P1; si no, P2.
     md = load_metadata(mid).row(0, named=True)
-    end_p1 = float(md.get("endPeriod1") or 3000.0) / 60.0   # min absolutos fin P1
+    end_p1 = float(md.get("endPeriod1") or 3000.0) / 60.0
     period = 1 if match_min <= end_p1 + 1 else 2
     fnum = frame_for_clock(mid, period=period, clock_s=match_min * 60.0)
     out = f"outputs/viz/ppcf_{slug}.png"

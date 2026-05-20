@@ -1,14 +1,14 @@
-"""radar_report - Reporte PCJ completo: radar + tabla de percentiles lado a lado.
+"""radar_report - Ficha scout: radar geometrico + tabla de percentiles.
 
-Tabla = port 1:1 de jaime-oriol/footballdecoded (viz/stats_radar.py,
-`create_stats_table`): cabecera con cara+escudo+logo JO, filas metrica con
-valor + percentil coloreado, sombreado alterno, leyenda 5 tramos +
-flecha BAJO->ALTO. Combinacion radar|tabla = `_combine`.
+La tabla muestra valor + percentil coloreado (PCT_CMAP frio->calido) por
+las 8 dimensiones del CATE, con sombreado alterno y leyenda de 5 tramos.
+Cabecera con escudo de la seleccion (izq), cara del jugador (centro-izq) y
+logo JO (top derecha).
 
 Uso:
     python -m src.viz.radar_report "Messi"
+    python -m src.viz.radar_report 1531
 """
-
 from __future__ import annotations
 
 import sys
@@ -26,14 +26,15 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import BG, PCT_CMAP, WHITE, add_logo
+from viz.common import BG, PCT_CMAP, WHITE
 from viz.radar import PCJ_METRICS, PCJ_TITLES, _find, player_radar
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"
 
-# team_name -> iso3 (sportlogos/sport.db.logos)
+# team_name -> iso3 (sportlogos/sport.db.logos). Hardcoded para no depender
+# de un parquet auxiliar — son 32 selecciones WC22, no cambia.
 _TEAM_TO_SLUG = {
     "Argentina":"arg","Brazil":"bra","Ecuador":"ecu","Uruguay":"uru","Belgium":"bel",
     "Croatia":"cro","Denmark":"den","England":"eng","France":"fra","Germany":"ger",
@@ -44,7 +45,7 @@ _TEAM_TO_SLUG = {
     "United States":"usa","Costa Rica":"crc","Australia":"aus",
 }
 
-# 8 dimensiones del radar, en orden de bloque post-GA / post-GF.
+# 8 dimensiones de la tabla: bloque post-GA primero, bloque post-GF despues.
 TABLE_METRICS = [
     "cate_ataque_GOAL_AGAINST_mean",  "cate_defensa_GOAL_AGAINST_mean",
     "cate_offball_GOAL_AGAINST_mean", "cate_fisico_GOAL_AGAINST_mean",
@@ -57,11 +58,11 @@ TABLE_TITLES = [
     "Off-ball · post-GF", "Fisico · post-GF",
 ]
 
-_NAME_COLOR = WHITE       # nombre en BLANCO — convencion identidad PCJ
+_NAME_COLOR = WHITE       # nombre del jugador (en blanco, identidad PCJ)
 
 
 def _short(name: str, max_len: int = 16) -> str:
-    """'Lionel Messi' -> 'L. Messi' si es largo (idem _shorten_long_name)."""
+    """Acorta nombre: 'Lionel Messi' -> 'L. Messi' si excede max_len."""
     if len(name) <= max_len:
         return name
     parts = name.split()
@@ -69,8 +70,7 @@ def _short(name: str, max_len: int = 16) -> str:
 
 
 def _fmt(v) -> str:
-    """Formato de celda. Mantiene la logica del original + rama para los
-    CATE (valores pequenos con signo, que el formato original aplastaria)."""
+    """Formato de celda. CATEs (<1) con signo y 3 decimales; resto adaptativo."""
     if v is None or (isinstance(v, float) and np.isnan(v)):
         return "0.000"
     if abs(v) < 1:
@@ -81,16 +81,13 @@ def _fmt(v) -> str:
 
 
 def create_stats_table(df: pl.DataFrame, player_id: int,
-                       metrics: list[str] = TABLE_METRICS,
-                       metric_titles: list[str] = TABLE_TITLES,
-                       footer_text: str = "percentil vs los jugadores de su posicion",
-                       save_path=None):
-    """Tabla de stats con percentil coloreado. Port 1:1 de create_stats_table.
-
-    Percentil `{metric}_pct` calculado vs el mismo position_group.
-    """
+                        metrics: list[str] = TABLE_METRICS,
+                        metric_titles: list[str] = TABLE_TITLES,
+                        footer_text: str = "percentil vs los jugadores de su posicion",
+                        save_path=None):
+    """Tabla de stats con percentil coloreado. Percentil within `position_group`."""
     pdf = df.to_pandas()
-    for m in metrics:                                    # percentil POR POSICION
+    for m in metrics:
         pdf[f"{m}_pct"] = pdf.groupby("position_group")[m].rank(pct=True) * 100.0
     p1 = pdf[pdf["pff_player_id"] == player_id].iloc[0]
 
@@ -100,82 +97,46 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     fig = plt.figure(figsize=(7.5, 8.5), facecolor=BG)
     ax = fig.add_subplot(111)
     ax.set_facecolor(BG)
-    ax.set_xlim(0, 8.5)
-    ax.set_ylim(0, 15)
+    ax.set_xlim(0, 8.5)                                     # ancho del lienzo de la tabla
+    ax.set_ylim(0, 15)                                      # alto del lienzo de la tabla
     ax.axis("off")
 
-    # ---- PARAMETROS TUNEABLES DE LA CABECERA  (los "imanes" para ajustar) ----
-    # COORDS DEL TEXTO en el sistema del AX (0..8.5 horizontal, 0..15 vertical)
-    #   y_start    : ALTURA vertical del nombre "Lionel Messi". 0=abajo,
-    #                15=arriba. Sube valor -> nombre y header sube.
-    #                CUIDADO: muy alto choca con el logo JO; muy bajo come
-    #                espacio para las filas de metricas debajo.
-    #   text1_x    : POSICION horizontal donde EMPIEZA el texto del nombre.
-    #                Sube valor -> texto a la derecha. Si lo subes y la cara
-    #                se queda a la izquierda, queda separacion. Si lo bajas
-    #                el texto puede pisar la cara.
-    #   p1_value_x : columna del VALOR (e.g. "+0.347") en las filas de stats.
-    #                Sube -> valor mas a la derecha.
-    #   p1_pct_x   : columna del PERCENTIL coloreado.
-    #                Sube -> percentil mas a la derecha.
-    y_start = 13.4
-    text1_x, p1_value_x, p1_pct_x = 3, 4.9, 5.3
+    # ---- PARAMETROS TUNEABLES DE LA CABECERA ----
+    # AX coords (0..8.5 X, 0..15 Y). Subir y_start sube TODO el header.
+    y_start = 13.4                                          # ↑ texto nombre SUBE / ↓ BAJA
+    text1_x = 3                                              # ↑ texto nombre a la DERECHA / ↓ IZQ
+    p1_value_x = 4.9                                         # ↑ columna VALOR a la DERECHA
+    p1_pct_x = 5.3                                           # ↑ columna PERCENTIL a la DERECHA
 
-    # ---- LOGO JO en FIG COORDS (0..1 X, 0..1 Y, 0=izq/abajo) ----
-    #   logo_w     : ANCHO del logo como fraccion del ancho fig. 0.20 = 20%.
-    #                Sube -> logo mas grande. Baja -> mas discreto.
-    #   right_edge : donde TERMINA el logo en x. 0.90 = alineado con el
-    #                borde DERECHO de la tabla (la tabla termina en ax x=8.5
-    #                que en fig coords ~ 0.90). Si tu fig cambia de tamano
-    #                esto puede desajustarse — vuelve a tunear.
-    #   top_edge   : donde TERMINA el logo arriba en y. 0.98 = casi pegado
-    #                arriba. Baja -> logo mas abajo (acercandose al header).
+    # ---- LOGO JO en FIG COORDS (0..1 X, 0..1 Y) ----
     figW, figH = fig.get_size_inches()
-    logo_w = 0.2
-    right_edge = 0.755
-    top_edge = 0.235
+    logo_w = 0.2                                             # ↑ logo JO MAS GRANDE
+    right_edge = 0.755                                       # ↑ logo MAS a la DERECHA
+    top_edge = 0.235                                         # ↑ logo MAS ABAJO (ojo: este es bottom-edge tras restar h)
     try:
         from viz.common import _LOGO_PATH
         if _LOGO_PATH.exists():
             limg = plt.imread(str(_LOGO_PATH))
             aspect = limg.shape[1] / limg.shape[0]
-            h = logo_w * (figW / figH) / aspect
+            h = logo_w * (figW / figH) / aspect              # alto proporcional al ancho
             ax_logo = fig.add_axes([right_edge - logo_w, top_edge - h, logo_w, h])
             ax_logo.imshow(limg); ax_logo.axis("off")
     except Exception:
         pass
 
     # ---- CARA + ESCUDO en FIG COORDS, a la altura del nombre ----
-    # Posicionados a la MISMA altura que el
-    # texto del nombre (visualmente alineados horizontalmente).
-    #   header_fig_y_bottom : BOTTOM (borde inferior) de la cara. 0.76 sale
-    #                          centrada con el texto a y_start=13.5.
-    #                          Si subes y_start -> sube esto tambien
-    #                          (formula aprox: 0.11 + (y_start/15)*0.77 - face_w/2)
-    #                          Sube valor -> cara y escudo suben.
-    #   face_w              : ANCHO/ALTO de la cara (cuadrada). 0.08 = 8%
-    #                          del ancho fig. Sube -> cara mas grande.
-    #   crest_w             : ANCHO/ALTO del escudo. Ligeramente menor que
-    #                          la cara para no robar protagonismo.
-    #   escudo_left_x       : POSICION x del escudo. Baja -> escudo a la izq
-    #                          (acercandose al borde izq). Sube -> mas hacia
-    #                          el centro (acercandose a la cara).
-    #   face_left_x         : POSICION x de la cara. Debe estar DESPUES del
-    #                          escudo (a su derecha) y ANTES del texto. La
-    #                          separacion respecto al escudo es face_left_x
-    #                          - (escudo_left_x + crest_w).
-    header_fig_y_bottom = 0.760
-    face_w = 0.08
-    crest_w = 0.07
-    escudo_left_x = 0.18
-    face_left_x = 0.26
+    # Posicion: escudo a la IZQ, cara a la DCHA del escudo, texto a la DCHA de la cara.
+    header_fig_y_bottom = 0.760                              # ↑ cara y escudo SUBEN
+    face_w = 0.08                                            # ↑ cara MAS GRANDE
+    crest_w = 0.07                                           # ↑ escudo MAS GRANDE (menor que la cara)
+    escudo_left_x = 0.18                                     # ↑ escudo MAS a la DERECHA / ↓ MAS a la IZQ
+    face_left_x = 0.26                                       # ↑ cara MAS a la DERECHA (debe ir tras el escudo)
 
     team_name = str(p1.get("team_name", ""))
     slug = _TEAM_TO_SLUG.get(team_name)
 
-    # 1) Escudo a la IZQUIERDA de la cara
-    # NOTA: '+0.005' centra verticalmente el escudo respecto a la cara
-    # porque escudo y cara tienen tamanos ligeramente distintos.
+    # 1) Escudo (a la izquierda de la cara). +0.005 ajusta el centro vertical
+    # respecto a la cara, que tiene un face_w ligeramente mayor.
     if slug:
         logo_path = _LOGOS / f"{slug}.png"
         if logo_path.exists():
@@ -183,87 +144,88 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
                                        crest_w, crest_w])
             crest_ax.imshow(Image.open(logo_path)); crest_ax.axis("off")
 
-    # 2) Cara a la derecha del escudo
+    # 2) Cara del jugador
     face_path = _FACES / f"{player_id}.png"
     if face_path.exists():
         face_ax = fig.add_axes([face_left_x, header_fig_y_bottom, face_w, face_w])
         face_ax.imshow(Image.open(face_path)); face_ax.axis("off")
 
-    # 3) Texto nombre + contexto a la derecha de la cara, a su altura
+    # 3) Texto nombre + contexto (equipo + posicion) a la derecha de la cara
     name1 = _short(p1.get("player_name", str(player_id)))
     ax.text(text1_x, y_start, name1, fontweight="bold", fontsize=14,
-            color=_NAME_COLOR, ha="left", va="center", family="DejaVu Sans")
+             color=_NAME_COLOR, ha="left", va="center", family="DejaVu Sans")
     ax.text(text1_x, y_start - 0.5,
-            f"{p1.get('team_name', '')}  ·  {p1.get('position_group', '')}",
-            fontsize=12, color=WHITE, alpha=0.9, ha="left", family="DejaVu Sans")
+             f"{p1.get('team_name', '')}  ·  {p1.get('position_group', '')}",
+             fontsize=12, color=WHITE, alpha=0.9, ha="left", family="DejaVu Sans")
 
-    y_line = y_start - 0.7
+    # ---- Separador horizontal bajo el header ----
+    y_line = y_start - 0.7                                   # ↑ separador SUBE (cerca del header)
     ax.plot([0.5, 8.5], [y_line, y_line], color="grey", linewidth=0.5, alpha=0.6)
 
-    # Minutos / Partidos
-    y_context = y_start - 1.2
+    # ---- Bloque contexto (Minutos / Partidos jugados) ----
+    y_context = y_start - 1.2                                # ↑ contexto SUBE
     ax.text(0.7, y_context, "Minutos jugados", fontsize=10, color=WHITE,
-            fontweight="bold", family="DejaVu Sans")
+             fontweight="bold", family="DejaVu Sans")
     ax.text(p1_value_x, y_context, f"{int(p1.get('minutes_played', 0))}",
-            fontsize=11, color=WHITE, ha="right", family="DejaVu Sans")
-    y_context -= 0.4
+             fontsize=11, color=WHITE, ha="right", family="DejaVu Sans")
+    y_context -= 0.4                                         # ↓ fila Partidos pegada a Minutos
     ax.text(0.7, y_context, "Partidos jugados", fontsize=10, color=WHITE,
-            fontweight="bold", family="DejaVu Sans")
+             fontweight="bold", family="DejaVu Sans")
     ax.text(p1_value_x, y_context, f"{int(p1.get('n_matches_played', 0))}",
-            fontsize=11, color=WHITE, ha="right", family="DejaVu Sans")
+             fontsize=11, color=WHITE, ha="right", family="DejaVu Sans")
 
+    # Separador bajo el bloque contexto
     y_line = y_context - 0.3
     ax.plot([0.5, 8.5], [y_line, y_line], color="grey", linewidth=0.5, alpha=0.6)
 
-    # Filas de metricas
-    y_metrics = y_context - 0.7
-    row_height = 1.0
+    # ---- Filas de metricas (8 dimensiones) ----
+    y_metrics = y_context - 0.7                              # ↑ primera fila SUBE
+    row_height = 1.0                                          # ↑ filas MAS SEPARADAS / ↓ pegadas
     for idx, (metric, title) in enumerate(zip(metrics, metric_titles)):
         y_pos = y_metrics - idx * row_height
-        if idx % 2 == 0:
+        if idx % 2 == 0:                                     # sombreado alterno (rayas zebra)
             ax.add_patch(Rectangle((0.5, y_pos - 0.4), 8.0, 0.8,
-                                   facecolor="white", alpha=0.05))
+                                    facecolor="white", alpha=0.05))
         ax.text(0.7, y_pos, title, fontsize=10, color=WHITE, fontweight="bold",
-                va="center", family="DejaVu Sans")
+                 va="center", family="DejaVu Sans")
         pct = p1.get(f"{metric}_pct", 0)
         pct = 0 if pct is None or np.isnan(pct) else float(pct)
         ax.text(p1_value_x, y_pos, _fmt(p1.get(metric)), fontsize=11, color=WHITE,
-                ha="right", va="center", family="DejaVu Sans")
+                 ha="right", va="center", family="DejaVu Sans")
         ax.text(p1_pct_x, y_pos, f"{int(pct)}", fontsize=10,
-                color=node_cmap(percentile_norm(pct)), ha="left", va="center",
-                family="DejaVu Sans")
+                 color=node_cmap(percentile_norm(pct)), ha="left", va="center",
+                 family="DejaVu Sans")
 
-    # Footer
+    # Footer (label: percentil vs posicion)
     footer_y = y_metrics - len(metrics) * row_height
     if len(metrics) % 2 == 1:
         ax.add_patch(Rectangle((0.5, footer_y - 0.4), 8.0, 0.8,
-                               facecolor="white", alpha=0.05))
+                                facecolor="white", alpha=0.05))
     ax.text(0.7, footer_y, f"*{footer_text}", fontsize=10, color=WHITE,
-            ha="left", style="italic", fontweight="bold", va="center",
-            family="DejaVu Sans")
+             ha="left", style="italic", fontweight="bold", va="center",
+             family="DejaVu Sans")
 
-    # Leyenda: 5 tramos de percentil
-    legend_y = footer_y - 0.8
+    # ---- Leyenda: 5 tramos de percentil (5 lineas + etiquetas debajo) ----
+    legend_y = footer_y - 0.8                                # ↑ leyenda SUBE (cerca del footer)
     intervals = [(0, 20), (21, 40), (41, 60), (61, 80), (81, 100)]
-    spacing = 0.8
+    spacing = 0.8                                             # ↑ tramos MAS SEPARADOS
     for i, (lo, hi) in enumerate(intervals):
-        x_pos = 1.0 + i * spacing
+        x_pos = 1.0 + i * spacing                            # ↑ leyenda completa MAS a la DERECHA
         ax.plot([x_pos - 0.25, x_pos + 0.25], [legend_y, legend_y],
-                color=node_cmap(percentile_norm(i * 25)), linewidth=3,
-                solid_capstyle="round")
+                 color=node_cmap(percentile_norm(i * 25)), linewidth=3,
+                 solid_capstyle="round")
         ax.text(x_pos, legend_y - 0.3, f"{lo}-{hi}", fontsize=9, color=WHITE,
-                ha="center", family="DejaVu Sans")
+                 ha="center", family="DejaVu Sans")
 
-    # Flecha BAJO -> ALTO
-    arrow_y = legend_y - 0.8
+    # Flecha BAJO -> ALTO debajo de la leyenda
+    arrow_y = legend_y - 0.8                                 # ↑ flecha SUBE (cerca de la leyenda)
     ax.annotate("", xy=(4.0, arrow_y), xytext=(1.2, arrow_y),
-                arrowprops=dict(arrowstyle="->", color=WHITE, lw=1))
+                 arrowprops=dict(arrowstyle="->", color=WHITE, lw=1))
     ax.text(1.1, arrow_y, "BAJO", fontsize=9, color=WHITE, ha="right",
-            va="center", family="DejaVu Sans")
+             va="center", family="DejaVu Sans")
     ax.text(4.1, arrow_y, "ALTO", fontsize=9, color=WHITE, ha="left",
-            va="center", family="DejaVu Sans")
+             va="center", family="DejaVu Sans")
 
-    # NOTA: logo JO ya colocado arriba (top-right alineado con borde tabla).
     if save_path:
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -286,13 +248,13 @@ def _combine(radar_path: Path, table_path: Path, out_path: Path) -> None:
 
 
 def player_radar_report(df: pl.DataFrame, player_id: int, save_path=None) -> Path:
-    """Ficha PCJ completa: radar geometrico + tabla de percentiles."""
+    """Reporte completo: radar geometrico (izq) + tabla percentiles (dcha)."""
     tmp = Path(tempfile.gettempdir())
     radar_p, table_p = tmp / f"_rad_{player_id}.png", tmp / f"_tab_{player_id}.png"
 
-    # Radar sin titulo ni logo: la identidad va en la tabla.
+    # Radar sin titulo ni logo: la identidad (nombre + escudo + JO) vive en la tabla.
     player_radar(df, player_id, PCJ_METRICS, PCJ_TITLES,
-                 title="", subtitle="", logo=False, save_path=radar_p)
+                  title="", subtitle="", logo=False, save_path=radar_p)
     create_stats_table(df, player_id, save_path=table_p)
 
     if save_path is None:

@@ -1,12 +1,14 @@
-"""src.viz - Capa de visualizacion del PCJ con la identidad visual propia.
+"""src.viz - Capa de visualizacion del PCJ.
 
-Estilo "Diagonality" portado tal cual de los repos jaime-oriol/Diagonality_3D
-y jaime-oriol/pitch-control: fondo #313332, paleta ATT/DEF, colormaps
-PPCF/percentil, logo Diagonality discreto abajo-derecha.
+Estilo dark (#313332), paleta ATT/DEF, colormap PPCF y percentil propios,
+logo JO Jaime Oriol como firma.
 
-  common  - estilo, colores, colormaps, draw_pitch, helpers _logo/_style/_save
-  ppcf    - superficie PPCF sobre el campo (consume Z02 + tracking PFF)
-  scatter - scatter chasing x protecting (consume pcj_table)
-  radar   - ficha PCJ: radar + tabla percentil (consume pcj_table)
-  figures - figuras analiticas (event-study M12, ...)
+  common         estilo, colores, colormaps, draw_pitch, helpers
+  ppcf           superficie PPCF sobre el campo (Z02 + tracking PFF)
+  scatter        diamond rotado 45 grados (chasing x protecting, 511 jug)
+  scatter_team   4 diamond por seleccion con caras (FotMob) como markers
+  radar          radar geometrico de 8 ejes (CATEs canal x shock)
+  radar_report   radar + tabla percentil lado a lado (ficha scout completa)
+  figures        event-study causal M12 + utilidades
+  __main__       runner: python -m src.viz [radar|report] <query>
 """

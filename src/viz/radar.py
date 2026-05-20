@@ -1,15 +1,13 @@
-"""radar - Ficha-radar del Perfil Clutch del Jugador.
+"""radar - Radar geometrico del Perfil Clutch del Jugador.
 
-Radar geometrico portado tal cual de jaime-oriol/footballdecoded
-(viz/swarm_radar.py, `_create_traditional_radar`): circulos concentricos,
-rangos por percentil 1-99, poligono del jugador con anillos de color
-alternos. Adaptado a outputs/pcj_table.parquet + identidad Diagonality.
+8 ejes (4 canales x 2 contextos post-GA / post-GF) sobre circulos
+concentricos, rangos por percentil 1-99 del dataset, poligono con anillos
+de color alternos clipeados a su forma.
 
 Uso:
-    python -m src.viz.radar 1234              # por pff_player_id
-    python -m src.viz.radar "Messi"           # por nombre (substring)
+    python -m src.viz.radar 1234        # por pff_player_id
+    python -m src.viz.radar "Messi"     # por substring del nombre
 """
-
 from __future__ import annotations
 
 import sys
@@ -28,7 +26,9 @@ from viz.common import ATT, BG, DEF, WHITE, add_logo
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
 
-# Ejes del radar PCJ: 4 canales x 2 contextos (post-GA / post-GF).
+# Orden canonico de los 8 ejes: bloque post-GA arriba, bloque post-GF abajo.
+# El reordenado interno (primer eje fijo, resto invertido) replica la rotacion
+# habitual del radar tipo footballdecoded.
 PCJ_METRICS = [
     "cate_ataque_GOAL_AGAINST_mean",  "cate_offball_GOAL_AGAINST_mean",
     "cate_defensa_GOAL_AGAINST_mean", "cate_fisico_GOAL_AGAINST_mean",
@@ -42,69 +42,73 @@ PCJ_TITLES = [
 
 
 def player_radar(df: pl.DataFrame, player_id: int,
-                 metrics: list[str] = PCJ_METRICS,
-                 metric_titles: list[str] = PCJ_TITLES,
-                 colors: tuple[str, str] = (ATT, DEF),
-                 title: str = "", subtitle: str = "",
-                 logo: bool = True, save_path=None):
-    """Radar geometrico de 1 jugador (anillos de color alternos).
+                  metrics: list[str] = PCJ_METRICS,
+                  metric_titles: list[str] = PCJ_TITLES,
+                  colors: tuple[str, str] = (ATT, DEF),
+                  title: str = "", subtitle: str = "",
+                  logo: bool = True, save_path=None):
+    """Radar geometrico de 1 jugador.
 
-    Portado de footballdecoded/viz/swarm_radar._create_traditional_radar.
-    `df` debe traer las columnas `metrics` (valores crudos del dataset).
+    Rangos por percentil P1-P99 del `df` completo (no del propio jugador).
+    Anillos de color alternos (ATT/DEF) clipeados al poligono.
     """
     pdf = df.to_pandas()
     row = pdf[pdf["pff_player_id"] == player_id].iloc[0]
 
-    # Mismo reordenado que el original: primer eje fijo, resto invertido
+    # Primer eje fijo arriba, resto invertido (sentido horario)
     reordered = [metrics[0]] + list(reversed(metrics[1:]))
     reordered_titles = [metric_titles[0]] + list(reversed(metric_titles[1:]))
 
-    # Rangos por percentil 1-99 del dataset
+    # Rangos del dataset por eje (P1-P99 evita outliers extremos)
     ranges = []
     for m in reordered:
         d = pdf[m].dropna()
         ranges.append((np.percentile(d, 1), np.percentile(d, 99)))
 
-    fig, ax = plt.subplots(figsize=(9, 10), facecolor=BG)
+    # ---- Figura + ejes geometricos ----
+    fig, ax = plt.subplots(figsize=(9, 10), facecolor=BG)      # ↑ figsize -> radar MAS GRANDE
     ax.set_facecolor(BG)
     ax.set_aspect("equal")
-    ax.set(xlim=(-22, 22), ylim=(-23, 25))
+    ax.set(xlim=(-22, 22), ylim=(-23, 25))                      # margen extra arriba para titulo
 
     values = [row[m] for m in reordered]
 
-    # Circulos concentricos
+    # Circulos concentricos del radar. radius_circles define los anillos:
+    # [3, ..., 20.5]. El primero (3) es el centro, el ultimo el borde.
     radius_circles = [3, 5.5, 8, 10.5, 13, 15.5, 18, 20.5]
     for i, rad in enumerate(radius_circles):
         if i == 0:
-            continue
+            continue                                            # el centro no se dibuja
         if i == len(radius_circles) - 1:
-            color, lw, alpha = "white", 1.2, 1.0
+            color, lw, alpha = "white", 1.2, 1.0               # borde exterior nitido
         else:
             color, lw, alpha = "grey", 1, 0.4
         ax.add_patch(plt.Circle((0, 0), rad, fc="none", ec=color, lw=lw, alpha=alpha))
 
     n = len(reordered)
-    angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    angles = np.linspace(0, 2 * np.pi, n, endpoint=False)        # 8 ejes equiespaciados
 
-    # Etiquetas de eje
+    # ---- Etiquetas de eje (Ataque post-GA, Off-ball post-GA, ...) ----
     for angle, t in zip(angles, reordered_titles):
-        x, y = 21.5 * np.sin(angle), 21.5 * np.cos(angle)
+        x, y = 21.5 * np.sin(angle), 21.5 * np.cos(angle)        # 21.5 = radio etiqueta (>20.5 borde)
         rot = -np.rad2deg(angle)
         if y < 0:
-            rot += 180
+            rot += 180                                           # mantiene texto legible abajo
         ax.text(x, y, t, rotation=rot, ha="center", va="center",
                 fontsize=10, fontweight="bold", color=WHITE, family="DejaVu Sans")
 
-    # Lineas radiales
+    # Lineas radiales (separadores entre ejes)
     for angle in angles:
         ax.plot([0, 20.5 * np.sin(angle)], [0, 20.5 * np.cos(angle)],
                 color="grey", linewidth=0.5, alpha=0.4)
 
-    # Etiquetas de valor en los anillos
-    for rad in [4.25, 6.75, 9.25, 11.75, 14.25, 16.75, 19.25]:
+    # ---- Etiquetas de valor en cada anillo (formato dependiente de magnitud) ----
+    for rad in [4.25, 6.75, 9.25, 11.75, 14.25, 16.75, 19.25]:    # entre cada par de anillos
         for angle, (mn, mx) in zip(angles, ranges):
-            rad_norm = (rad - 3) / (20.5 - 3)
+            rad_norm = (rad - 3) / (20.5 - 3)                    # 0..1 a lo largo del radio
             val = mn if mx == mn else mn + rad_norm * (mx - mn)
+            # Formato adaptativo: 3 decimales para magnitudes <0.01 (CATEs),
+            # 2 para <1, 1 para <10, entero el resto.
             if abs(val) < 0.01:
                 label = f"{val:.3f}"
             elif abs(val) < 1:
@@ -118,46 +122,51 @@ def player_radar(df: pl.DataFrame, player_id: int,
                     bbox=dict(boxstyle="round,pad=0.15", facecolor=BG,
                               edgecolor="none", alpha=0.9), family="DejaVu Sans")
 
-    # Coordenadas polares del poligono del jugador
+    # ---- Poligono del jugador (coords polares -> cartesianas) ----
     vertices = []
     for value, (mn, mx) in zip(values, ranges):
         if mx == mn:
-            nv = 11.75
+            nv = 11.75                                           # rango cero -> radio medio
         else:
-            nv = 3 + (value - mn) / (mx - mn) * 17.5
-        nv = max(3, min(20.5, nv))
+            nv = 3 + (value - mn) / (mx - mn) * 17.5             # mapea [mn,mx] a [3, 20.5]
+        nv = max(3, min(20.5, nv))                               # clip a la corona dibujable
         idx = len(vertices)
         vertices.append([nv * np.sin(angles[idx]), nv * np.cos(angles[idx])])
 
-    # Poligono con anillos de color alternos recortados a su forma
+    # Anillos de color alternos (ATT/DEF) clipeados al poligono del jugador.
+    # Da el efecto visual "telarana coloreada" del radar de footballdecoded.
     poly = Polygon(vertices, fc="none", alpha=1.0, zorder=1)
     ax.add_patch(poly)
     central = plt.Circle((0, 0), radius_circles[0], fc=colors[0], ec="none",
-                         alpha=0.45, zorder=2)
+                          alpha=0.45, zorder=2)
     central.set_clip_path(poly)
     ax.add_patch(central)
     theta = np.linspace(0, 2 * np.pi, 100)
     for i in range(len(radius_circles) - 1):
         ri, ro = radius_circles[i], radius_circles[i + 1]
-        cidx = (i + 1) % 2
+        cidx = (i + 1) % 2                                       # alterna 0 y 1 -> ATT/DEF
         ring = list(zip(ro * np.cos(theta), ro * np.sin(theta))) + \
-               list(zip(ri * np.cos(theta[::-1]), ri * np.sin(theta[::-1])))
+                list(zip(ri * np.cos(theta[::-1]), ri * np.sin(theta[::-1])))
         rp = Polygon(ring, fc=colors[cidx], alpha=0.45, zorder=2)
         rp.set_clip_path(poly)
         ax.add_patch(rp)
     closed = vertices + [vertices[0]]
     ax.plot([v[0] for v in closed], [v[1] for v in closed],
-            color=colors[0], linewidth=3, zorder=10)
+            color=colors[0], linewidth=3, zorder=10)              # contorno grueso del poligono
 
     ax.axis("off")
+
+    # ---- Header opcional (title + subtitle + logo JO) ----
+    # Cuando radar_report combina radar + tabla, llama con title="" para que la
+    # identidad viva en la tabla. En uso standalone si que se ven.
     if title:
         fig.text(0.5, 0.965, title, ha="center", va="top", color=WHITE,
-                 fontsize=17, fontweight="bold")
+                  fontsize=17, fontweight="bold")
     if subtitle:
-        fig.text(0.5, 0.93, subtitle, ha="center", va="top", color="#c8c8c8",
-                 fontsize=11)
+        fig.text(0.5, 0.93, subtitle, ha="center", va="top", color=WHITE,
+                  fontsize=11)
     if logo:
-        add_logo(fig, width_frac=0.13)
+        add_logo(fig, width_frac=0.13)                            # ↑ logo MAS GRANDE
 
     if save_path:
         save_path = Path(save_path)
@@ -188,7 +197,7 @@ if __name__ == "__main__":
         df, pid,
         title=f"{r['player_name']}  ·  Perfil Clutch del Jugador",
         subtitle=f"{r['team_name']}  ·  {r['position_group']}  ·  "
-                 f"{int(r['minutes_played'])} min  —  Mundial Qatar 2022",
+                  f"{int(r['minutes_played'])} min  ·  Mundial Qatar 2022",
         save_path=out,
     )
     print(f"OK -> {out}")
