@@ -33,6 +33,19 @@ from viz.common import BG, PCT_CMAP, WHITE, add_logo
 from viz.radar import PCJ_METRICS, PCJ_TITLES, _find, player_radar
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
+_FACES = _SRC.parent / "outputs" / "assets" / "faces"
+_LOGOS = _SRC.parent / "outputs" / "assets" / "logos"
+
+# team_name -> iso3 (sportlogos/sport.db.logos)
+_TEAM_TO_SLUG = {
+    "Argentina":"arg","Brazil":"bra","Ecuador":"ecu","Uruguay":"uru","Belgium":"bel",
+    "Croatia":"cro","Denmark":"den","England":"eng","France":"fra","Germany":"ger",
+    "Netherlands":"ned","Poland":"pol","Portugal":"por","Serbia":"srb","Spain":"esp",
+    "Switzerland":"sui","Wales":"wal","Cameroon":"cmr","Ghana":"gha","Morocco":"mar",
+    "Senegal":"sen","Tunisia":"tun","Japan":"jpn","South Korea":"kor","Iran":"irn",
+    "Qatar":"qat","Saudi Arabia":"ksa","Canada":"can","Mexico":"mex",
+    "United States":"usa","Costa Rica":"crc","Australia":"aus",
+}
 
 # 8 dimensiones del radar, en orden de bloque post-GA / post-GF.
 TABLE_METRICS = [
@@ -94,10 +107,92 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     ax.set_ylim(0, 15)
     ax.axis("off")
 
-    y_start = 14.5
-    text1_x, p1_value_x, p1_pct_x = 3.4, 4.1, 4.5
+    # ---- PARAMETROS TUNEABLES DE LA CABECERA  (los "imanes" para ajustar) ----
+    # COORDS DEL TEXTO en el sistema del AX (0..8.5 horizontal, 0..15 vertical)
+    #   y_start    : ALTURA vertical del nombre "Lionel Messi". 0=abajo,
+    #                15=arriba. Sube valor -> nombre y header sube.
+    #                CUIDADO: muy alto choca con el logo JO; muy bajo come
+    #                espacio para las filas de metricas debajo.
+    #   text1_x    : POSICION horizontal donde EMPIEZA el texto del nombre.
+    #                Sube valor -> texto a la derecha. Si lo subes y la cara
+    #                se queda a la izquierda, queda separacion. Si lo bajas
+    #                el texto puede pisar la cara.
+    #   p1_value_x : columna del VALOR (e.g. "+0.347") en las filas de stats.
+    #                Sube -> valor mas a la derecha.
+    #   p1_pct_x   : columna del PERCENTIL coloreado.
+    #                Sube -> percentil mas a la derecha.
+    y_start = 13.5
+    text1_x, p1_value_x, p1_pct_x = 4.2, 4.9, 5.3
 
-    # Cabecera: nombre + contexto
+    # ---- LOGO JO en FIG COORDS (0..1 X, 0..1 Y, 0=izq/abajo) ----
+    #   logo_w     : ANCHO del logo como fraccion del ancho fig. 0.20 = 20%.
+    #                Sube -> logo mas grande. Baja -> mas discreto.
+    #   right_edge : donde TERMINA el logo en x. 0.90 = alineado con el
+    #                borde DERECHO de la tabla (la tabla termina en ax x=8.5
+    #                que en fig coords ~ 0.90). Si tu fig cambia de tamano
+    #                esto puede desajustarse — vuelve a tunear.
+    #   top_edge   : donde TERMINA el logo arriba en y. 0.98 = casi pegado
+    #                arriba. Baja -> logo mas abajo (acercandose al header).
+    figW, figH = fig.get_size_inches()
+    logo_w = 0.20
+    right_edge = 0.90
+    top_edge = 0.98
+    try:
+        from viz.common import _LOGO_PATH
+        if _LOGO_PATH.exists():
+            limg = plt.imread(str(_LOGO_PATH))
+            aspect = limg.shape[1] / limg.shape[0]
+            h = logo_w * (figW / figH) / aspect
+            ax_logo = fig.add_axes([right_edge - logo_w, top_edge - h, logo_w, h])
+            ax_logo.imshow(limg); ax_logo.axis("off")
+    except Exception:
+        pass
+
+    # ---- CARA + ESCUDO en FIG COORDS, a la altura del nombre ----
+    # Posicionados a la MISMA altura que el
+    # texto del nombre (visualmente alineados horizontalmente).
+    #   header_fig_y_bottom : BOTTOM (borde inferior) de la cara. 0.76 sale
+    #                          centrada con el texto a y_start=13.5.
+    #                          Si subes y_start -> sube esto tambien
+    #                          (formula aprox: 0.11 + (y_start/15)*0.77 - face_w/2)
+    #                          Sube valor -> cara y escudo suben.
+    #   face_w              : ANCHO/ALTO de la cara (cuadrada). 0.08 = 8%
+    #                          del ancho fig. Sube -> cara mas grande.
+    #   crest_w             : ANCHO/ALTO del escudo. Ligeramente menor que
+    #                          la cara para no robar protagonismo.
+    #   escudo_left_x       : POSICION x del escudo. Baja -> escudo a la izq
+    #                          (acercandose al borde izq). Sube -> mas hacia
+    #                          el centro (acercandose a la cara).
+    #   face_left_x         : POSICION x de la cara. Debe estar DESPUES del
+    #                          escudo (a su derecha) y ANTES del texto. La
+    #                          separacion respecto al escudo es face_left_x
+    #                          - (escudo_left_x + crest_w).
+    header_fig_y_bottom = 0.760
+    face_w = 0.08
+    crest_w = 0.07
+    escudo_left_x = 0.28
+    face_left_x = 0.36
+
+    team_name = str(p1.get("team_name", ""))
+    slug = _TEAM_TO_SLUG.get(team_name)
+
+    # 1) Escudo a la IZQUIERDA de la cara
+    # NOTA: '+0.005' centra verticalmente el escudo respecto a la cara
+    # porque escudo y cara tienen tamanos ligeramente distintos.
+    if slug:
+        logo_path = _LOGOS / f"{slug}.png"
+        if logo_path.exists():
+            crest_ax = fig.add_axes([escudo_left_x, header_fig_y_bottom + 0.005,
+                                       crest_w, crest_w])
+            crest_ax.imshow(Image.open(logo_path)); crest_ax.axis("off")
+
+    # 2) Cara a la derecha del escudo
+    face_path = _FACES / f"{player_id}.png"
+    if face_path.exists():
+        face_ax = fig.add_axes([face_left_x, header_fig_y_bottom, face_w, face_w])
+        face_ax.imshow(Image.open(face_path)); face_ax.axis("off")
+
+    # 3) Texto nombre + contexto a la derecha de la cara, a su altura
     name1 = _short(p1.get("player_name", str(player_id)))
     ax.text(text1_x, y_start, name1, fontweight="bold", fontsize=14,
             color=_NAME_COLOR, ha="left", va="center", family="DejaVu Sans")
@@ -172,7 +267,7 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     ax.text(4.1, arrow_y, "ALTO", fontsize=9, color=WHITE, ha="left",
             va="center", family="DejaVu Sans")
 
-    add_logo(fig, width_frac=0.22)
+    # NOTA: logo JO ya colocado arriba (top-right alineado con borde tabla).
     if save_path:
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)

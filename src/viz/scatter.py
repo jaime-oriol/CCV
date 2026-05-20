@@ -146,11 +146,18 @@ def diamond_scatter(df: pl.DataFrame,
              fontweight="bold", style="italic")
 
     # Notas (en esquinas libres del lienzo, no sobre el diamante)
-    fig.text(0.045, 0.06, "Lineas discontinuas: la mediana (percentil 50)\n"
+    fig.text(0.045, 0.085, "Lineas discontinuas: la mediana (percentil 50) "
              "de cada indice — parten el campo en 4 cuadrantes.",
-             ha="left", va="bottom", color="#9a9c9b", fontsize=8.5,
-             style="italic", linespacing=1.5)
-    add_logo(fig, width_frac=0.15)
+             ha="left", va="bottom", color="#9a9c9b", fontsize=8.5, style="italic")
+    # Matiz tecnico al pie — honestidad sobre que mide cada canal
+    fig.text(0.045, 0.045,
+             "Matiz: CERROJO mide acciones defensivas (recuperaciones, presiones, "
+             "intervenciones) + intensidad fisica, no posicion en campo. Delanteros "
+             "con CERROJO positivo = presion alta post-marcar; defensas = repliegue.",
+             ha="left", va="bottom", color="#b8a040", fontsize=8, style="italic",
+             bbox=dict(boxstyle="round,pad=0.4", facecolor=BG,
+                       edgecolor="#5a5d5c", alpha=0.95, linewidth=0.6))
+    add_logo(fig, width_frac=0.13)
 
     if save_path:
         save_path = Path(save_path)
