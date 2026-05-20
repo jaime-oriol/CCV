@@ -1,34 +1,33 @@
-"""
-M04_wp - Win Probability bayesiana tiempo-variables + leverage.
+"""M04_wp - Win Probability bayesiana tiempo-variables + leverage.
 
-Reimplementacion Robberechts, Van Haaren & Davis (2021, KDD) en numpyro:
+Reimplementacion Robberechts, Van Haaren & Davis (2021 KDD) en numpyro:
   - Ordered-logistic 3-class {H, D, A} con intercepts tiempo-variables
   - Random-walk prior sobre los 90 time-bins (smoothness temporal)
-  - SVI (AutoNormal) para inferencia rapida CPU
+  - SVI (AutoNormal) para inferencia rapida en CPU
   - Features: score_diff, red_diff, elo_diff, comp_tier, shots_diff_recent
-    (ventana rolling 10 min, proxy momentum ofensivo cross-dataset)
+    (rolling 10 min, proxy momentum ofensivo cross-dataset)
 
-Training cross-dataset (excluyendo WC22 sagrado):
-  - Wyscout 2017/18 Big 5 + Euro16 + WC18  : 1.941 partidos
-  - StatsBomb Euro20 + Euro24 + Bundes23/24:   136 partidos
-  Total: 2.077 partidos x 90 bins = ~187k samples.
+Training cross-dataset (WC22 sagrado, no entra):
+  Wyscout 2017/18 (Big 5 + Euro16 + WC18)  : 1941 partidos
+  StatsBomb (Euro20 + Euro24 + Bundes23/24):  136 partidos
+  Total ~2077 x 90 bins = ~187k samples
 
-Cobertura completa 0-90 + ET + penaltis:
-  - Regulacion 0-90 : modelo bayesiano entrenado.
-  - ET (90-120)    : Poisson goal-rate empirico sobre subset ET.
-  - Penaltis tanda : prob_shootout_home parametrico (0.5 simetrico por defecto)
-                     resuelve el draw post-ET en _wp_et_poisson_batch.
+Cobertura 0-120 + tandas:
+  Regulacion 0-90    modelo bayesiano entrenado
+  ET 90-120          Poisson goal-rate empirico sobre subset ET
+  Penaltis tanda     prob_shootout_home (default 0.5 simetrico) resuelve el
+                     draw post-ET en _wp_et_poisson_batch
 
 Calibracion: temperature scaling sobre 48 partidos WC22 fase de grupos
-(NO sobre los 16 KO, que son sagrados para test final).
+(los 16 KO NO se tocan: sagrados para test final).
 
-Output: tabla `data/parquet/derived/wp/per_minute.parquet` con
+Output: data/parquet/derived/wp/per_minute.parquet con cols
 (match_id, minute, phase, score_diff, wp_home, wp_draw, wp_away, leverage,
- elim_prox_home, elim_prox_away). Las dos cols `elim_prox_*` reflejan
- P(equipo NO clasifica): en grupos via Monte Carlo del grupo (n_sim=1500),
- en KO via formula analitica (1 - wp_ganar - 0.5*wp_draw).
+ elim_prox_home, elim_prox_away). elim_prox_* = P(equipo NO clasifica):
+   - en grupos    Monte Carlo del grupo (n_sim=1500)
+   - en KO        analitica (1 - wp_ganar - 0.5*wp_draw)
 
-Depende de M01 (events+metadata PFF), M02 (training Wyscout+StatsBomb), M03
+Depende de M01 (events+metadata PFF), M02 (Wyscout+SB training), M03
 (goals_timeline PFF para evaluacion).
 """
 
@@ -53,7 +52,7 @@ from M02_loader_public import (
 from M03_preprocess import goals_timeline as pff_goals_timeline
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "wp"
@@ -61,7 +60,7 @@ _CACHE   = _DERIVED / "training"      # training matrix + elo (cache)
 _MODEL   = _DERIVED / "model"         # SVI params + temperature
 
 
-# -- Constantes -------------------------------------------------------------
+# ---- Constantes ----
 
 N_BINS          = 90       # 1 bin por minuto de regulacion
 REG_MINUTES     = 90
@@ -74,9 +73,7 @@ _SHOTS_WINDOW   = 10       # minutos de la ventana rolling para shots_diff_recen
 _WYSCOUT_PERIOD_OFFSET = {"1H": 0, "2H": 45, "E1": 90, "E2": 105, "P": 120}
 
 
-# ===========================================================================
-#  SECCION 1 — Extraccion de timelines (goles + rojas) cross-dataset
-# ===========================================================================
+# ---- SECCION 1: Extraccion de timelines (goles + rojas) cross-dataset ----
 
 def _wyscout_goals_timeline() -> pl.DataFrame:
     """Timeline de goles Wyscout: (match_id, minute_abs, scoring_team_id, is_own_goal).
@@ -274,9 +271,7 @@ def _statsbomb_reds_timeline(match_ids: list[int]) -> pl.DataFrame:
     return out.with_columns(pl.lit("statsbomb").alias("source"))
 
 
-# ===========================================================================
-#  SECCION 2 — Metadata unificada (home/away teams + scores) cross-dataset
-# ===========================================================================
+# ---- SECCION 2: Metadata unificada (home/away teams + scores) cross-dataset ----
 
 def _wyscout_match_meta() -> pl.DataFrame:
     """Metadata unificada de matches Wyscout: home/away teams + scores + date.
@@ -387,9 +382,7 @@ def _unify_match_meta(wy: pl.DataFrame, sb: pl.DataFrame,
     return pl.concat([wy_aug, sb_aug])
 
 
-# ===========================================================================
-#  SECCION 3 — Elo dinamico bottom-up
-# ===========================================================================
+# ---- SECCION 3: Elo dinamico bottom-up ----
 
 def compute_elo(meta: pl.DataFrame, k: float = ELO_K,
                 home_adv: float = 100.0) -> pl.DataFrame:
@@ -418,9 +411,7 @@ def compute_elo(meta: pl.DataFrame, k: float = ELO_K,
     return pl.DataFrame(out_rows)
 
 
-# ===========================================================================
-#  SECCION 4 — Training matrix (match_id x minute_bin 1..90)
-# ===========================================================================
+# ---- SECCION 4: Training matrix (match_id x minute_bin 1..90) ----
 
 
 
@@ -562,9 +553,7 @@ def build_training_matrix(cache: bool = True) -> tuple[pl.DataFrame, dict]:
     return X, {"n_samples": X.height, "n_matches": meta.height, "cached": False}
 
 
-# ===========================================================================
-#  SECCION 5 — Modelo bayesiano numpyro (ordered-logistic time-variables)
-# ===========================================================================
+# ---- SECCION 5: Modelo bayesiano numpyro (ordered-logistic time-variables) ----
 
 def _wp_model(X_feat, minute_bin, y=None, n_bins: int = N_BINS):
     """Bayesian ordered-logistic 3-class con intercepts tiempo-variables.
@@ -732,7 +721,7 @@ def load_fit(path: Path | None = None) -> dict:
         return pickle.load(f)
 
 
-# -- Validacion Brier -------------------------------------------------------
+# ---- Validacion Brier ----
 
 def train_val_split(X: pl.DataFrame, val_frac: float = 0.2,
                     seed: int = 0) -> tuple[pl.DataFrame, pl.DataFrame]:
@@ -773,7 +762,7 @@ def evaluate_brier_per_minute(X_val: pl.DataFrame, fit_result: dict) -> pl.DataF
     ]).sort("minute_bin")
 
 
-# -- Temperature scaling ----------------------------------------------------
+# ---- Temperature scaling ----
 
 def _pff_shots_timeline_match(match_id: int, home_id: int) -> tuple[list[int], list[int]]:
     """Devuelve (minutos_shots_home, minutos_shots_away) en [0,90] para 1 match PFF."""
@@ -859,9 +848,7 @@ def mean_brier(X: pl.DataFrame, fit_result: dict) -> float:
     return brier_3class(probs, y)
 
 
-# ===========================================================================
-#  SECCION 6 — ET goal-rate empirico (Poisson)
-# ===========================================================================
+# ---- SECCION 6: ET goal-rate empirico (Poisson) ----
 
 def et_goal_rate_empirical() -> tuple[float, float]:
     """Tasa empirica goals/min en tiempo extra (ET).
@@ -890,9 +877,7 @@ def et_goal_rate_empirical() -> tuple[float, float]:
     return rate, rate
 
 
-# ===========================================================================
-#  SECCION 7 — API publica compute_wp_per_minute + cache
-# ===========================================================================
+# ---- SECCION 7: API publica compute_wp_per_minute + cache ----
 
 def _pff_goals_home_away(match_id: int) -> pl.DataFrame:
     """Goles PFF con (minute, scoring_side H/A) para compute WP."""
@@ -988,7 +973,7 @@ def compute_wp_per_minute(match_id: int, fit_result: dict,
 
     went_to_et = md["home_team_start_left_et"] is not None
 
-    # --- Regulacion 1..90 vectorizado ---
+    # Regulacion 1..90 vectorizado
     mins_reg = np.arange(1, REG_MINUTES + 1)
     gh_arr = np.array(gh, dtype=np.int64)
     ga_arr = np.array(ga, dtype=np.int64)
@@ -1090,9 +1075,7 @@ def cache_all_wp(fit_result: dict, overwrite: bool = False,
     return out_path
 
 
-# ===========================================================================
-#  SECCION 8 — Elimination proximity via Monte Carlo del grupo (WC22)
-# ===========================================================================
+# ---- SECCION 8: Elimination proximity via Monte Carlo del grupo (WC22) ----
 #
 #  Operacional: para cada (match_id, minute) de fase de grupos, P(equipo
 #  clasifica como top-2 del grupo) se estima por simulacion. Tiene en cuenta:
@@ -1318,9 +1301,7 @@ def p_qualifies(team_id: int, match_id: int, minute: int,
     return float(in_top2.mean())
 
 
-# ===========================================================================
-#  Integracion en compute_wp_per_minute (override para grupos)
-# ===========================================================================
+# ---- Integracion en compute_wp_per_minute (override para grupos) ----
 
 def _compute_group_elim_prox_for_match(match_id: int, group_ctx: dict,
                                        n_sim: int = 1500,
@@ -1352,12 +1333,12 @@ def _compute_group_elim_prox_for_match(match_id: int, group_ctx: dict,
     return pl.DataFrame(rows)
 
 
-# -- Sanity inline ---------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M04_wp sanity ===")
+    print("[M04] sanity check")
 
     # 1. Training matrix
     t0 = time.time()
