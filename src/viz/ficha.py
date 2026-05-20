@@ -121,7 +121,7 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     #                Sube -> valor mas a la derecha.
     #   p1_pct_x   : columna del PERCENTIL coloreado.
     #                Sube -> percentil mas a la derecha.
-    y_start = 13.5
+    y_start = 13.4
     text1_x, p1_value_x, p1_pct_x = 3, 4.9, 5.3
 
     # ---- LOGO JO en FIG COORDS (0..1 X, 0..1 Y, 0=izq/abajo) ----
@@ -134,9 +134,9 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     #   top_edge   : donde TERMINA el logo arriba en y. 0.98 = casi pegado
     #                arriba. Baja -> logo mas abajo (acercandose al header).
     figW, figH = fig.get_size_inches()
-    logo_w = 0.20
-    right_edge = 0.7
-    top_edge = 0.33
+    logo_w = 0.2
+    right_edge = 0.755
+    top_edge = 0.235
     try:
         from viz.common import _LOGO_PATH
         if _LOGO_PATH.exists():
@@ -170,8 +170,8 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     header_fig_y_bottom = 0.760
     face_w = 0.08
     crest_w = 0.07
-    escudo_left_x = 0.1
-    face_left_x = 0.18
+    escudo_left_x = 0.18
+    face_left_x = 0.26
 
     team_name = str(p1.get("team_name", ""))
     slug = _TEAM_TO_SLUG.get(team_name)
@@ -196,9 +196,9 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     name1 = _short(p1.get("player_name", str(player_id)))
     ax.text(text1_x, y_start, name1, fontweight="bold", fontsize=14,
             color=_NAME_COLOR, ha="left", va="center", family="DejaVu Sans")
-    ax.text(text1_x, y_start - 0.425,
+    ax.text(text1_x, y_start - 0.5,
             f"{p1.get('team_name', '')}  ·  {p1.get('position_group', '')}",
-            fontsize=10, color=WHITE, alpha=0.9, ha="left", family="DejaVu Sans")
+            fontsize=12, color=WHITE, alpha=0.9, ha="left", family="DejaVu Sans")
 
     y_line = y_start - 0.7
     ax.plot([0.5, 8.5], [y_line, y_line], color="grey", linewidth=0.5, alpha=0.6)
