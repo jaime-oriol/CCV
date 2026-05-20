@@ -1,31 +1,26 @@
-"""M06_nearmiss - Identificacion cuasi-experimental de "casi gol" (near-miss).
+"""M06_nearmiss - Casos cuasi-experimentales de "casi gol".
 
-Consumer directo de M05 PSxG. Produce los contrafactuales exogenos para la
-Estrategia B causal (Gauriot & Page 2019 style: el resultado de un shot a
-puerta clara es aleatorio dado pre-estado). M13 AIPW los usa como IV.
+Produce los contrafactuales exogenos para la estrategia B causal (Gauriot
+& Page 2019: el resultado de un shot a puerta clara es aleatorio dado
+pre-estado). M13 AIPW los usa como IV.
 
-Cinco tipos con umbrales pre-registrados (propuesta §1.7):
-  (a) Palo/travesano       : shot.outcome in {Post, Saved to Post},
-                             xg pre-shot in [0.15, 0.85]
-  (b) Offside milimetrico  : Offside event con margin <= 1.5 unidades SB
-                             (≈ 1.37m, 1 SB unit ≈ 1 yard) sobre 360
-                             freeze_frame (linea defensiva real). Fallback
-                             proxy att_x > 110 si no hay 360.
-  (c) Parada PSxG alto     : outcome=Saved y (PSxG>=0.6 OR xg_baseline>=0.4)
-  (d) Despeje linea gol    : outcome == Saved Off Target (marker SB directo).
-  (e) GLT no-gol           : ball cruza linea via PFF tracking 25Hz ball.z
-                             (caso JPN-ESP famoso, raro en WC22).
+5 tipos con umbrales pre-registrados:
+    (a) Palo/travesano    shot.outcome in {Post, Saved to Post},
+                          xg pre-shot in [0.15, 0.85]
+    (b) Offside ajustado  Offside event con margin <= 1.5 SB units (~1.37m)
+                          sobre 360 freeze-frame (linea defensiva real).
+                          Fallback proxy att_x > 110 si no hay 360.
+    (c) Save PSxG alto    outcome=Saved AND (PSxG>=0.6 OR xg_baseline>=0.4)
+    (d) Goal-line clear   outcome == Saved Off Target (marker SB)
+    (e) GLT no-gol        ball cruza linea via PFF tracking 25Hz ball.z
+                          (caso JPN-ESP raro en WC22)
 
-Acceptance (ARCHITECTURE.md): distribucion coherente con benchmarks.
-  WC22 64 partidos: ~70 near-miss totales (12 palo + 42 save + 5 offside
-  + 2 GLC + 9 GLT). Las estimaciones a-priori de la propuesta eran altas.
+Output: data/parquet/derived/nearmiss/nearmiss_table.parquet con cols
+sb_match_id, event_uuid, period, minute, second, team_id, team_name,
+shot_outcome, is_goal, xg_baseline, psxg, near_miss_type, margin_info.
+M13 AIPW recupera pff_match_id via M03.sb_to_pff_match_id().
 
-Output: data/parquet/derived/nearmiss/nearmiss_table.parquet
-  cols: sb_match_id, event_uuid, period, minute, second, team_id, team_name,
-        shot_outcome, is_goal, xg_baseline, psxg, near_miss_type, margin_info.
-  El consumer (M13 AIPW) recupera pff_match_id via M03.sb_to_pff_match_id().
-
-Depende de: M02 (SB events), M05 (PSxG cache).
+Depende de M02 (SB events) y M05 (PSxG cache).
 """
 
 from __future__ import annotations

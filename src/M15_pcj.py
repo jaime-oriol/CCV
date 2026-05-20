@@ -1,43 +1,38 @@
-"""M15_pcj — Perfil Clutch del Jugador: ensamblaje scout-facing final.
+"""M15_pcj - Perfil Clutch del Jugador (ensamblaje scout-facing final).
 
-Combina outputs del modelo unificado M14 (CATE bayesiano jerarquico con eta_ga,
-eta_gf, eta_pressure) + M04/M06/M08-M13 + metadata para producir la tabla
-maestra `outputs/pcj_table.parquet`.
+Combina outputs de M14 (CATE jerarquico bayesiano con eta_ga, eta_gf,
+eta_pressure) + M04/M06/M08-M13 + metadata para producir outputs/pcj_table.parquet.
 
-3 dimensiones de clutch identificadas:
-  1. **Remontador** (chasing-clutch) — eta_ga[atk] + eta_ga[off] post-GA
-     captura "el que sube cuando hay que remontar"
-  2. **Cerrojo** (protecting-clutch) — eta_gf[def] + eta_gf[phys] post-GF
-     captura "el que aguanta cuando hay que aguantar"
-  3. **Pressure Response** — eta_pressure[i,:] (pendiente individual respecto
-     a elim_prox_z) — captura "el que aparece cuando estamos a punto de ser
-     eliminados". 3a eta del modelo M14 unificado junto a eta_ga + eta_gf.
+3 dimensiones del PCJ:
+    Remontador (chasing)     eta_ga[atk] + eta_ga[off] post-GA
+                             "el que sube cuando hay que remontar"
+    Cerrojo (protecting)     eta_gf[def] + eta_gf[phys] post-GF
+                             "el que aguanta cuando hay que aguantar"
+    Pressure Response        eta_pressure[i,:] (slope individual vs elim_prox_z)
+                             "el que aparece cuando vamos a ser eliminados"
 
-Decisiones de diseno:
-  - Dual threshold no-arbitrario:
-      * Clutch CATE rankings: n_shocks_total >= 3 (identificabilidad random
-        effect jerarquico Bayes; <3 obs el shrinkage colapsa al prior posicion)
-      * Per-90 fisicas: minutes_played >= 90 (estabilidad ratios per-90;
-        <90 min el HSR_per90 / sprints_per90 es ruido)
-      * Flag low_sample = (n_shocks<8 OR minutes<270) para CI anchos
-    Razonamiento: el modelo Bayesiano YA aplica shrinkage automatico segun N.
-    Minutes no es el sample size estadistico, los shocks lo son.
-  - 8 CATEs preservados (4 canales × 2 shocks) — chasing vs protecting
-    son fenomenos distintos, agregar cancelaria signos
-  - Vector PCJ summary 4-canal directional:
-      pcj_atk = cate_atk_GA, pcj_def = cate_def_GF,
-      pcj_off = cate_off_GA, pcj_phys = max(|GA|,|GF|) signed
-  - Tier labels percentile-based (global + within-position)
-  - Significance flag bayesiano: P(idx>0|data) > 0.95 → Sig_clutch
-    (lo que diferencia esto de Wyscout/InStat: ellos no tienen IC posterior)
-  - Tier_certain = Elite/Top SOLO si IC80 excluye 0 (robust al ruido)
+Filtros (data-driven, no arbitrarios):
+    n_shocks_total >= 2     identificabilidad del random effect bayesiano.
+                            Con <2 obs el shrinkage colapsa al prior posicion.
+                            (Tunisia max 2 shocks -> umbral 2 mantiene cobertura)
+    minutes >= 90 para per-90 fisicas (HSR_per90, sprints_per90 ruido bajo eso)
+    Flag low_sample = (n_shocks<8 OR minutes<270) para CI anchos en displays
+
+Razonamiento: el modelo Bayes ya hace shrinkage automatico segun N.
+Lo que importa estadisticamente es n_shocks, no minutos.
+
+8 CATEs preservados (4 canales x 2 shocks): chasing vs protecting son
+fenomenos distintos, agregar cancelaria signos. Tier labels percentile-based
+(global + within-position). Sig flags multi-nivel (weak/normal/strong) +
+per-canal (8 cells: solo ataque_GF tiene senal real con N=172 shocks WC22).
+Tier_certain = Elite/Top SOLO si IC80 excluye 0 (robust al ruido).
 
 Outputs:
-  outputs/pcj_table.parquet         (1 fila por jugador, ~277 cols)
-  outputs/pcj_aux/top10_{chasing,protecting,pressure}_per_position.parquet
-  outputs/pcj_aux/top10_{chasing,protecting,pressure}_per_bucket.parquet
-  outputs/pcj_aux/dual_clutch_top.parquet
-  outputs/pcj_aux/by_team.parquet
+    outputs/pcj_table.parquet                                 1 fila/jugador (~299 cols)
+    outputs/pcj_aux/top10_{chasing,protecting,pressure}_per_position.parquet
+    outputs/pcj_aux/top10_{chasing,protecting,pressure}_per_bucket.parquet
+    outputs/pcj_aux/dual_clutch_top.parquet
+    outputs/pcj_aux/by_team.parquet
 
 Uso:
     python M15_pcj.py [overwrite]

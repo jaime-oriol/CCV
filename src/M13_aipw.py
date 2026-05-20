@@ -1,54 +1,50 @@
-"""M13_aipw - Validacion causal independiente vía cuasi-experimento near-miss.
+"""M13_aipw - Validacion causal independiente via cuasi-experimento near-miss.
 
-Capa 3 PCJ — Estrategia B (Gauriot & Page 2019, ReStat). Estima ATT del shock
-sobre los 4 canales explotando que, dado pre-shot xG en rango comparable, que
-el balon entre o no es practicamente azar (variacion exogena del outcome).
+Capa 3 del PCJ (Estrategia B, Gauriot & Page 2019 ReStat). Estima ATT del
+shock sobre los 4 canales explotando que, dado pre-shot xG comparable, el
+gol vs no-gol es practicamente azar (variacion exogena del outcome).
 
-Diseno de identificacion:
-  - Universe: 127 goles SB con xg_baseline ∈ [0.15, 0.85] + 66 near-miss M06
-              (12 palo + 38 save psxg>=0.6 + 5 offside cercano + 2 GLC + 9 GLT)
-  - Cluster: cada shot es 1 cluster (interferencia parcial Hudgens-Halloran 2008)
-  - Unit: player-in-field at shot moment (22 players por cluster)
-  - Treatment: 1 si is_goal else 0
-  - Outcome: mean canal en ventana sec_abs ∈ [t+60, t+600] (1-10 min post-shot)
+Identificacion:
+    Universe       127 goles SB con xg_baseline in [0.15, 0.85] + 66 near-miss
+                   M06 (12 palo + 38 save psxg>=0.6 + 5 offside + 2 GLC + 9 GLT)
+    Cluster        cada shot = 1 cluster (Hudgens-Halloran 2008)
+    Unit           player-in-field at shot moment (~22 jug por cluster)
+    Treatment      1 si is_goal else 0
+    Outcome        mean del canal en [t+60, t+600] (1-10 min post-shot)
 
-Estado del arte:
+Estimadores:
+    AIPW (IRM)         Robins-Rotnitzky-Zhao 1994 + Bang-Robins 2005 +
+                       Chernozhukov 2018 (DML). doubleml.DoubleMLIRM con
+                       LightGBM cross-fit 5-fold by match
+    PLR                Chernozhukov 2018. doubleml.DoubleMLPLR
+    DR-learner         Kennedy 2023 (oraculo-optimo). Manual cross-fit
+    RDD local-lineal   Imbens-Kalyanaraman 2012 + Calonico-Cattaneo-Titiunik
+                       2014. Kernel triangular + CCT bandwidth
+    Spec curve         Simonsohn 2020. Manual sobre 3 definiciones
+    Balance test       Sant'Anna-Song-Xu 2022. SMD pre-balanceo
+    Sensitivity        Cinelli-Hazlett 2020. Omitted variable bias
 
-  Estimador           Referencia                         Implementacion
-  -----------------   --------------------------------   ----------------------
-  AIPW (IRM)          Robins-Rotnitzky-Zhao 1994 +       doubleml.DoubleMLIRM
-                      Bang-Robins 2005 + Chernozhukov    (LightGBM cross-fit
-                      et al. 2018 (DML)                  5-fold by match)
-  PLR                 Chernozhukov et al. 2018           doubleml.DoubleMLPLR
-  DR-learner          Kennedy 2023 (oraculo-optimo)      manual cross-fit
-  RDD local-lineal    Imbens-Kalyanaraman 2012 +         manual con kernel
-                      Calonico-Cattaneo-Titiunik 2014    triangular + CCT bw
-  Spec curve          Simonsohn 2020                     manual sobre 3 def
-  Balance test        Sant'Anna-Song-Xu 2022             SMD pre-balanceo (raw)
-  Sensitivity         Cinelli-Hazlett 2020               omitted variable bias
+8 estimaciones (4 canales x 2 shock_types) por estimador, paralelas a M12.
+Comparacion ATT (M13) vs ATE (M12): mismo signo + mismo orden de magnitud
+= identificacion robusta. Divergencia = upper-bound del confounding no
+controlado en M12.
 
-8 estimaciones (4 canales x 2 shock_types) por estimador, paralelas a M12 ATE.
-Comparacion ATT (M13) vs ATE (M12) por (canal, shock_type) — acceptance:
-mismo signo + magnitudes en mismo orden = identificacion robusta. Divergencia
-sistematica = upper-bound del confounding no controlado en M12.
-
-Cluster errors: por sb_match_id (Cameron-Gelbach-Miller 2011 implem doubleml).
+Cluster errors por sb_match_id (Cameron-Gelbach-Miller 2011, doubleml).
 
 Outputs (data/parquet/derived/aipw/):
-  panel_master.parquet            (event_uuid x pff_player_id x covariables)
-  att_aipw.parquet                (channel x perspective -> ATT AIPW + IC + N)
-  att_dml_plr.parquet             (channel x perspective -> ATT PLR + IC)
-  att_dr_learner.parquet          (channel x perspective -> ATT DR-learner + IC)
-  att_rdd.parquet                 (channel x perspective x bandwidth -> ATT RDD + IC)
-  spec_curve.parquet              (spec x channel x perspective -> ATT AIPW)
-  balance.parquet                 (covariable x channel x perspective -> SMD)
-  sensitivity.parquet             (channel x perspective -> robustness value)
-  comparison_m12.parquet          (canal x shock_type -> ATE M12 vs ATT M13)
-                                  [unico output que renombra perspective→shock_type
-                                   para join con M12.ate_population]
+    panel_master.parquet         event_uuid x pff_player_id x covariables
+    att_aipw.parquet             channel x perspective -> ATT AIPW + IC + N
+    att_dml_plr.parquet          ATT PLR + IC
+    att_dr_learner.parquet       ATT DR-learner + IC
+    att_rdd.parquet              channel x perspective x bandwidth -> ATT RDD + IC
+    spec_curve.parquet           spec x channel x perspective -> ATT AIPW
+    balance.parquet              covariable x channel x perspective -> SMD
+    sensitivity.parquet          channel x perspective -> robustness value
+    comparison_m12.parquet       canal x shock_type -> ATE M12 vs ATT M13
+                                 (renombra perspective -> shock_type para join)
 
-Depende de: M03 (sb_to_pff_match_id, player_minutes), M05 (shots + wc22 cov),
-M06 (nearmiss_table), M07 (shocks_table mapeo), M08-M11 (per_minute por canal).
+Depende de M03 (sb_to_pff_match_id, player_minutes), M05 (shots + wc22 cov),
+M06 (nearmiss_table), M07 (shocks_table), M08-M11 (per_minute por canal).
 """
 
 from __future__ import annotations

@@ -1,13 +1,12 @@
-"""M05B PSxG calibration diagnostics SOTA.
+"""M05B - Calibration diagnostics del PSxG entrenado en M05.
 
-Toma el modelo + calibrador entrenado por M05 y produce:
-- calibration_curve.parquet : (bin, pred_mean, frac_positive, n_shots) sobre OOF + WC22 holdout
-- brier_decomposition.parquet : Brier = Reliability - Resolution + Uncertainty (Murphy 1973)
-- calibration_metrics.parquet : ECE, MCE, Brier, AUC sobre OOF + WC22 holdout
-- isotonic_curve.parquet : (raw_pred, calibrated_pred) del isotonic mapping
-
-Outputs en data/parquet/derived/psxg/calibration/ — calibration plots para
-analisis de la cabeza PSxG (M05).
+Outputs en data/parquet/derived/psxg/calibration/:
+    calibration_curve.parquet     (bin, pred_mean, frac_positive, n_shots) sobre
+                                  OOF + WC22 holdout
+    brier_decomposition.parquet   Brier = Reliability - Resolution + Uncertainty
+                                  (Murphy 1973)
+    calibration_metrics.parquet   ECE, MCE, Brier, AUC sobre OOF + WC22 holdout
+    isotonic_curve.parquet        (raw_pred, calibrated_pred) del isotonic
 """
 from __future__ import annotations
 import pickle

@@ -1,61 +1,37 @@
 """M09_defensa - Canal Solidez Defensiva.
 
-Fase 2 PCJ, canal 2 de 4. Valora la contribucion defensiva individual por
-jugador-minuto combinando on-ball (VAEP) con off-ball (tracking PFF 25 Hz).
+Canal 2/4 del PCJ. Combina on-ball (VAEP de M08) con off-ball (tracking PFF
+25 Hz). Outcome principal `score_def_v4` = vdep_strict + xpress + maejima_value.
 
-Outcome principal SOTA v4 = vdep_strict + xpress + maejima_value (3 cabezas
-complementarias). Reutiliza el modelo atomic-VAEP entrenado en M08 (CatBoost
-5-fold CV + Optuna + isotonic) como base on-ball.
+Sub-canales agregados per (match, player, minute):
+    score_def_v4_minute      OUTCOME PRINCIPAL = vdep_strict + xpress + maejima
+    vdep_strict_minute       VDEP fiel a Toda 2022 (PLOS ONE): cabeza dedicada
+                             P(recovery_in_3) - C*P(attacked_in_5) (Z04)
+    xpress_value_minute      exPress Lee 2025: P(recovery<5s | press event)
+                             calibrado via tracking 25 Hz (Z03)
+    maejima_value_minute     Maejima 2024 nearest-defender: credito al defensor
+                             mas cercano por accion ofensiva rival (Z05)
+    press_value_minute       Maejima light via PFF initialPressurePlayerId
+                             (pesos A=0.5, L=1.0, P=2.0; +50% si press rompe touch)
+    score_def_minute         sum(defensive_value) on-ball legacy (sensitivity)
+    vdep_like_minute         defensive_value filtrado a acciones defensivas SPADL
+                             NO es VDEP strict (reusa P(concedes) M08); sensitivity
+    def_third_pct            % frames en tercio defensivo durante posesion rival
+    press_intensity_frames   # frames-jug a <= PRESS_RADIUS_M del balon en posesion
+                             rival (aprox. Bekkers 2024)
 
-Cabezas/sub-canales agregados per (match, player, minute):
-  - score_def_v4_minute      : OUTCOME PRINCIPAL = vdep_strict + xpress + maejima.
-  - vdep_strict_minute       : VDEP fiel a Toda et al. 2022 (PLOS ONE), cabeza
-                               dedicada P(recovery_in_3) − C·P(attacked_in_5)
-                               entrenada aparte (modulo vdep_strict cache).
-  - xpress_value_minute      : exPress de Lee et al. 2025 — P(recovery<5s | press
-                               event) calibrada via tracking PFF 25 Hz.
-  - maejima_value_minute     : Maejima 2024 nearest-defender — credito al defensor
-                               mas cercano por accion offensive del oponente
-                               (frame-level via tracking).
-  - press_value_minute       : Maejima light via PFF initialPressurePlayerId
-                               (peso fijo: A=0.5, L=1.0, P=2.0; +50% si
-                               initialTouchType ∈ {M,B} = press rompe touch).
-  - score_def_minute         : sum(defensive_value) on-ball legacy (sensitivity).
-  - vdep_like_minute         : defensive_value filtrado a acciones defensivas
-                               SPADL (tackle/interception/clearance/foul/keeper_*).
-                               NO es VDEP strict (reusa cabeza P(concedes) M08);
-                               sensitivity vs vdep_strict_minute.
-  - def_third_pct            : fraccion de frames en tercio defensivo propio
-                               durante posesion rival (bloque bajo).
-  - press_intensity_frames   : # frames-jugador a <= PRESS_RADIUS_M del balon
-                               durante posesion rival (aprox. Bekkers 2024
-                               arXiv:2501.04712).
+Outputs (data/parquet/derived/defensa/):
+    def_third_context.parquet    pff_match_id, player_id, minute + def_third_pct +
+                                 press_intensity_frames + oppo_possession_frames
+    press_value.parquet          Maejima light per (match, player, minute)
+    per_minute.parquet           ids + period + sec_abs + score_def_v4/v3/v2 +
+                                 vdep_like + vdep_strict + maejima + xpress +
+                                 press_value + n_def_actions + def_third_pct
+    per_shock_window.parquet     ids + shock_id + v4/v3/v2/legacy pre/post +
+                                 LOO + delta_relative por nivel
 
-Output:
-  data/parquet/derived/defensa/
-    def_third_context.parquet    # (pff_match_id, player_id, minute,
-                                 #  def_third_pct, press_intensity_frames,
-                                 #  oppo_possession_frames)
-    press_value.parquet          # Maejima light per (match, player, minute)
-    per_minute.parquet           # ids + period + minute_in_period + sec_abs +
-                                 #  score_def_v{4,3,2}_minute + score_def_minute +
-                                 #  vdep_like + vdep_strict + maejima + xpress +
-                                 #  press_value + n_def_actions + n_actions_total +
-                                 #  def_third_pct + press_intensity_frames +
-                                 #  oppo_possession_frames
-    per_shock_window.parquet     # (pff_match_id, sb_match_id, shock_id,
-                                 #  pff_player_id, sb_player_id, shock_type) +
-                                 #  v4/v3/v2/legacy pre/post + LOO +
-                                 #  delta_relative para cada nivel +
-                                 #  vdep_like/vdep_strict/maejima pre/post +
-                                 #  press_frames + n_def_actions
-
-Acceptance (ARCHITECTURE): distribucion score_def por rol coherente
-(CBs y DMs > CFs); GK score_def positivo por saves etc.
-
-Depende de: M08 (modelo VAEP + atomic SPADL WC22 + mapping SB->PFF),
-M01 (tracking PFF + rosters), M03 (attacking_direction, SB<->PFF match map),
-M07 (shocks table).
+Depende de M08 (VAEP + mapping SB->PFF), M01 (tracking + rosters),
+M03 (direction + match map), M07 (shocks).
 """
 
 from __future__ import annotations

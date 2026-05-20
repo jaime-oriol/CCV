@@ -1,56 +1,42 @@
-"""M11_fisico - Canal Pulso Fisico via metricas Bradley 2024 SOTA + residual bayesiano.
+"""M11_fisico - Canal Pulso Fisico via Bradley 2024 + residual bayesiano.
 
-Fase 2 PCJ, canal 4 de 4. Aisla "lo que el jugador APRIETA" (decision mental)
-de "lo que el jugador PUEDE" (estado fisico) reportando el RESIDUO de tres
-metricas-rate observadas vs lo predicho por:
-  baseline_jugador (capacidad personal) + curva_temporal_minuto (fatiga media).
+Canal 4/4 del PCJ. Aisla "lo que el jugador APRIETA" (decision mental) de
+"lo que el jugador PUEDE" (estado fisico) reportando el RESIDUO de 3 rates
+observadas vs lo predicho por baseline_jugador + curva_temporal_minuto.
 
 Pipeline:
   1. Limpieza tracking + velocidades smoothed:
-     - Segmentacion por discontinuidades fisicas (camera switch / ID swap).
-     - Butterworth lowpass filtfilt (fase cero, cutoff 1 Hz, Buchheit standard).
-     - Hampel filter sobre velocidad para outliers residuales.
-     - Cap a 11 m/s con re-scale proporcional preservando direccion.
-  2. Metricas frame-level agregadas por (player, match, minute) — Bradley 2024:
-       - distance_m       : integral vel * dt (m).
-       - hsr_s            : segundos a >= 19.8 km/h (Ju et al. 2022).
-       - sprint_s         : segundos a >= 25 km/h.
-       - sprint_count     : # eventos sprint distintos (onset>=1s + recovery>=2s).
-       - psv95            : peak speed velocity (p95 robusto del minuto, m/s).
-       - n_high_accel     : segundos con a >= 3 m/s²  (Akenhead 2013).
-       - n_high_decel     : segundos con a <= -3 m/s² (Akenhead 2013).
-       - z1_m..z5_m       : distancia por zona Bradley (Z1<7, Z2 7-13, Z3 13-19.8,
-                             Z4 19.8-25, Z5>25 km/h).
-       - hmld_m           : High Metabolic Load Distance, Osgnach et al. 2010
-                             (P_metabolic >= 25.5 W/kg, Eq 7-9).
-  3. Modelo bayesiano jerarquico multivariate (numpyro SVI, 3 RATES):
+       - Segmentacion por discontinuidades (camera switch / ID swap)
+       - Butterworth lowpass filtfilt (fase cero, cutoff 1 Hz, Buchheit)
+       - Hampel filter sobre velocidad para outliers residuales
+       - Cap a 11 m/s preservando direccion
+  2. Metricas frame-level agregadas per (player, match, minute):
+       distance_m         integral vel * dt
+       hsr_s              segundos a >= 19.8 km/h (Ju 2022)
+       sprint_s           segundos a >= 25 km/h
+       sprint_count       eventos sprint (onset>=1s + recovery>=2s, Bradley 2024)
+       psv95              peak speed velocity (p95 robusto del minuto)
+       n_high_accel/dec   segundos con |a| >= 3 m/s2 (Akenhead 2013)
+       z1_m..z5_m         distancia por zona Bradley (Z1<7, Z2 7-13, Z3 13-19.8,
+                          Z4 19.8-25, Z5>25 km/h)
+       hmld_m             High Metabolic Load Distance (P_metab>=25.5 W/kg,
+                          Osgnach 2010 Eq 7-9)
+  3. Modelo bayesiano jerarquico multivariate (numpyro SVI, 3 rates):
        log(rate_k[p,m,t]) ~ Normal(
            mu_player[p,k] + b1[k]*(t/90) + b2[k]*(t/90)^2,
-           sigma_eps[k]
-       )   k in {psv95, mean_speed, hsr_rate}
-       mu_player[p,k] ~ Normal(mu_global[k], sigma_p[k])  random effects player
-     score_phys = mean(z-score residuos sobre 3 targets).
-     NO modelamos fatigue explicita: el baseline mu_player + curva temporal
-     quadratic ya encierra la fatigue media-esperada. El residuo capta
-     "se desvio del baseline esperado para EL en ESE minuto" — exactamente
-     "APRIETA mas/menos de lo esperado". Targets son RATES (independientes de
-     cobertura n_frames del minute), evitando contaminacion por subs / stoppage.
-  4. Agregacion per_shock_window (pre/post +-10min) con score_phys + componentes.
+           sigma_eps[k])     k in {psv95, mean_speed, hsr_rate}
+       mu_player[p,k] ~ Normal(mu_global[k], sigma_p[k])
+     score_phys = mean(z-score residuos). Rates (no totales) evitan
+     contaminacion por subs/stoppage.
+  4. Agregacion per_shock_window (pre/post +-10min).
 
-Acceptance (ARCHITECTURE.md + Bradley 2024 WC22):
-  - Distancia top starters ~10-12 km/partido.
-  - PSV95 top players ~32-37 km/h (sin cap saturado).
-  - n_high_accel ~50-100 s/jugador-partido, simetrico con n_high_decel.
-  - score_phys mean ~0, std ~0.85 (z-scores correlados con mean(z)).
+Outputs (data/parquet/derived/fisico/):
+    raw_per_minute.parquet     metricas raw frame-level agregadas
+    model/phys_state.pkl       SVI fit (parametros posterior)
+    per_minute.parquet         score_phys per (match, player, minute)
+    per_shock_window.parquet   pre/post de cada shock
 
-Output:
-  data/parquet/derived/fisico/
-    raw_per_minute.parquet      # metricas raw frame-level agregadas.
-    model/phys_state.pkl        # SVI fit (parametros posterior).
-    per_minute.parquet          # score_phys (residuo z-score) per (m, p, min).
-    per_shock_window.parquet    # pre/post de cada shock.
-
-Depende de: M01 (tracking, rosters), M07 (shocks_table).
+Depende de M01 (tracking, rosters), M07 (shocks_table).
 """
 
 from __future__ import annotations

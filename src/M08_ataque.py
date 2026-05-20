@@ -1,46 +1,37 @@
 """M08_ataque - Canal Empuje Ofensivo via Atomic-VAEP (Decroos & Davis 2020).
 
-Fase 2 PCJ, canal 1 de 4. Valora la produccion ofensiva on-ball por jugador.
-Aisla la contribucion individual del rendimiento de sus companeros (atomic
-version, mejor que VAEP clasico para DiD within-player).
+Canal 1/4 del PCJ. Valora produccion ofensiva on-ball por jugador, aislando
+contribucion individual (atomic VAEP es mejor que VAEP clasico para DiD
+within-player).
 
-Training corpus (WC22 EXCLUIDO, sagrado):
-  - Euro 2020     (55, 43)  — 51 partidos
-  - Euro 2024     (55, 282) — 51 partidos
-  - Bundesliga 23 (9, 281)  — 34 partidos
-  Total: 136 partidos -> ~60k-80k atomic actions.
+Training (WC22 sagrado, no entra):
+    Euro 2020 + Euro 2024 + Bundesliga 23/24 = 136 partidos, ~70k atomic actions.
 
-Modelo: CatBoost via Z01_vaep.py (2 modelos: P(scores 10 acc), P(concedes 10 acc)).
-Features: 148 cols atomic (actiontype_onehot, bodypart, location, polar, movement).
+Modelo: CatBoost via Z01_vaep.py (2 cabezas P(scores), P(concedes) en horizonte
+10 acciones). 148 features atomic (actiontype onehot, bodypart, location,
+polar, movement).
 
 Pipeline:
-  1. Load SB events via StatsBombLoader (socceraction nativo).
-  2. Convert to SPADL -> Atomic SPADL (convert_to_atomic).
-  3. Extract features + labels (compute_features, compute_labels).
-  4. Optuna tuning (TPE, 3-fold CV by match) + train CatBoost 5-fold CV by match
-     + isotonic calibration + final model sobre todo el training.
-  5. Apply a WC22 atomic actions -> offensive_value per action.
-  6. Aggregate: (sb_match_id, pff_match_id, sb_player_id, pff_player_id,
-     period, minute_in_period, sec_abs, score_atk_minute, vaep_minute, n_actions).
-  7. Map player_id_sb -> player_id_pff (cascada 5 pases: exact, tokens-subset
-     enriquecido, Levenshtein per-token, difflib SequenceMatcher, manual overrides).
-  8. Aggregate per shock-window (pre/post -10/+10 min).
+    1. SB events via socceraction StatsBombLoader
+    2. SPADL -> Atomic SPADL (convert_to_atomic)
+    3. compute_features + compute_labels
+    4. Optuna TPE 3-fold by match -> CatBoost 5-fold by match + isotonic +
+       final model sobre todo el training
+    5. Apply a atomic actions WC22 -> offensive_value per action
+    6. Aggregate per (sb_match_id, pff_match_id, sb_player_id, pff_player_id,
+       period, minute_in_period, sec_abs, score_atk_minute, vaep_minute, n_actions)
+    7. Map sb_player_id -> pff_player_id (cascada 5 pasos: exact -> tokens
+       enriquecido -> Levenshtein per-token -> difflib -> overrides manuales)
+    8. Aggregate per shock-window (pre/post +-10 min)
 
-Output:
-  data/parquet/derived/ataque/
-    training_atomic.parquet      # atomic actions training (cached)
-    wc22_atomic.parquet          # atomic actions WC22 (cached)
-    model/vaep_atk_{scores,concedes}.cbm + vaep_atk_meta.pkl
-    per_minute.parquet           # ambos ids + period + minute_in_period + sec_abs
-                                 #   + score_atk_v2_minute (= atomic-VAEP + un-xPass),
-                                 #   score_atk_minute (legacy), unxpass_value_minute,
-                                 #   vaep_minute, n_actions
-    per_shock_window.parquet     # (pff_match_id, sb_match_id, shock_id,
-                                 #   pff_player_id, sb_player_id, shock_type) +
-                                 #   v2 pre/post + LOO + delta_relative + legacy
-    sb_to_pff_player_map.parquet # mapping explicito
-
-Acceptance (ARCHITECTURE): distribucion score_atk por rol coherente (CFs > CBs).
+Outputs (data/parquet/derived/ataque/):
+    training_atomic.parquet                       atomic actions training
+    wc22_atomic.parquet                           atomic actions WC22
+    model/vaep_atk_{scores,concedes}.cbm + meta   CatBoost + meta
+    per_minute.parquet                            score_atk_v2_minute (= VAEP + unxPass) +
+                                                  legacy + unxpass + n_actions
+    per_shock_window.parquet                      v2 pre/post + LOO + delta_relative
+    sb_to_pff_player_map.parquet                  mapping explicito SB<->PFF
 """
 
 from __future__ import annotations

@@ -1,33 +1,30 @@
-"""M05_psxg - Post-shot xG (PSxG) via LightGBM + calibracion isotonic.
+"""M05_psxg - Post-shot xG (PSxG) via LightGBM + isotonic calibration.
 
-Training: StatsBomb events + 360 freeze-frames.
-Corpus: Euro 2020 + Euro 2024 + Bundesliga 23/24 = 136 partidos, 3.545 shots.
-WC22 SAGRADO: excluido del training; solo para prediccion en aplicacion.
+Training cross-dataset (StatsBomb events + 360 freeze-frames):
+    Euro 2020 + Euro 2024 + Bundesliga 23/24 = 136 partidos, ~3545 shots.
+    WC22 SAGRADO: excluido del training; solo se predice en aplicacion.
 
-Diseño "top 1% SOTA":
-  - Features pre-shot: location, distance_goal, angle, body_part, technique,
-    shot_type, play_pattern, first_time, under_pressure, deflected.
-  - Features end-location: end_x, end_y, end_z (altura del balon — CORE de PSxG).
-  - Features 360 freeze-frame: keeper_x/y, keeper_dist_to_endpoint,
-    n_defenders_in_cone, n_defenders_near_endpoint,
-    dist_to_nearest_defender / nearest_teammate, n_teammates_close_to_endpoint.
-  - Modelo: LightGBM con 5-fold CV stratified POR MATCH (evita leakage shot-shot
-    dentro de la misma jugada) + CalibratedClassifierCV isotonic.
-  - Baseline: statsbomb_xg (pre-shot xG nativo SB). PSxG debe superar en AUC.
+Features:
+    pre-shot       location, distance_goal, angle, body_part, technique,
+                   shot_type, play_pattern, first_time, under_pressure, deflected
+    end-location   end_x, end_y, end_z (altura del balon — core del PSxG)
+    360 freeze     keeper_x/y, keeper_dist_to_endpoint, n_defenders_in_cone,
+                   n_defenders_near_endpoint, dist_to_nearest_defender/teammate,
+                   n_teammates_close_to_endpoint
 
-Acceptance (ARCHITECTURE.md): AUC holdout > baseline pre-shot xG.
+Modelo: LightGBM + 5-fold CV stratified POR MATCH (evita leakage entre shots
+de la misma jugada) + CalibratedClassifierCV isotonic.
+Baseline: statsbomb_xg (pre-shot xG nativo SB). PSxG debe superar en AUC.
 
-Cache:
-  data/parquet/derived/psxg/
-    training_shots.parquet        # features + label (para reproducibilidad)
-    model/psxg_lgb.pkl            # modelo + calibrador + feature list
-    shots.parquet                 # psxg aplicado a WC22 (col sb_match_id, sin
-                                  #   prefijo equivoco)
+Cache (data/parquet/derived/psxg/):
+    training_shots.parquet   features + label (reproducibilidad)
+    model/psxg_lgb.pkl       modelo + calibrador + feature list
+    shots.parquet            psxg aplicado a WC22 (col sb_match_id)
 
-Consumer: M06 near-miss (criterio "parada con PSxG >= 0.6" identifica paradas
-decisivas como cuasi-experimento exogeno tipo Gauriot & Page 2019).
+Consumer: M06 near-miss usa "save con PSxG >= 0.6" como cuasi-experimento
+exogeno tipo Gauriot & Page 2019.
 
-Depende de: M02 (loader SB).
+Depende de M02 (loader SB).
 """
 
 from __future__ import annotations

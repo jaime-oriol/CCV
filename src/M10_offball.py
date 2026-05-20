@@ -1,43 +1,33 @@
-"""M10_offball - Canal Inteligencia Espacial Off-ball via OBSO completo (Spearman 2018).
+"""M10_offball - Canal Inteligencia Espacial Off-ball via OBSO (Spearman 2018).
 
-Fase 2 PCJ, canal 3 de 4. OBSO 3-factor = PPCF × T × S con el PPCF SOTA del
-building block Z02 pitch_control (vectorizado Spearman 2018 sobre tracking
-25fps). PPCF y el contrafactual C-OBSO son completos; T(r) se aproxima con un
-kernel gaussiano (ver _transition_probability), simplificacion fisica
-deliberada documentada.
+Canal 3/4 del PCJ. OBSO 3-factor = PPCF * T * S sobre tracking 25 Hz.
+PPCF y contrafactual C-OBSO completos; T(r) se aproxima con kernel gaussiano
+(simplificacion fisica documentada).
 
-Referencias SOTA (implementadas):
-  - Spearman (2018, MIT Sloan) "Beyond Expected Goals" — OBSO 3-factor:
-      OBSO(r) = PPCF(r) * T(r) * S(r)
-      - PPCF: probabilidad que jugador controle el balon en r (tracking fisico)
-      - T: probabilidad que el balon llegue a r desde posicion actual
-      - S: probabilidad que un shot desde r sea gol (xG grid)
-  - Teranishi et al. (2022, MLSA LNCS) "C-OBSO": contribucion del movimiento
-      C-OBSO = OBSO - OBSO_counterfactual (jugador quieto en posicion previa)
+Referencias:
+    Spearman (2018, MIT Sloan)        OBSO(r) = PPCF(r) * T(r) * S(r)
+                                      PPCF prob de controlar balon en r
+                                      T    prob de llegada del balon a r
+                                      S    prob de gol desde r (xG grid)
+    Teranishi (2022, MLSA LNCS)       C-OBSO = OBSO - OBSO_counterfactual
+                                      (jugador quieto en posicion previa)
 
-Adapter PFF -> Z02:
-  Z02 ya tiene PPCF SOTA vectorizado para formato Opta MA25 (x/y, velocities,
-  team_id, is_ball, is_goalkeeper). Adapter convierte frame PFF al mismo
-  schema y reusa ppcf_at_targets (N targets simultaneos, numpy vectorizado).
-  Coords PFF ya estan en metros centradas (0,0) -> compatible directamente.
+Adapter PFF -> Z02: Z02 espera schema (x/y, velocities, team_id, is_ball,
+is_goalkeeper). Coords PFF ya en metros centrado (0,0) -> compatible.
 
-Velocidades:
-  Buffer per (player_id, frame_num) para calcular vx, vy via diferencias
-  finitas entre frames consecutivos sampleados. Z02 PPCF usa vel para proyectar
-  reach en reaction_time=0.7s.
+Velocidades: buffer per (player_id, frame_num) via diff finita entre frames
+consecutivos sampleados. Z02 PPCF usa vel para proyectar reach (reaction_time=0.7s).
 
-Sampling: 25 Hz full-quality (todos los frames PFF). ~135k frames/match.
-PPCF Z02 vectoriza N targets simultaneos; C-OBSO recomputa PPCF 1 vez por
-jugador atacante con lagged_pos valido (cap maxlen=20 en el deque historico).
+Sampling: 25 Hz full-quality. C-OBSO recomputa PPCF 1 vez por jugador
+atacante con lagged_pos valido (deque historico maxlen=20).
 
-Features output per (match_id, player_id, minute):
-  - obso_mean     : OBSO medio (PPCF × T × S) sobre frames atacantes del minuto
-  - obso_max      : pico OBSO del minuto
-  - c_obso_mean   : contribucion del movimiento (OBSO - contrafactual)
-  - attacking_frames: frames sampleados con jugador en ataque
+Features per (match_id, player_id, minute):
+    obso_mean           OBSO medio sobre frames atacantes del minuto
+    obso_max            pico OBSO del minuto
+    c_obso_mean         contribucion del movimiento (OBSO - contrafactual)
+    attacking_frames    frames con jugador en ataque
 
-Acceptance (ARCHITECTURE): top-decile correlaciona con assists/secondary
-assists. Distribucion por rol: W/CF > CB/GK.
+Acceptance: top-decile correlaciona con assists/secondary; W/CF > CB/GK.
 """
 
 from __future__ import annotations

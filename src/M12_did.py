@@ -1,50 +1,42 @@
-"""M12_did - Identificacion causal del efecto del shock vía DiD within-player.
+"""M12_did - Identificacion causal del efecto del shock via DiD within-player.
 
-Capa 3 del PCJ. Estima el efecto causal del shock emocional (gol favor / gol
-contra) sobre los 4 canales (ataque, defensa, off-ball, fisico) por jugador,
-respetando la naturaleza pulsada-instantanea del tratamiento.
+Capa 3 del PCJ. Estima el efecto causal del shock emocional (gol favor/contra)
+sobre los 4 canales por jugador, respetando el tratamiento pulsado-instantaneo.
 
-Estado del arte aplicable a este caso (instantaneo, no-absorbente, panel
-jugador x shock x minute_relativo):
+Estimadores (panel jugador x shock x minute_relativo):
+    ATE TWFE-FE         Wooldridge 2023, punto base con FE player_shock
+    Sun-Abraham 2021    J Econometrics 225, event-study sin contaminacion
+                        de leads/lags
+    BJS imputation      Borusyak-Jaravel-Spiess 2024 ReStud, eficiente.
+                        Equivalente a dCDH en este caso (pulsado instantaneo,
+                        sin staggered absorbing)
+    HonestDiD           Rambachan-Roth 2023 ReStud, sensibilidad parallel
+                        trends (M in {0.5, 1, 2})
+    Pre-trends F-test   Roth 2022 AERI, agregado coef pre-window = 0
 
-  Estimador          Referencia             Rol
-  ----------------   --------------------   --------------------------------
-  ATE TWFE-FE        Wooldridge 2023        Punto base, FE player_shock
-  Sun-Abraham 2021   J Econometrics 225     Event-study sin contam leads/lags
-  BJS imputation     Borusyak-Jaravel-      Estimador eficiente; equivalente
-                     Spiess 2024 ReStud     en este caso a dCDH para nuestro
-                                            tratamiento pulsado-instantaneo
-                                            (sin staggered absorbing).
-  HonestDiD-style    Rambachan-Roth 2023    Sensibilidad violacion parallel
-                     ReStud                 trends (M ∈ {0.5, 1, 2}).
-  Pre-trends F-test  Roth 2022 AERI         Test agregado coef pre-window=0
+No usamos dCDH did_multiplegt_dyn (R-only). Para tratamiento pulsado con un
+solo shock por jugador-evento (no acumula, no hay never-treated), BJS y
+Sun-Abraham producen estimaciones equivalentes bajo los mismos supuestos.
+Goodman-Bacon decomposition es vacua aqui (no hay late-vs-early comparisons).
 
-Trade-off documentado: dCDH `did_multiplegt_dyn` (R-only) NO se usa
-directamente. Para tratamiento PULSADO INSTANTANEO con un solo shock por
-jugador-evento (no se acumula tratamiento, no hay never-treated), BJS y
-Sun-Abraham producen estimaciones equivalentes a dCDH bajo los mismos
-supuestos identificadores. Goodman-Bacon decomposition es vacuo aqui (no hay
-late-vs-early-treated comparisons porque el tratamiento es instantaneo).
-
-Cluster errors: single CRV1 sobre pff_player_id via `pyfixest`. Cluster
-solo a nivel jugador es robusto y conservador para nuestro panel: el
-tratamiento es player-level, los shocks ocurren a tasas distintas por
-jugador, y el N de matches (64) es bajo para clustering bidimensional.
+Cluster errors: CRV1 sobre pff_player_id via pyfixest. Cluster solo a nivel
+jugador es robusto/conservador: tratamiento player-level, shocks a tasas
+distintas por jugador, N_matches=64 bajo para clustering bidimensional.
 
 Outputs (data/parquet/derived/did/):
-  panel_event_study.parquet     (player, shock, relative_min, channel, outcome)
-  ate_population.parquet        (channel x shock_type -> ATE + IC + N)
-  ate_with_controls.parquet     (channel x shock_type -> ATE base + KO + leverage)
-  event_study.parquet           (channel x shock_type x relative_min -> beta)
-  honest_did.parquet            (channel x shock_type x M -> ATE robusto)
-  diagnostics.parquet           (channel x shock_type -> pretrend_F, N flags)
+    panel_event_study.parquet   (player, shock, relative_min, channel, outcome)
+    ate_population.parquet      (channel x shock_type -> ATE + IC + N)
+    ate_with_controls.parquet   (channel x shock_type -> ATE base + KO + leverage)
+    event_study.parquet         (channel x shock_type x rel_min -> beta)
+    honest_did.parquet          (channel x shock_type x M -> ATE robusto)
+    diagnostics.parquet         (channel x shock_type -> pretrend_F, N flags)
 
 8 estimaciones independientes (4 canales x 2 shock_types).
 
-Inclusion primaria: shocks SIN truncated_pre, truncated_post, overlap_flag,
-sub_in_window. Sensibilidades adicionales en honest_did y diagnostics.
+Inclusion primaria: shocks SIN truncated_pre/post, overlap_flag, sub_in_window.
+Sensibilidades adicionales en honest_did y diagnostics.
 
-Depende de: M07 (shocks_table), M08-M11 (per_minute por canal).
+Depende de M07 (shocks_table) y M08-M11 (per_minute por canal).
 """
 
 from __future__ import annotations

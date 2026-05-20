@@ -1,42 +1,21 @@
-"""M14_cate - CATE jerarquico bayesiano multivariate UNIFICADO (3 dimensiones).
+"""M14_cate - CATE jerarquico bayesiano multivariate (3 dimensiones).
 
-Capa 4 PCJ. Estima el efecto causal HETEROGENEO por jugador del shock
-emocional sobre los 4 canales conjuntamente, en las TRES dimensiones de la
-propuesta (post-GA, post-GF, eliminacion-continuo), con jerarquia 3 niveles
-(jugador ⊂ equipo ⊂ posicion), correlacion cross-canal LKJ por dimension,
-priors informativos PFF grades, moduladores continuos del contexto del
-shock (minute, score-diff post, fase, leverage, elim_prox) y sampling
-HMC/NUTS exacto. eta_pressure[i,k] es la 3a eta del modelo: pendiente
-individual respecto a elim_prox_z (3a dimension continua).
+Capa 4 del PCJ. Estima el efecto causal HETEROGENEO por jugador del shock
+emocional sobre los 4 canales conjuntamente. Tres dimensiones (post-GA,
+post-GF, eliminacion-continuo), jerarquia 3 niveles (jugador < equipo <
+posicion), correlacion cross-canal LKJ por dimension, priors PFF grades,
+moduladores continuos del contexto (minute, score-diff post, fase, leverage,
+elim_prox), sampling NUTS exacto.
 
-SOTA implementado:
+Implementacion numpyro multivariate:
+    NCP en todos los random effects (anti-funnel Betancourt-Girolami 2015)
+    Random effects separados por shock_type (GA chasing, GF protecting)
+    Cross-canal LKJ Cholesky independiente por shock_type
+    Priors informativos PFF_grade * gamma_k (Gomes-Mendes-Neves 2025)
+    target_accept_prob=0.95 para topologia LKJ + jerarquia
+    R-hat < 1.05 + ESS_bulk > 400; smoke test 2 chains x 200 antes del full
 
-  Componente                          Referencia                    Stack
-  ---------------------------------   ---------------------------   ----------
-  Multivariate BCF jerarquico         Hu et al. 2025 JRSS-A         numpyro
-  Aggregate BCF datos jerarquicos     Thal et al. 2024 arXiv        numpyro
-  NCP jerarquico (anti-funnel)        Betancourt-Girolami 2015      NCP manual
-  LKJ Cholesky cross-canal x2         Lewandowski-Kurowicka-Joe     dist.LKJ
-    (GA + GF separados)               2009                          Cholesky
-  Priors PFF grades informativos      Gomes-Mendes-Neves 2025       gamma coef
-  3-level hierarchy (player⊂team⊂pos) Yurko 2019, Maas-Hox 2005     hierarchy
-  HMC/NUTS exact MCMC                 Hoffman-Gelman 2014           NUTS 4 chains
-  split-R-hat + ESS convergence       Gelman et al. 2013 /          numpyro.
-                                      Vehtari et al. 2021           diagnostics
-  Posterior predictive checks         Gelman et al. 2013            simulate +
-                                                                    KS + mean/sd
-
-Implementacion numpyro multivariate COMPLETA:
-  - NCP en TODOS los efectos aleatorios (no funnel en sigma_*)
-  - Random effects SEPARADOS por shock_type (GA chasing, GF protecting)
-    → indices Remontador/Cerrojo desde eta individual neto de equipo/posicion
-  - Cross-canal correlation LKJ independiente por shock type
-  - Priors informativos PFF_grade · gamma_k (Gomes-Mendes-Neves)
-  - target_accept_prob=0.95 para topologia LKJ + jerarquia 3 niveles
-  - R-hat < 1.05 + ESS_bulk > 400 verificado
-  - Smoke test 2-chain × (200 warmup + 200 samples) antes del run completo
-
-Modelo (NCP completo — Betancourt-Girolami 2015):
+Modelo (NCP completo):
     delta_iks ~ Normal(
         mu_shock[s,k] + b_context[i,k]
         + eta[i,s,k] + eta_x_td[i,s,k] * team_direction_z
@@ -45,50 +24,38 @@ Modelo (NCP completo — Betancourt-Girolami 2015):
         + b_elim[k]*elim_prox_z + eta_pressure[i,k] * elim_prox_z,
         sigma_eps[k])
     b_context[i,k] = gamma[k]*pff_grade[i] + b_team[t(i),k] + b_position[p(i),k]
-    b_team, b_position : NCP (sigma_* * raw, raw ~ Normal(0,1))
-    5 etas individuales, cada una NCP + LKJ cross-canal propia:
-      eta_ga, eta_gf            respuesta base por shock_type
-      eta_ga_x_td, eta_gf_x_td  pendiente individual x direccion del bloque
-      eta_pressure              pendiente individual x elim_prox_z
-    eta_s[i,:] = (sigma_s * L_s_corr) @ eta_raw_s[i,:]  (NCP, eta_raw ~ N(0,1))
-    L_*_corr ~ LKJCholesky(K=4, concentration=2.0)  (5 matrices)
-    mu_shock[s,k] ~ Normal(0, 0.5)
-    b_min/b_score/b_phase/b_lev/b_elim[k] ~ Normal(0, 0.5)
-    sigma_ga/gf/team/position/pressure ~ HalfNormal(0.5)
-    sigma_ga_x_td, sigma_gf_x_td ~ HalfNormal(0.3)  (regularizacion fuerte)
-    sigma_eps ~ HalfNormal(1.0);  gamma[k] ~ Normal(0, 1)
+    5 etas individuales (eta_ga, eta_gf, eta_ga_x_td, eta_gf_x_td, eta_pressure),
+    cada una NCP + LKJ cross-canal propia.
 
-Convergencia: los 2 bloques eta_x_td (interaccion team-direction) estan
-infra-identificados con N=172 shocks (sus LKJ no convergen, R-hat ~1.07).
-La capa fiable es eta_ga / eta_gf / eta_pressure. Detalle en docs/TFM.md.
+    delta_iks   = (post - pre) z-score within (channel, shock_type)
+    i           player_id PFF
+    k           canal in {ataque, defensa, offball, fisico} (sorted)
+    s           shock_type in {GOAL_AGAINST=0, GOAL_FOR=1} (sorted alphabetic)
 
-donde:
-    delta_iks = (post - pre) z-score within (channel, shock_type)
-    i = player_id PFF
-    k = canal ∈ {ataque, defensa, offball, fisico}  (orden: sorted)
-    s = shock_type ∈ {GOAL_AGAINST=0, GOAL_FOR=1}   (orden: sorted alphabetic)
+Convergencia: los 2 bloques eta_x_td estan infra-identificados con N=172
+shocks (LKJ con R-hat ~1.07). La capa fiable es eta_ga / eta_gf / eta_pressure.
 
-Indices PCJ (propuesta_final.md §Fase 5) — desde eta individual:
-  Indice Remontador (chasing-clutch):
-      = mean(eta_ga[i,atk] + eta_ga[i,off])
-      [empuje ofensivo + off-ball INDIVIDUAL al conceder, neto de equipo/pos]
-  Indice Cerrojo (protecting-clutch):
-      = mean(eta_gf[i,def] + eta_gf[i,phys])
-      [solidez defensiva + fisico INDIVIDUAL al marcar, neto de equipo/pos]
-  Ranking within position_group: percentil del jugador respecto a su rol.
+Indices PCJ (desde eta individual, neto de equipo/posicion):
+    chasing_clutch_idx  = mean(eta_ga[i,atk] + eta_ga[i,off])      Remontador
+    protecting_clutch_idx = mean(eta_gf[i,def] + eta_gf[i,phys])   Cerrojo
+    pressure_response_idx = mean(eta_pressure[i,:])                Pressure
+    Ranking within position_group: percentil del jugador respecto a su rol.
 
 Outputs (data/parquet/derived/cate/):
-  panel_delta.parquet    (player x shock x channel x shock_type → delta_z)
-  posterior_player.parquet  (player x channel x shock_type → eta mean/sd/CI80/CI95)
-  posterior_corr.parquet (shock_type x channel_k1 x channel_k2 → corr cross-canal)
-  indices.parquet        (player → chasing_clutch_idx, protecting_clutch_idx)
-  rankings.parquet       (player → rank_chasing, rank_protecting, rank_*_in_position)
-  diagnostics.parquet    (param → r_hat, ess_bulk, converged)
-  ppc.parquet            (canal x shock_type → KS_pvalue, mean/sd sim vs obs)
-  model/cate_nuts.pkl    (NUTS samples posterior)
+    panel_delta.parquet         player x shock x channel x shock_type -> delta_z
+    posterior_player.parquet    player x channel x shock_type -> eta mean/sd/CI80/CI95
+    posterior_corr.parquet      shock_type x channel_k1 x channel_k2 -> corr
+    indices.parquet             player -> chasing/protecting/pressure idx
+    rankings.parquet            player -> rank_chasing/protecting/pressure
+    diagnostics.parquet         param -> r_hat, ess_bulk, converged
+    ppc.parquet                 canal x shock_type -> KS_pvalue, mean/sd
+    posterior_probs.parquet     P(idx>0) por player + per-canal x shock
+    pressure_player.parquet     pressure_response_* per player
+    intra_corr_player.parquet   corr intra-jugador chasing(atk,off) / protecting(def,phys)
+    scenarios_player.parquet    cells (canal x shock x scenario team_attacks/defends)
+    model/cate_nuts.pkl         NUTS samples (~409 MB, gitignored)
 
-Depende de: M07 (shocks), M08-M11 (per_shock_window),
-            M03 preprocess pff_grades.parquet (priors PFF).
+Depende de M07 (shocks), M08-M11 (per_shock_window), preprocess/pff_grades.parquet.
 """
 
 from __future__ import annotations

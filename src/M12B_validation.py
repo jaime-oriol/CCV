@@ -1,23 +1,20 @@
-"""M12 validation suite SOTA: placebo + power + naive baseline + window sensitivity.
+"""M12B - Validation suite del DiD: placebo + power + window sens + naive baseline.
 
-Outputs en data/parquet/derived/did_validation/ — consumidos por M15
-(power_analysis). Complementa M12_did.py con tests robustez NO cubiertos
-en su pipeline.
+Complementa M12_did.py con tests de robustez no cubiertos en su pipeline.
+Outputs en data/parquet/derived/did_validation/ — consumidos por M15.
 
-Tests implementados:
-- placebo_test.parquet: permutation 1000 iter (within player-shock outcome shuffle).
-  Bajo H0 los pre/post son intercambiables. Devuelve p-empirico, z-score, IC95% null.
-- power_analysis.parquet: bootstrap MDE@80%, effective_n via ICC-correction,
-  posterior power para el real_ate observado.
-- baseline_naive.parquet: post-pre simple (within-player) vs M12 DiD ATE, z-test
-  de diferencia. Magnitud relativa demuestra valor de la correccion DiD.
-- window_sensitivity.parquet: re-estima ATE con ventanas +-3/5/7/10/15 minutos.
-- stage_stratified.parquet: ATE separado por stage (groups vs ko).
+Tests:
+    placebo_test.parquet         permutation 1000 iter (within player-shock
+                                 outcome shuffle). Devuelve p-emp, z-score, IC95
+    power_analysis.parquet       bootstrap MDE@80%, effective_n via ICC-corr,
+                                 posterior power para el real_ate observado
+    baseline_naive.parquet       post-pre simple vs DiD ATE; z-test de
+                                 diferencia (demuestra valor de la correccion)
+    window_sensitivity.parquet   re-estima ATE con ventanas +-3/5/7/10/15 min
+    stage_stratified.parquet     ATE separado por stage (groups vs ko)
 
-Lee M12 panels (`panel_{ch}.parquet`) que ya traen el outcome SOTA canonico
-(score_atk_v2 + un-xPass; score_def_v4 = vdep_strict + xpress + maejima;
-c_obso_mean; score_phys). Para window_sensitivity construye panel propio
-desde `per_minute.parquet` con los mismos outcome cols SOTA.
+Lee panels de M12 (`panel_{ch}.parquet`) con outcome canonico SOTA. Para
+window_sensitivity construye panel propio desde per_minute.parquet.
 
 Uso:
     python M12B_validation.py [overwrite]
