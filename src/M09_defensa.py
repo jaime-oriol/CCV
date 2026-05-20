@@ -1,5 +1,4 @@
-"""
-M09_defensa - Canal Solidez Defensiva.
+"""M09_defensa - Canal Solidez Defensiva.
 
 Fase 2 PCJ, canal 2 de 4. Valora la contribucion defensiva individual por
 jugador-minuto combinando on-ball (VAEP) con off-ball (tracking PFF 25 Hz).
@@ -82,7 +81,7 @@ from M07_shocks import build_shocks_table, attach_team_loo
 import M08_ataque as atk
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "defensa"
@@ -106,9 +105,7 @@ _PRESS_RADIUS_M    = 3.0
 _POSS_HYSTERESIS_F = 2
 
 
-# ===========================================================================
-#  SECCION 0 — Contexto defensivo off-ball via tracking PFF (bloque bajo)
-# ===========================================================================
+# ---- SECCION 0: Contexto defensivo off-ball via tracking PFF (bloque bajo) ----
 
 _DEF_CTX_SCHEMA = {
     "pff_match_id": pl.Int64, "player_id": pl.Int64,
@@ -354,9 +351,7 @@ def build_def_third_all(cache: bool = True) -> pl.DataFrame:
     return out
 
 
-# ===========================================================================
-#  SECCION 1 — Aggregation per player-minute
-# ===========================================================================
+# ---- SECCION 1: Aggregation per player-minute ----
 
 def aggregate_per_player_minute(cache: bool = True) -> pl.DataFrame:
     """Agrega defensive_value por (match_id, player_id_sb, minute) + n_def_actions.
@@ -541,9 +536,7 @@ def aggregate_per_player_minute(cache: bool = True) -> pl.DataFrame:
     return agg
 
 
-# ===========================================================================
-#  SECCION 2 — Aggregation per shock window
-# ===========================================================================
+# ---- SECCION 2: Aggregation per shock window ----
 
 def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
     """Por cada (shock, player), suma score_def y n_def_actions en pre/post.
@@ -806,12 +799,12 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
     return out
 
 
-# -- Sanity inline ---------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M09_defensa sanity ===")
+    print("[M09] sanity check")
 
     t0 = time.time()
     print("\n[1] Aggregating score_def + context def_third via tracking PFF...")

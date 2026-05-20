@@ -1,5 +1,4 @@
-"""
-Z02_pitch_control - PPCF (Spearman 2018) vectorizado, agnostico al proveedor.
+"""Z02_pitch_control - PPCF (Spearman 2018) vectorizado, agnostico al proveedor.
 
 Adapted from LaurieOnTracking (Friends-of-Tracking-Data-FoTD), reducido a lo
 nuclear que necesita M10 sobre tracking PFF. El adapter PFF -> formato Z02

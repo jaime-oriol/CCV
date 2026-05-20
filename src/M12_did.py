@@ -1,5 +1,4 @@
-"""
-M12_did - Identificacion causal del efecto del shock vía DiD within-player.
+"""M12_did - Identificacion causal del efecto del shock vía DiD within-player.
 
 Capa 3 del PCJ. Estima el efecto causal del shock emocional (gol favor / gol
 contra) sobre los 4 canales (ataque, defensa, off-ball, fisico) por jugador,
@@ -63,14 +62,14 @@ if str(_SRC_DIR) not in sys.path:
 from M07_shocks import compute_team_loo_at_minute
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "did"
 _SHOCKS  = _REPO / "data" / "parquet" / "derived" / "shocks" / "shocks_table.parquet"
 
 
-# -- Constantes pre-registradas -------------------------------------------
+# ---- Constantes pre-registradas ----
 
 WINDOW_MIN          = 10              # +-10 min (segun propuesta)
 RELATIVE_BINS       = list(range(-WINDOW_MIN, WINDOW_MIN + 1))  # -10..+10
@@ -101,9 +100,7 @@ CHANNELS: dict[str, tuple[str, str, float | None]] = {
 SHOCK_TYPES = ("GOAL_FOR", "GOAL_AGAINST")
 
 
-# ===========================================================================
-#  SECCION 1 — Panel constructor (1 union por celda + sanity)
-# ===========================================================================
+# ---- SECCION 1: Panel constructor (1 union por celda + sanity) ----
 
 def build_event_study_panel(channel: str,
                              clean_only: bool = True,
@@ -304,9 +301,7 @@ def build_all_panels(clean_only: bool = True, cache: bool = True,
             for ch in CHANNELS}
 
 
-# ===========================================================================
-#  SECCION 2 — ATE FE (player_shock)
-# ===========================================================================
+# ---- SECCION 2: ATE FE (player_shock) ----
 
 def estimate_ate(panel: pl.DataFrame, shock_type: str | None = None) -> dict:
     """ATE via FE: outcome ~ post | player_shock, cluster por player.
@@ -361,9 +356,7 @@ def estimate_ate(panel: pl.DataFrame, shock_type: str | None = None) -> dict:
     }
 
 
-# ===========================================================================
-#  SECCION 2.5 — ATE con controles stage + leverage
-# ===========================================================================
+# ---- SECCION 2.5 — ATE con controles stage + leverage ----
 
 def estimate_ate_with_controls(panel: pl.DataFrame,
                                  shock_type: str | None = None) -> dict:
@@ -427,9 +420,7 @@ def estimate_ate_with_controls(panel: pl.DataFrame,
     )
 
 
-# ===========================================================================
-#  SECCION 3 — Event-study Sun-Abraham (interaction-weighted)
-# ===========================================================================
+# ---- SECCION 3: Event-study Sun-Abraham (interaction-weighted) ----
 
 def event_study_sa(panel: pl.DataFrame, shock_type: str | None = None
                     ) -> pl.DataFrame:
@@ -484,9 +475,7 @@ def event_study_sa(panel: pl.DataFrame, shock_type: str | None = None
     return pl.DataFrame(rows).sort("relative_min")
 
 
-# ===========================================================================
-#  SECCION 4 — BJS imputation (Borusyak-Jaravel-Spiess 2024)
-# ===========================================================================
+# ---- SECCION 4: BJS imputation (Borusyak-Jaravel-Spiess 2024) ----
 
 def estimate_ate_bjs(panel: pl.DataFrame, shock_type: str | None = None) -> dict:
     """BJS imputation estimator (Borusyak-Jaravel-Spiess 2024) — implementacion
@@ -550,9 +539,7 @@ def estimate_ate_bjs(panel: pl.DataFrame, shock_type: str | None = None) -> dict
     }
 
 
-# ===========================================================================
-#  SECCION 5 — HonestDiD-style sensitivity (Rambachan-Roth 2023)
-# ===========================================================================
+# ---- SECCION 5: HonestDiD-style sensitivity (Rambachan-Roth 2023) ----
 
 def honest_did_sensitivity(es_df: pl.DataFrame,
                             M_values: tuple[float, ...] = HONEST_M_VALUES
@@ -614,9 +601,7 @@ def honest_did_sensitivity(es_df: pl.DataFrame,
     return pl.DataFrame(rows)
 
 
-# ===========================================================================
-#  SECCION 6 — Diagnostico pre-trends (Roth 2022 AERI)
-# ===========================================================================
+# ---- SECCION 6: Diagnostico pre-trends (Roth 2022 AERI) ----
 
 def pretrend_test(es_df: pl.DataFrame) -> dict:
     """F-test agregado sobre coefs pre-window: H0: β_τ = 0 ∀ τ < -1.
@@ -652,9 +637,7 @@ def pretrend_test(es_df: pl.DataFrame) -> dict:
     }
 
 
-# ===========================================================================
-#  SECCION 7 — API publica: compute_all + cache
-# ===========================================================================
+# ---- SECCION 7: API publica: compute_all + cache ----
 
 def compute_all(cache: bool = True, overwrite: bool = False) -> dict[str, Path]:
     """Pipeline completa M12: paneles + ATE + ES + BJS + HonestDiD + diagnostics.
@@ -728,12 +711,12 @@ def compute_all(cache: bool = True, overwrite: bool = False) -> dict[str, Path]:
     return out_paths
 
 
-# -- Sanity inline ---------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M12_did sanity ===\n")
+    print("[M12] sanity check")
 
     # [1] Paneles por canal
     print("[1] Build paneles por canal (clean_only=True)...")

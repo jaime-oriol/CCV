@@ -1,5 +1,4 @@
-"""
-M11_fisico - Canal Pulso Fisico via metricas Bradley 2024 SOTA + residual bayesiano.
+"""M11_fisico - Canal Pulso Fisico via metricas Bradley 2024 SOTA + residual bayesiano.
 
 Fase 2 PCJ, canal 4 de 4. Aisla "lo que el jugador APRIETA" (decision mental)
 de "lo que el jugador PUEDE" (estado fisico) reportando el RESIDUO de tres
@@ -74,13 +73,13 @@ from M01_loader_pff import (
 from M07_shocks import build_shocks_table, attach_team_loo
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "fisico"
 
 
-# -- Parametros fisicos pre-registrados -------------------------------------
+# ---- Parametros fisicos pre-registrados ----
 
 # Velocity thresholds (Bradley 2024 + Ju et al. 2022)
 HSR_THRESHOLD_MPS    = 19.8 / 3.6     # 5.50 m/s = 19.8 km/h
@@ -121,9 +120,7 @@ _FPS_DEFAULT      = 25.0
 _MIN_SEGMENT_FRAMES = 16
 
 
-# ===========================================================================
-#  SECCION 1 — Limpieza tracking + velocidades smoothed
-# ===========================================================================
+# ---- SECCION 1: Limpieza tracking + velocidades smoothed ----
 
 def _butter_lowpass_filtfilt(signal: np.ndarray, fs: float = _FPS_DEFAULT,
                               cutoff: float = _BUTTER_CUTOFF_HZ,
@@ -309,9 +306,7 @@ def _count_sprint_events(speed: np.ndarray, fs: float = _FPS_DEFAULT) -> int:
     return merged
 
 
-# ===========================================================================
-#  SECCION 2 — Metricas fisicas per (player, minute)
-# ===========================================================================
+# ---- SECCION 2: Metricas fisicas per (player, minute) ----
 
 # Offsets para convertir (period, minute) <-> seconds-since-match-start.
 # Coinciden con la convencion PFF/SB: period 1 [0, 45min), 2 [45, 90),
@@ -599,9 +594,7 @@ def build_raw_per_minute(cache: bool = True, overwrite: bool = False,
     return out
 
 
-# ===========================================================================
-#  SECCION 3 — Modelo bayesiano jerarquico multivariate (numpyro SVI)
-# ===========================================================================
+# ---- SECCION 3: Modelo bayesiano jerarquico multivariate (numpyro SVI) ----
 #
 #  Diseño causal honesto: NO modelamos fatigue explicitamente. La razon es
 #  que cualquier proxy minute-level de fatigue (e.g., HMLD acumulada) esta
@@ -855,9 +848,7 @@ def cache_score_phys(overwrite: bool = False, n_steps: int = 4000) -> pl.DataFra
     return out
 
 
-# ===========================================================================
-#  SECCION 4 — Aggregate per_shock_window (pre/post +-10min)
-# ===========================================================================
+# ---- SECCION 4: Aggregate per_shock_window (pre/post +-10min) ----
 
 def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
     """Por cada (shock, player), suma score_phys + metricas raw en pre/post."""
@@ -973,12 +964,12 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
     return out
 
 
-# -- Sanity inline ----------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M11_fisico ELITE pipeline completo ===\n")
+    print("[M11] sanity check")
 
     # Paso 1: Metricas raw Bradley 2024 SOTA
     print("[1] Metricas raw fisicas (Butterworth 1Hz + Hampel + segmentacion teleports)")

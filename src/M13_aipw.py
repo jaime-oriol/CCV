@@ -1,5 +1,4 @@
-"""
-M13_aipw - Validacion causal independiente vía cuasi-experimento near-miss.
+"""M13_aipw - Validacion causal independiente vía cuasi-experimento near-miss.
 
 Capa 3 PCJ — Estrategia B (Gauriot & Page 2019, ReStat). Estima ATT del shock
 sobre los 4 canales explotando que, dado pre-shot xG en rango comparable, que
@@ -60,7 +59,7 @@ import numpy as np
 import polars as pl
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "aipw"
@@ -69,7 +68,7 @@ _NM      = _REPO / "data" / "parquet" / "derived" / "nearmiss" / "nearmiss_table
 _DID     = _REPO / "data" / "parquet" / "derived" / "did"
 
 
-# -- Constantes pre-registradas -------------------------------------------
+# ---- Constantes pre-registradas ----
 
 XG_PRIMARY_LO   = 0.15           # goles candidatos: xg pre-shot in [LO, HI]
 XG_PRIMARY_HI   = 0.85
@@ -108,9 +107,7 @@ COVARIATES = [
 ]
 
 
-# ===========================================================================
-#  SECCION 1 — Universe: pool treated (goles) + control (near-miss)
-# ===========================================================================
+# ---- SECCION 1: Universe: pool treated (goles) + control (near-miss) ----
 
 def build_shot_pool(xg_lo: float = XG_PRIMARY_LO,
                      xg_hi: float = XG_PRIMARY_HI,
@@ -190,9 +187,7 @@ def _enrich_shooter_team(pool: pl.DataFrame) -> pl.DataFrame:
     return pool.join(teams, on="event_uuid", how="left")
 
 
-# ===========================================================================
-#  SECCION 2 — Players in field at shot moment (PFF rosters + minutes)
-# ===========================================================================
+# ---- SECCION 2: Players in field at shot moment (PFF rosters + minutes) ----
 
 def players_in_field_at_shot(pool: pl.DataFrame) -> pl.DataFrame:
     """Para cada shot, devuelve los ~22 jugadores en campo en ese minuto.
@@ -278,9 +273,7 @@ def _attach_perspective(df: pl.DataFrame, pool: pl.DataFrame) -> pl.DataFrame:
     return df.with_columns(pl.Series("perspective", persp))
 
 
-# ===========================================================================
-#  SECCION 3 — Outcomes post-shot por canal
-# ===========================================================================
+# ---- SECCION 3: Outcomes post-shot por canal ----
 
 def attach_outcomes(panel: pl.DataFrame, pool: pl.DataFrame,
                      channel: str, relative: bool = True) -> pl.DataFrame:
@@ -409,9 +402,7 @@ def build_panel_for_channel_perspective(
     return panel
 
 
-# ===========================================================================
-#  SECCION 4 — AIPW via DoubleMLIRM (Chernozhukov 2018)
-# ===========================================================================
+# ---- SECCION 4: AIPW via DoubleMLIRM (Chernozhukov 2018) ----
 
 def estimate_att_aipw(panel: pl.DataFrame) -> dict:
     """ATT via DoubleML IRM (AIPW): cross-fit 5-fold by sb_match_id.
@@ -462,9 +453,7 @@ def estimate_att_aipw(panel: pl.DataFrame) -> dict:
     }
 
 
-# ===========================================================================
-#  SECCION 5 — DML PLR (Partially Linear Regression)
-# ===========================================================================
+# ---- SECCION 5: DML PLR (Partially Linear Regression) ----
 
 def estimate_att_dml_plr(panel: pl.DataFrame) -> dict:
     """ATT via DoubleML PLR: especificacion lineal en treatment, no-param X."""
@@ -500,9 +489,7 @@ def estimate_att_dml_plr(panel: pl.DataFrame) -> dict:
             "n_obs": int(df.shape[0])}
 
 
-# ===========================================================================
-#  SECCION 6 — DR-learner manual (Kennedy 2023, oraculo-optimo)
-# ===========================================================================
+# ---- SECCION 6: DR-learner manual (Kennedy 2023, oraculo-optimo) ----
 
 def estimate_att_dr_learner(panel: pl.DataFrame) -> dict:
     """ATT via DR-learner cross-fitted LightGBM (Kennedy 2023).
@@ -580,9 +567,7 @@ def estimate_att_dr_learner(panel: pl.DataFrame) -> dict:
             "n_obs": int(len(Y)), "n_treated": int(D.sum())}
 
 
-# ===========================================================================
-#  SECCION 7 — RDD local-lineal sobre PSxG (Imbens-Kalyanaraman)
-# ===========================================================================
+# ---- SECCION 7: RDD local-lineal sobre PSxG (Imbens-Kalyanaraman) ----
 
 def estimate_att_rdd(panel: pl.DataFrame, threshold: float = RDD_THRESHOLD,
                       bandwidth: float = 0.20) -> dict:
@@ -645,9 +630,7 @@ def estimate_att_rdd(panel: pl.DataFrame, threshold: float = RDD_THRESHOLD,
             "threshold": threshold}
 
 
-# ===========================================================================
-#  SECCION 8 — Specification curve (Simonsohn 2020)
-# ===========================================================================
+# ---- SECCION 8: Specification curve (Simonsohn 2020) ----
 
 def specification_curve(channel: str, perspective: str) -> pl.DataFrame:
     """3 def near-miss (estricta/intermedia/laxa) → ATT AIPW para cada."""
@@ -670,9 +653,7 @@ def specification_curve(channel: str, perspective: str) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-# ===========================================================================
-#  SECCION 9 — Balance test (SMD pre-balanceo)
-# ===========================================================================
+# ---- SECCION 9: Balance test (SMD pre-balanceo) ----
 
 def balance_check(panel: pl.DataFrame) -> pl.DataFrame:
     """Standardized Mean Difference por covariable (Sant'Anna-Song-Xu 2022).
@@ -699,9 +680,7 @@ def balance_check(panel: pl.DataFrame) -> pl.DataFrame:
     return pl.DataFrame(rows).sort("abs_smd", descending=True)
 
 
-# ===========================================================================
-#  SECCION 10 — Sensitivity analysis (Cinelli-Hazlett 2020)
-# ===========================================================================
+# ---- SECCION 10: Sensitivity analysis (Cinelli-Hazlett 2020) ----
 
 def sensitivity_analysis(att_dict: dict, panel: pl.DataFrame) -> dict:
     """Robustness Value (Cinelli-Hazlett 2020): cuanta confounding hace falta
@@ -735,9 +714,7 @@ def sensitivity_analysis(att_dict: dict, panel: pl.DataFrame) -> dict:
             "interpretation": interp}
 
 
-# ===========================================================================
-#  SECCION 11 — compute_all + comparacion M12
-# ===========================================================================
+# ---- SECCION 11: compute_all + comparacion M12 ----
 
 def compare_with_m12(att_df: pl.DataFrame) -> pl.DataFrame:
     """Compara ATT M13 (AIPW) vs ATE M12 (DiD FE) por (canal, shock_type).
@@ -854,7 +831,7 @@ def compute_all(cache: bool = True, overwrite: bool = False) -> dict[str, Path]:
     return out_paths
 
 
-# -- Sanity inline ---------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time, sys
@@ -862,7 +839,7 @@ if __name__ == "__main__":
     import warnings
     warnings.filterwarnings("ignore")
 
-    print("=== M13_aipw sanity ===\n")
+    print("[M13] sanity check")
 
     print("[1] Build pool treated (goles xg in [0.15, 0.85]) + control (near-miss)...")
     t0 = time.time()

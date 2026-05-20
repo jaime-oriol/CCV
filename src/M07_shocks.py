@@ -1,5 +1,4 @@
-"""
-M07_shocks - Deteccion de shocks emocionales (goles) + ventanas ±10 min por jugador.
+"""M07_shocks - Deteccion de shocks emocionales (goles) + ventanas ±10 min por jugador.
 
 Un shock = gol valido (excluye disallowed + tandas penaltis; ya filtrado
 por M03 goals_timeline). Por cada shock genera filas por jugador en campo
@@ -58,21 +57,19 @@ from M03_preprocess import (
 )
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "shocks"
 
 
-# -- Constantes pre-registradas -------------------------------------------
+# ---- Constantes pre-registradas ----
 
 WINDOW_SECONDS = 600       # ±10 min
 OVERLAP_SECONDS = 600      # otro shock dentro de ±10 min = overlap
 
 
-# ===========================================================================
-#  SECCION 1 — Helpers
-# ===========================================================================
+# ---- SECCION 1: Helpers ----
 
 def _period_boundaries(match_id: int) -> dict[int, tuple[int, int]]:
     """Inicio y fin (en start_game_clock seconds) de cada periodo observado."""
@@ -112,9 +109,7 @@ def _truncated_by_period(t_event: int, period: int,
         return ideal_end, False
 
 
-# ===========================================================================
-#  SECCION 2 — Build shocks table
-# ===========================================================================
+# ---- SECCION 2: Build shocks table ----
 
 def build_shocks_table(cache: bool = True,
                        overwrite: bool = False) -> pl.DataFrame:
@@ -585,12 +580,12 @@ def summary_shocks(df: pl.DataFrame) -> pl.DataFrame:
     ]).sort("shock_type")
 
 
-# -- Sanity inline ---------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M07_shocks sanity ===")
+    print("[M07] sanity check")
     t0 = time.time()
     df = build_shocks_table(cache=True, overwrite=True)
     print(f"shocks table built en {time.time()-t0:.1f}s")

@@ -1,5 +1,4 @@
-"""
-M05_psxg - Post-shot xG (PSxG) via LightGBM + calibracion isotonic.
+"""M05_psxg - Post-shot xG (PSxG) via LightGBM + calibracion isotonic.
 
 Training: StatsBomb events + 360 freeze-frames.
 Corpus: Euro 2020 + Euro 2024 + Bundesliga 23/24 = 136 partidos, 3.545 shots.
@@ -48,14 +47,14 @@ from M02_loader_public import (
 )
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "psxg"
 _MODEL   = _DERIVED / "model"
 
 
-# -- Geometria SB (coords 120x80, gol en x=120, center y=40) ----------------
+# ---- Geometria SB (coords 120x80, gol en x=120, center y=40) ----
 
 _SB_PITCH_X   = 120.0
 _SB_PITCH_Y   = 80.0
@@ -65,9 +64,7 @@ _SB_GOAL_HALF = 4.0          # half-width del gol (y in [36, 44])
 _NEAR_ENDPOINT_RADIUS = 3.0  # unidades SB (1 unit ≈ 1 yard ≈ 0.91m, ~2.74m)
 
 
-# ===========================================================================
-#  SECCION 1 — Feature engineering
-# ===========================================================================
+# ---- SECCION 1: Feature engineering ----
 
 def _angle_to_goal(x: float, y: float) -> float:
     """Angulo en radianes del shot location al gol (center)."""
@@ -280,9 +277,7 @@ def _shot_to_features(ev_dict: dict) -> dict | None:
     return feats
 
 
-# ===========================================================================
-#  SECCION 2 — Build dataset
-# ===========================================================================
+# ---- SECCION 2: Build dataset ----
 
 def _collect_shots_from_matches(match_ids: list[int]) -> pl.DataFrame:
     """Recorre matches, extrae features de cada shot."""
@@ -339,9 +334,7 @@ def build_wc22_shots(cache: bool = True) -> pl.DataFrame:
     return df
 
 
-# ===========================================================================
-#  SECCION 3 — Entreno LightGBM + isotonic calibration
-# ===========================================================================
+# ---- SECCION 3: Entreno LightGBM + isotonic calibration ----
 
 FEATURE_COLS = [
     # Pre-shot geometria
@@ -583,9 +576,7 @@ def load_fit(path: Path | None = None) -> dict:
         return pickle.load(f)
 
 
-# ===========================================================================
-#  SECCION 4 — Predict + cache aplicacion
-# ===========================================================================
+# ---- SECCION 4: Predict + cache aplicacion ----
 
 def predict_psxg(shots_df: pl.DataFrame, fit: dict) -> np.ndarray:
     """Predice PSxG calibrado para un DataFrame de shots."""
@@ -620,12 +611,12 @@ def cache_wc22_psxg(fit: dict, overwrite: bool = False) -> Path:
     return out_path
 
 
-# -- Sanity inline ----------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M05_psxg sanity ===")
+    print("[M05] sanity check")
 
     t0 = time.time()
     train = build_training_shots(cache=True)

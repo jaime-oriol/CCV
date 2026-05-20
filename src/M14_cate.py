@@ -1,5 +1,4 @@
-"""
-M14_cate - CATE jerarquico bayesiano multivariate UNIFICADO (3 dimensiones).
+"""M14_cate - CATE jerarquico bayesiano multivariate UNIFICADO (3 dimensiones).
 
 Capa 4 PCJ. Estima el efecto causal HETEROGENEO por jugador del shock
 emocional sobre los 4 canales conjuntamente, en las TRES dimensiones de la
@@ -102,7 +101,7 @@ import pandas as pd
 import polars as pl
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "cate"
@@ -110,7 +109,7 @@ _MODEL   = _DERIVED / "model"
 _PFF_GRADES = _REPO / "data" / "parquet" / "derived" / "preprocess" / "pff_grades.parquet"
 
 
-# -- Constantes pre-registradas --------------------------------------------
+# ---- Constantes pre-registradas ----
 
 CHANNELS: dict[str, tuple[str, str, str, str]] = {
     # (path, col_pre_abs, col_post_abs, col_delta_relative).
@@ -143,9 +142,7 @@ PROTECTING_COMPONENTS = (("defensa", "GOAL_FOR"),
                           ("fisico",  "GOAL_FOR"))
 
 
-# ===========================================================================
-#  SECCION 1 — Build delta panel (player × shock × channel × shock_type)
-# ===========================================================================
+# ---- SECCION 1: Build delta panel (player × shock × channel × shock_type) ----
 
 def build_delta_panel(cache: bool = True, relative: bool = True) -> pl.DataFrame:
     """Panel long: (pff_player_id, shock_id, channel, shock_type, delta_z).
@@ -289,9 +286,7 @@ def attach_pff_grades(panel: pl.DataFrame) -> pl.DataFrame:
     return panel
 
 
-# ===========================================================================
-#  SECCION 2 — Modelo Multivariate Bayesian Hierarchical (numpyro NUTS)
-# ===========================================================================
+# ---- SECCION 2: Modelo Multivariate Bayesian Hierarchical (numpyro NUTS) ----
 
 def _model_mvbcf(player_idx, shock_idx, channel_idx,
                   pff_grade_z,
@@ -538,9 +533,7 @@ def fit_cate_nuts(panel: pl.DataFrame,
     }
 
 
-# ===========================================================================
-#  SECCION 3 — Diagnosticos: R-hat + ESS (Gelman-Rubin)
-# ===========================================================================
+# ---- SECCION 3: Diagnosticos: R-hat + ESS (Gelman-Rubin) ----
 
 def compute_diagnostics(fit: dict) -> pl.DataFrame:
     """split-R-hat + ESS por componente escalar de cada parametro de escala.
@@ -592,9 +585,7 @@ def compute_diagnostics(fit: dict) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-# ===========================================================================
-#  SECCION 4 — Posterior predictive check (KS-test)
-# ===========================================================================
+# ---- SECCION 4: Posterior predictive check (KS-test) ----
 
 def posterior_predictive_check(fit: dict, panel: pl.DataFrame,
                                 n_replicates: int = 20,
@@ -678,9 +669,7 @@ def posterior_predictive_check(fit: dict, panel: pl.DataFrame,
     return pl.DataFrame(rows)
 
 
-# ===========================================================================
-#  SECCION 5 — Posterior per player + cross-canal correlation
-# ===========================================================================
+# ---- SECCION 5: Posterior per player + cross-canal correlation ----
 
 def posterior_per_player(fit: dict) -> pl.DataFrame:
     """IC bayesianos per (player, channel, shock_type) desde eta individual.
@@ -768,9 +757,7 @@ def posterior_cross_canal_corr(fit: dict) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-# ===========================================================================
-#  SECCION 6 — Indices PCJ + ranking within position
-# ===========================================================================
+# ---- SECCION 6: Indices PCJ + ranking within position ----
 
 def compute_indices(fit: dict) -> pl.DataFrame:
     """Indices PCJ desde eta individual (neto de team/pos/grade).
@@ -860,9 +847,7 @@ def compute_rankings(indices: pl.DataFrame, panel: pl.DataFrame) -> pl.DataFrame
     return df
 
 
-# ===========================================================================
-#  SECCION 6.5 — Dumps de derivados del posterior (para desacoplar M15 del pkl)
-# ===========================================================================
+# ---- SECCION 6.5 — Dumps de derivados del posterior (para desacoplar M15 del pkl) ----
 #
 # Estos 4 dumps vuelcan a parquet TODO lo que M15 necesita derivar de los
 # `samples` crudos del NUTS. Asi M15 no depende del pkl de 409 MB, y futuros
@@ -1006,9 +991,7 @@ def _dump_all_sample_derivatives(fit: dict, paths: dict[str, Path]) -> None:
     _dump_scenarios_player(fit, paths["scenarios"])
 
 
-# ===========================================================================
-#  SECCION 7 — compute_all + cache
-# ===========================================================================
+# ---- SECCION 7: compute_all + cache ----
 
 def compute_all(cache: bool = True, overwrite: bool = False,
                  num_warmup: int = NUTS_NUM_WARMUP,
@@ -1087,9 +1070,7 @@ def compute_all(cache: bool = True, overwrite: bool = False,
     return out_paths
 
 
-# ===========================================================================
-#  SECCION 7.5 — Smoke test (2 chains x 100 iter, 5 partidos, ~2-3 min)
-# ===========================================================================
+# ---- SECCION 7.5 — Smoke test (2 chains x 100 iter, 5 partidos, ~2-3 min) ----
 
 def run_smoke_test(seed: int = 0, n_matches: int = 10,
                     num_warmup: int = 200, num_samples: int = 200) -> bool:
@@ -1123,9 +1104,7 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
     n_te = len(fit["t_to_idx"])
     n_po = len(fit["pos_to_idx"])
 
-    # ------------------------------------------------------------------ #
-    # T1. Shapes de TODOS los sites del modelo
-    # ------------------------------------------------------------------ #
+    # ---- T1. Shapes de TODOS los sites del modelo ----
     expected_shapes = {
         "eta_ga":           (n_total, n_pl, n_ch),
         "eta_gf":           (n_total, n_pl, n_ch),
@@ -1172,9 +1151,7 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
         return False
     print(f"  T1 shapes: OK ({len(expected_shapes)} sites)")
 
-    # ------------------------------------------------------------------ #
-    # T2. Divergencias HMC (= 0 ideal, < 1% tolerable)
-    # ------------------------------------------------------------------ #
+    # ---- T2. Divergencias HMC (= 0 ideal, < 1% tolerable) ----
     n_div = fit.get("n_diverging", 0)
     div_ratio = n_div / (2 * num_samples) if num_samples else 0
     if div_ratio > 0.01:
@@ -1182,9 +1159,7 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
         return False
     print(f"  T2 divergencias: OK ({n_div}/{2*num_samples})")
 
-    # ------------------------------------------------------------------ #
-    # T3. NCP identity: eta_ga ?= eta_raw_ga @ L_ga.T para una muestra random
-    # ------------------------------------------------------------------ #
+    # ---- T3. NCP identity: eta_ga ?= eta_raw_ga @ L_ga.T para una muestra random ----
     rng = np.random.default_rng(seed)
     r = int(rng.integers(0, n_total))
     L_ga_corr_r = s["L_ga_corr"][r]                # (K, K)
@@ -1199,9 +1174,7 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
         return False
     print(f"  T3 NCP identity: OK (max_diff={max_diff:.2e})")
 
-    # ------------------------------------------------------------------ #
-    # T4. Posterior sanity: escalas en rangos razonables
-    # ------------------------------------------------------------------ #
+    # ---- T4. Posterior sanity: escalas en rangos razonables ----
     sanity = []
     for name in ("sigma_ga", "sigma_gf", "sigma_ga_x_td", "sigma_gf_x_td",
                   "sigma_pressure", "sigma_team", "sigma_position", "sigma_eps"):
@@ -1220,9 +1193,7 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
         return False
     print(f"  T4 posterior sanity: OK")
 
-    # ------------------------------------------------------------------ #
-    # T5. PPC: medias simuladas vs observadas (< 0.1 diff con 100 iter)
-    # ------------------------------------------------------------------ #
+    # ---- T5. PPC: medias simuladas vs observadas (< 0.1 diff con 100 iter) ----
     ppc = posterior_predictive_check(fit, panel, n_replicates=10)
     bad_ppc = ppc.filter(
         (pl.col("obs_mean") - pl.col("sim_mean")).abs() > 0.1
@@ -1233,9 +1204,7 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
         return False
     print(f"  T5 PPC: OK (todas las medias simuladas dentro de 0.1 de obs)")
 
-    # ------------------------------------------------------------------ #
-    # T6. Pipeline de extraccion completo
-    # ------------------------------------------------------------------ #
+    # ---- T6. Pipeline de extraccion completo ----
     post = posterior_per_player(fit)
     # 5 perspectivas: GA, GF, PRESSURE, GA_X_TEAMDIR, GF_X_TEAMDIR
     assert post.height == n_pl * n_ch * 5, f"posterior shape: {post.height}"
@@ -1249,9 +1218,7 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
     print(f"  T6 extraccion: OK (post={post.height}, corr={corr.height}, "
           f"idx={idx.height}, rank={rank.height}, diag={diag.height} params)")
 
-    # ------------------------------------------------------------------ #
-    # T7. Face validity: ranking diferenciado en las 3 dimensiones
-    # ------------------------------------------------------------------ #
+    # ---- T7. Face validity: ranking diferenciado en las 3 dimensiones ----
     cci_range = float(idx["chasing_clutch_idx"].max() - idx["chasing_clutch_idx"].min())
     pci_range = float(idx["protecting_clutch_idx"].max() - idx["protecting_clutch_idx"].min())
     pri_range = float(idx["pressure_response_idx"].max()
@@ -1263,9 +1230,7 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
     print(f"  T7 differentiation: OK (cci={cci_range:.3f}, pci={pci_range:.3f}, "
           f"pri={pri_range:.3f})")
 
-    # ------------------------------------------------------------------ #
-    # T8. R-hat ESS sanity: laxo para 200 samples (R-hat < 1.5 OK)
-    # ------------------------------------------------------------------ #
+    # ---- T8. R-hat ESS sanity: laxo para 200 samples (R-hat < 1.5 OK) ----
     bad_rhat = diag.filter(pl.col("r_hat") > 1.5)
     if bad_rhat.height > diag.height * 0.2:   # > 20% de params con R-hat alto
         print(f"  T8 R-hat: WARN ({bad_rhat.height}/{diag.height} con R-hat>1.5)")
@@ -1276,14 +1241,14 @@ def run_smoke_test(seed: int = 0, n_matches: int = 10,
     return True
 
 
-# -- Sanity inline ---------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import sys, warnings
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     warnings.filterwarnings("ignore")
 
-    print("=== M14_cate smoke test ===\n")
+    print("[M14] sanity check")
     ok = run_smoke_test()
     if not ok:
         print("\n[ABORT] Smoke test fallido — corrige el modelo antes de lanzar el run completo.")

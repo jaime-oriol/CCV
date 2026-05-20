@@ -1,5 +1,4 @@
-"""
-M08_ataque - Canal Empuje Ofensivo via Atomic-VAEP (Decroos & Davis 2020).
+"""M08_ataque - Canal Empuje Ofensivo via Atomic-VAEP (Decroos & Davis 2020).
 
 Fase 2 PCJ, canal 1 de 4. Valora la produccion ofensiva on-ball por jugador.
 Aisla la contribucion individual del rendimiento de sus companeros (atomic
@@ -73,7 +72,7 @@ def _import_vaep_stack():
     return vaep_mod, spadl, StatsBombLoader, convert_to_atomic, atomic_add_names
 
 
-# -- Rutas y constantes ----------------------------------------------------
+# ---- Rutas y constantes ----
 
 _REPO        = Path(__file__).resolve().parents[1]
 _DERIVED     = _REPO / "data" / "parquet" / "derived" / "ataque"
@@ -113,9 +112,7 @@ def _get_sb_loader():
     return _SB_LOADER_CACHE
 
 
-# ===========================================================================
-#  SECCION 1 — Build Atomic SPADL (training + WC22)
-# ===========================================================================
+# ---- SECCION 1: Build Atomic SPADL (training + WC22) ----
 
 def _build_atomic_actions(comps: list[tuple], cache_name: str,
                           overwrite: bool = False) -> pd.DataFrame:
@@ -171,9 +168,7 @@ def build_wc22_atomic(overwrite: bool = False) -> pd.DataFrame:
     return _build_atomic_actions([WC22_COMP], "wc22", overwrite)
 
 
-# ===========================================================================
-#  SECCION 2 — Train atomic-VAEP via Z01
-# ===========================================================================
+# ---- SECCION 2: Train atomic-VAEP via Z01 ----
 
 def _get_match_folds(match_ids: np.ndarray, n_folds: int,
                       seed: int) -> list[np.ndarray]:
@@ -376,9 +371,7 @@ def load_models(path_prefix: Path | None = None) -> dict:
     return {"model_s": m_s, "model_c": m_c, **meta}
 
 
-# ===========================================================================
-#  SECCION 3 — Apply a WC22 + aggregate per player-minute
-# ===========================================================================
+# ---- SECCION 3: Apply a WC22 + aggregate per player-minute ----
 
 def apply_vaep_to_wc22(fit: dict,
                        wc22_atomic: pd.DataFrame | None = None) -> pd.DataFrame:
@@ -510,9 +503,7 @@ def aggregate_per_player_minute(wc22_with_vaep: pd.DataFrame,
     return agg
 
 
-# ===========================================================================
-#  SECCION 4 — Mapping SB player_id <-> PFF player_id
-# ===========================================================================
+# ---- SECCION 4: Mapping SB player_id <-> PFF player_id ----
 
 def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
     """Mapea SB player_id -> PFF player_id via (nombre, equipo) join.
@@ -797,9 +788,7 @@ def build_sb_to_pff_player_map(cache: bool = True) -> pl.DataFrame:
     return mapping
 
 
-# ===========================================================================
-#  SECCION 5 — Aggregate per shock window (pre/post ±10 min)
-# ===========================================================================
+# ---- SECCION 5: Aggregate per shock window (pre/post ±10 min) ----
 
 def aggregate_per_shock_window(per_minute: pl.DataFrame,
                                 player_map: pl.DataFrame,
@@ -981,12 +970,12 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
     return out
 
 
-# -- Sanity inline ---------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M08_ataque sanity ===")
+    print("[M08] sanity check")
 
     # 1. Build training atomic SPADL (cached)
     t0 = time.time()

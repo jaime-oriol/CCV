@@ -1,5 +1,4 @@
-"""
-Z01_vaep - Atomic-VAEP feature/label extraction + persistencia de modelos.
+"""Z01_vaep - Atomic-VAEP feature/label extraction + persistencia de modelos.
 
 Wrapper minimo sobre `socceraction.atomic.vaep` para exponer SOLO lo que M08
 necesita (M08 hace su propio train + Optuna + isotonic + apply, asi que aqui
@@ -75,7 +74,7 @@ from socceraction.atomic.vaep import labels as _al
 from socceraction.atomic.vaep import formula as _afm
 
 
-# -- Constantes -------------------------------------------------------------
+# ---- Constantes ----
 
 _CACHE = Path(__file__).resolve().parents[1] / "cache" / "vaep"
 
@@ -94,7 +93,7 @@ _ATOMIC_FEAT_FNS = [
 ]
 
 
-# -- Helpers privados -------------------------------------------------------
+# ---- Helpers privados ----
 
 def _feat_fns(atomic: bool) -> list:
     return _ATOMIC_FEAT_FNS if atomic else _VAEP_FEAT_FNS
@@ -117,7 +116,7 @@ def _mode_tag(atomic: bool) -> str:
     return "atomic" if atomic else "vaep"
 
 
-# -- Features ---------------------------------------------------------------
+# ---- Features ----
 
 def compute_features(
     actions: pd.DataFrame,
@@ -166,7 +165,7 @@ def compute_features(
     return pd.concat(parts, ignore_index=True)
 
 
-# -- Labels -----------------------------------------------------------------
+# ---- Labels ----
 
 def compute_labels(
     actions: pd.DataFrame,
@@ -218,7 +217,7 @@ def compute_labels(
             pd.concat(concedes_parts, ignore_index=True))
 
 
-# -- Save / Load modelos CatBoost -------------------------------------------
+# ---- Save / Load modelos CatBoost ----
 
 def save_models(
     model_scores: CatBoostClassifier,

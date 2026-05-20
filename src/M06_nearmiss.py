@@ -1,5 +1,4 @@
-"""
-M06_nearmiss - Identificacion cuasi-experimental de "casi gol" (near-miss).
+"""M06_nearmiss - Identificacion cuasi-experimental de "casi gol" (near-miss).
 
 Consumer directo de M05 PSxG. Produce los contrafactuales exogenos para la
 Estrategia B causal (Gauriot & Page 2019 style: el resultado de un shot a
@@ -45,14 +44,14 @@ from M02_loader_public import (
 )
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "nearmiss"
 _PSXG    = _REPO / "data" / "parquet" / "derived" / "psxg" / "shots.parquet"
 
 
-# -- Umbrales pre-registrados ----------------------------------------------
+# ---- Umbrales pre-registrados ----
 
 PSXG_SAVE_STRICT     = 0.60
 XG_SAVE_LAX          = 0.40
@@ -61,9 +60,7 @@ XG_POST_MAX          = 0.85
 OFFSIDE_TIGHT_SB_UNITS = 1.5   # margen X attacker - last defender (SB units = yards, ≈ 1.37m)
 
 
-# ===========================================================================
-#  SECCION 1 — Loaders de data pre-computada
-# ===========================================================================
+# ---- SECCION 1: Loaders de data pre-computada ----
 
 def _load_psxg_shots() -> pl.DataFrame:
     """Carga la tabla PSxG cacheada de M05."""
@@ -75,9 +72,7 @@ def _load_psxg_shots() -> pl.DataFrame:
     return pl.read_parquet(_PSXG)
 
 
-# ===========================================================================
-#  SECCION 2 — Detectores por tipo de near-miss
-# ===========================================================================
+# ---- SECCION 2: Detectores por tipo de near-miss ----
 
 def _detect_woodwork(psxg: pl.DataFrame, lax: bool = False) -> pl.DataFrame:
     """(a) Palo/travesano: outcome Post/Saved to Post, xg pre-shot en rango.
@@ -314,9 +309,7 @@ def _detect_offside_tight(match_ids: list[int],
     return pl.DataFrame(rows, schema_overrides=_OFFSIDE_SCHEMA)
 
 
-# ===========================================================================
-#  SECCION 3 — API publica: build_near_miss_table
-# ===========================================================================
+# ---- SECCION 3: API publica: build_near_miss_table ----
 
 def build_near_miss_table(cache: bool = True,
                           overwrite: bool = False,
@@ -405,12 +398,12 @@ def summary_by_type(nm: pl.DataFrame) -> pl.DataFrame:
     return nm.group_by("near_miss_type").len().sort("near_miss_type")
 
 
-# -- Sanity inline ---------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M06_nearmiss sanity ===")
+    print("[M06] sanity check")
     t0 = time.time()
     nm = build_near_miss_table(cache=True, overwrite=True)
     print(f"near-miss table built en {time.time()-t0:.1f}s")

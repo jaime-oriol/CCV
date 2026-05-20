@@ -1,5 +1,4 @@
-"""
-M10_offball - Canal Inteligencia Espacial Off-ball via OBSO completo (Spearman 2018).
+"""M10_offball - Canal Inteligencia Espacial Off-ball via OBSO completo (Spearman 2018).
 
 Fase 2 PCJ, canal 3 de 4. OBSO 3-factor = PPCF × T × S con el PPCF SOTA del
 building block Z02 pitch_control (vectorizado Spearman 2018 sobre tracking
@@ -62,13 +61,13 @@ from M07_shocks import build_shocks_table, attach_team_loo
 import Z02_pitch_control as pc
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "offball"
 
 
-# -- Parametros Spearman 2018 + sampling -----------------------------------
+# ---- Parametros Spearman 2018 + sampling ----
 
 _GRID_NX = 10
 _GRID_NY = 7
@@ -81,9 +80,7 @@ _COBSO_LAG_SEC   = 2.0             # 2s atras para contrafactual
 _T_SIGMA_M = 15.0
 
 
-# ===========================================================================
-#  SECCION 1 — xG grid (pre-computed, simetrizado + smoothed)
-# ===========================================================================
+# ---- SECCION 1: xG grid (pre-computed, simetrizado + smoothed) ----
 
 def build_xg_grid(nx: int = _GRID_NX, ny: int = _GRID_NY,
                   cache: bool = True) -> np.ndarray:
@@ -159,9 +156,7 @@ def _transition_probability(ball_pos: np.ndarray, target: np.ndarray,
     return float(np.exp(-(dist ** 2) / (2 * sigma ** 2)))
 
 
-# ===========================================================================
-#  SECCION 2 — Adapter PFF frame -> Z02-compatible DataFrame
-# ===========================================================================
+# ---- SECCION 2: Adapter PFF frame -> Z02-compatible DataFrame ----
 
 def _pff_frame_to_z02_df(frame_dict: dict,
                           home_id: int, away_id: int,
@@ -239,9 +234,7 @@ def _pff_frame_to_z02_df(frame_dict: dict,
     return pd.DataFrame(rows)
 
 
-# ===========================================================================
-#  SECCION 3 — OBSO completo per match (Spearman 2018 + C-OBSO contrafactual)
-# ===========================================================================
+# ---- SECCION 3: OBSO completo per match (Spearman 2018 + C-OBSO contrafactual) ----
 
 def compute_obso_match(match_id: int, xg_grid: np.ndarray,
                        verbose: bool = False) -> pl.DataFrame:
@@ -452,9 +445,7 @@ def compute_obso_match(match_id: int, xg_grid: np.ndarray,
     return agg
 
 
-# ===========================================================================
-#  SECCION 4 — Aggregate 64 matches + per-shock-window
-# ===========================================================================
+# ---- SECCION 4: Aggregate 64 matches + per-shock-window ----
 
 def _compute_obso_match_safe(args: tuple) -> pl.DataFrame | None:
     """Wrapper top-level para multiprocessing.Pool (necesita ser pickleable).
@@ -675,12 +666,12 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
     return out
 
 
-# -- Sanity inline ---------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M10_offball SANITY — OBSO completo Spearman 2018 + Z02 PPCF ===")
+    print("[M10] sanity check")
 
     # [1] xG grid
     grid = build_xg_grid(cache=True)
