@@ -836,6 +836,9 @@ def compute_indices(fit: dict) -> pl.DataFrame:
 
 def compute_rankings(indices: pl.DataFrame, panel: pl.DataFrame) -> pl.DataFrame:
     """Ranking dentro del rol (position_group) + ranking global. 3 dimensiones."""
+    # Cast defensivo: parquets escritos con polars version distinta pueden tener
+    # encoding Binary/Categorical que el lector actual no resuelve en groupby.
+    panel = panel.with_columns(pl.col("position_group").cast(pl.String))
     pos_per_player = panel.filter(pl.col("position_group").is_not_null()).group_by(
         "pff_player_id"
     ).agg(pl.col("position_group").mode().first().alias("position_group"))
