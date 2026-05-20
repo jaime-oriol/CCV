@@ -858,6 +858,139 @@ def compute_rankings(indices: pl.DataFrame, panel: pl.DataFrame) -> pl.DataFrame
 
 
 # ===========================================================================
+#  SECCION 6.5 — Dumps de derivados del posterior (para desacoplar M15 del pkl)
+# ===========================================================================
+#
+# Estos 4 dumps vuelcan a parquet TODO lo que M15 necesita derivar de los
+# `samples` crudos del NUTS. Asi M15 no depende del pkl de 409 MB, y futuros
+# tweaks de M15 (thresholds, tier labels) son 100% locales sin GPU.
+
+def _dump_posterior_probs(fit: dict, path: Path) -> None:
+    """Per jugador: P(chasing>0), P(protecting>0), P(dual>0) + chasing/protecting
+    idx/sd/lo80/hi80. 12 cols × 598 jugadores.
+    """
+    s = fit["samples"]; p_to_idx = fit["p_to_idx"]; ch = fit["ch_to_idx"]
+    eta_ga = s["eta_ga"]; eta_gf = s["eta_gf"]
+    chasing = (eta_ga[:, :, ch["ataque"]] + eta_ga[:, :, ch["offball"]]) / 2
+    protect = (eta_gf[:, :, ch["defensa"]] + eta_gf[:, :, ch["fisico"]]) / 2
+    p_ch_pos = (chasing > 0).mean(axis=0)
+    p_pr_pos = (protect > 0).mean(axis=0)
+    p_dual_pos = ((chasing > 0) & (protect > 0)).mean(axis=0)
+    inv_p = {v: k for k, v in p_to_idx.items()}
+    rows = []
+    for i in range(eta_ga.shape[1]):
+        rows.append(dict(
+            pff_player_id=inv_p[i],
+            chasing_clutch_idx=float(chasing[:, i].mean()),
+            chasing_clutch_sd=float(chasing[:, i].std()),
+            chasing_clutch_lo80=float(np.quantile(chasing[:, i], 0.10)),
+            chasing_clutch_hi80=float(np.quantile(chasing[:, i], 0.90)),
+            protecting_clutch_idx=float(protect[:, i].mean()),
+            protecting_clutch_sd=float(protect[:, i].std()),
+            protecting_clutch_lo80=float(np.quantile(protect[:, i], 0.10)),
+            protecting_clutch_hi80=float(np.quantile(protect[:, i], 0.90)),
+            p_chasing_positive=float(p_ch_pos[i]),
+            p_protecting_positive=float(p_pr_pos[i]),
+            p_dual_positive=float(p_dual_pos[i]),
+        ))
+    pl.DataFrame(rows).write_parquet(path, compression="snappy")
+
+
+def _dump_pressure_player(fit: dict, path: Path) -> None:
+    """Per jugador: pressure_response_idx/sd/lo80/hi80 + p_pressure_clutch_positive
+    desde eta_pressure (3a eta del modelo unificado). 6 cols × 598 jugadores.
+    """
+    s = fit["samples"]; p_to_idx = fit["p_to_idx"]
+    eta_pres = s["eta_pressure"]                    # (S, P, K)
+    pri = eta_pres.mean(axis=2)                     # (S, P) mean across canales
+    inv_p = {v: k for k, v in p_to_idx.items()}
+    rows = []
+    for i in range(eta_pres.shape[1]):
+        x = pri[:, i]
+        rows.append(dict(
+            pff_player_id=inv_p[i],
+            pressure_response_idx=float(x.mean()),
+            pressure_response_sd=float(x.std()),
+            pressure_response_lo80=float(np.quantile(x, 0.10)),
+            pressure_response_hi80=float(np.quantile(x, 0.90)),
+            p_pressure_clutch_positive=float((x > 0).mean()),
+        ))
+    pl.DataFrame(rows).write_parquet(path, compression="snappy")
+
+
+def _dump_intra_corr_player(fit: dict, path: Path) -> None:
+    """Per jugador: corr(eta_atk_GA, eta_off_GA) y corr(eta_def_GF, eta_phys_GF)
+    a lo largo de los 4000 samples. Captura "tipo" de clutch (coordinado vs
+    disperso). 3 cols × 598 jugadores.
+    """
+    s = fit["samples"]; p_to_idx = fit["p_to_idx"]; ch = fit["ch_to_idx"]
+    eta_ga = s["eta_ga"]; eta_gf = s["eta_gf"]
+    inv_p = {v: k for k, v in p_to_idx.items()}
+    atk = ch["ataque"]; off = ch["offball"]; df_ = ch["defensa"]; phy = ch["fisico"]
+    rows = []
+    for i in range(eta_ga.shape[1]):
+        ag = eta_ga[:, i, atk]; og = eta_ga[:, i, off]
+        dg = eta_gf[:, i, df_]; pg = eta_gf[:, i, phy]
+        c1 = float(np.corrcoef(ag, og)[0, 1]) if ag.std() > 0 and og.std() > 0 else 0.0
+        c2 = float(np.corrcoef(dg, pg)[0, 1]) if dg.std() > 0 and pg.std() > 0 else 0.0
+        rows.append(dict(pff_player_id=inv_p[i],
+                          intra_corr_chasing_atk_off=c1,
+                          intra_corr_protecting_def_phys=c2))
+    pl.DataFrame(rows).write_parquet(path, compression="snappy")
+
+
+def _dump_scenarios_player(fit: dict, path: Path) -> None:
+    """Per (jugador × canal × shock_type × scenario): mean/sd/lo80/hi80/p_pos
+    de eta_base + sign*eta_x_td. Wide-pivoted: 598 jugadores × 81 cols
+    (id + 4 canales × 2 shocks × 2 escenarios × 5 stats = 80).
+    """
+    s = fit["samples"]
+    inv_p = {v: k for k, v in fit["p_to_idx"].items()}
+    inv_c = {v: k for k, v in fit["ch_to_idx"].items()}
+    eta_ga = s["eta_ga"]; eta_gf = s["eta_gf"]
+    eta_ga_xtd = s["eta_ga_x_td"]; eta_gf_xtd = s["eta_gf_x_td"]
+    n_samples, n_players, n_channels = eta_ga.shape
+    canal_short = {"ataque": "atk", "defensa": "def", "offball": "off", "fisico": "phys"}
+
+    long_rows = []
+    for shock_name, eta_base, eta_xtd in [
+        ("GOAL_AGAINST", eta_ga, eta_ga_xtd),
+        ("GOAL_FOR",     eta_gf, eta_gf_xtd),
+    ]:
+        for sign, scenario in [(+1.0, "team_attacks"), (-1.0, "team_defends")]:
+            samp = eta_base + sign * eta_xtd       # (S, P, K)
+            mean = samp.mean(axis=0); sd = samp.std(axis=0)
+            lo80 = np.quantile(samp, 0.10, axis=0)
+            hi80 = np.quantile(samp, 0.90, axis=0)
+            p_pos = (samp > 0).mean(axis=0)
+            for c_i in range(n_channels):
+                c_short = canal_short.get(inv_c[c_i], inv_c[c_i])
+                prefix = f"clutch_{c_short}_{shock_name}_{scenario}"
+                for p_i in range(n_players):
+                    pid = inv_p[p_i]
+                    long_rows.append((pid, f"{prefix}_mean",  float(mean[p_i, c_i])))
+                    long_rows.append((pid, f"{prefix}_sd",    float(sd[p_i, c_i])))
+                    long_rows.append((pid, f"{prefix}_lo80",  float(lo80[p_i, c_i])))
+                    long_rows.append((pid, f"{prefix}_hi80",  float(hi80[p_i, c_i])))
+                    long_rows.append((pid, f"{prefix}_ppos",  float(p_pos[p_i, c_i])))
+    long = pl.DataFrame(long_rows, schema=["pff_player_id", "key", "val"], orient="row")
+    wide = long.pivot("key", index="pff_player_id", values="val")
+    wide.write_parquet(path, compression="snappy")
+
+
+def _dump_all_sample_derivatives(fit: dict, paths: dict[str, Path]) -> None:
+    """Vuelca los 4 parquets derivados de samples NUTS (~250 KB total)."""
+    print("  -> posterior_probs.parquet")
+    _dump_posterior_probs(fit, paths["posterior_probs"])
+    print("  -> pressure_player.parquet")
+    _dump_pressure_player(fit, paths["pressure_player"])
+    print("  -> intra_corr_player.parquet")
+    _dump_intra_corr_player(fit, paths["intra_corr"])
+    print("  -> scenarios_player.parquet")
+    _dump_scenarios_player(fit, paths["scenarios"])
+
+
+# ===========================================================================
 #  SECCION 7 — compute_all + cache
 # ===========================================================================
 
@@ -867,14 +1000,19 @@ def compute_all(cache: bool = True, overwrite: bool = False,
                  num_chains: int = NUTS_NUM_CHAINS) -> dict[str, Path]:
     """Pipeline completa M14 con HMC NUTS + LKJ + PFF priors + 3 niveles."""
     out_paths = {
-        "panel":       _DERIVED / "panel_delta.parquet",
-        "posterior":   _DERIVED / "posterior_player.parquet",
-        "corr":        _DERIVED / "posterior_corr.parquet",
-        "indices":     _DERIVED / "indices.parquet",
-        "rankings":    _DERIVED / "rankings.parquet",
-        "diagnostics": _DERIVED / "diagnostics.parquet",
-        "ppc":         _DERIVED / "ppc.parquet",
-        "model":       _MODEL   / "cate_nuts.pkl",
+        "panel":           _DERIVED / "panel_delta.parquet",
+        "posterior":       _DERIVED / "posterior_player.parquet",
+        "corr":            _DERIVED / "posterior_corr.parquet",
+        "indices":         _DERIVED / "indices.parquet",
+        "rankings":        _DERIVED / "rankings.parquet",
+        "diagnostics":     _DERIVED / "diagnostics.parquet",
+        "ppc":             _DERIVED / "ppc.parquet",
+        # Derivados de samples NUTS (desacopla M15 del pkl, ~250 KB total)
+        "posterior_probs": _DERIVED / "posterior_probs.parquet",
+        "pressure_player": _DERIVED / "pressure_player.parquet",
+        "intra_corr":      _DERIVED / "intra_corr_player.parquet",
+        "scenarios":       _DERIVED / "scenarios_player.parquet",
+        "model":           _MODEL   / "cate_nuts.pkl",
     }
     if not overwrite and all(p.exists() for p in out_paths.values()):
         return out_paths
@@ -925,6 +1063,10 @@ def compute_all(cache: bool = True, overwrite: bool = False,
     if cache:
         idx.write_parquet(out_paths["indices"], compression="snappy")
         rank.write_parquet(out_paths["rankings"], compression="snappy")
+
+    print("[7] Dump derivados de samples (desacople M15<->pkl)...")
+    if cache:
+        _dump_all_sample_derivatives(fit, out_paths)
 
     return out_paths
 

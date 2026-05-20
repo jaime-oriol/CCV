@@ -14,7 +14,14 @@ maestra `outputs/pcj_table.parquet`.
      eliminados". 3a eta del modelo M14 unificado junto a eta_ga + eta_gf.
 
 Decisiones de diseno:
-  - Threshold 270 min (3 partidos completos = squad estandar scout)
+  - Dual threshold no-arbitrario:
+      * Clutch CATE rankings: n_shocks_total >= 3 (identificabilidad random
+        effect jerarquico Bayes; <3 obs el shrinkage colapsa al prior posicion)
+      * Per-90 fisicas: minutes_played >= 90 (estabilidad ratios per-90;
+        <90 min el HSR_per90 / sprints_per90 es ruido)
+      * Flag low_sample = (n_shocks<8 OR minutes<270) para CI anchos
+    Razonamiento: el modelo Bayesiano YA aplica shrinkage automatico segun N.
+    Minutes no es el sample size estadistico, los shocks lo son.
   - 8 CATEs preservados (4 canales × 2 shocks) — chasing vs protecting
     son fenomenos distintos, agregar cancelaria signos
   - Vector PCJ summary 4-canal directional:
@@ -36,7 +43,6 @@ Uso:
     python M15_pcj.py [overwrite]
 """
 from __future__ import annotations
-import pickle
 import sys
 from pathlib import Path
 
@@ -60,7 +66,10 @@ _PLAYERS_CSV = _REPO / "data_mundial" / "players.csv"
 _OUT_DIR     = _REPO / "outputs"
 _AUX_DIR     = _OUT_DIR / "pcj_aux"
 
-MIN_MINUTES = 270
+MIN_SHOCKS = 3                # identificabilidad random effect jerarquico
+MIN_MINUTES_FOR_PER90 = 90    # estabilidad ratios per-90 fisicas (1 partido)
+LOW_SAMPLE_SHOCKS = 8         # bajo este N, flag low_sample (CI ancho)
+LOW_SAMPLE_MINUTES = 270      # bajo este min, flag low_sample (sample limitado)
 # Probability of direction (Makowski 2019). 0.85 = umbral principal Sig
 # scout-friendly (90%+ ya muy conservador con N=172 shocks WC22). 0.95 =
 # bonus tier "strong" para los pocos jugadores que SI alcanzan ese nivel
@@ -187,39 +196,20 @@ PER_MIN_OUTCOL = {"ataque": "score_atk_v2_minute", "defensa": "score_def_v4_minu
 # Loaders
 # ----------------------------------------------------------------------------
 def _load_m14() -> dict:
-    with open(_CATE_DIR / "model" / "cate_nuts.pkl", "rb") as f:
-        fit = pickle.load(f)
-    posterior = pl.read_parquet(_CATE_DIR / "posterior_player.parquet")
-    indices   = pl.read_parquet(_CATE_DIR / "indices.parquet")
-    rankings  = pl.read_parquet(_CATE_DIR / "rankings.parquet")
-    return dict(fit=fit, posterior=posterior, indices=indices, rankings=rankings)
-
-
-def _load_m14_pressure_from_posterior(fit: dict) -> pl.DataFrame:
-    """Pressure response (3a dimension) desde el modelo unificado M14.
-
-    `eta_pressure[i,k]` es la pendiente individual respecto a elim_prox_z
-    dentro del CATE multivariate jerarquico (3a eta junto a eta_ga + eta_gf).
-    pressure_response_idx = mean across canales del eta_pressure[i,:].
+    """Lee outputs M14 (parquets). YA NO necesita cate_nuts.pkl: M14 ahora
+    vuelca a parquet los 4 derivados del posterior que antes se computaban
+    aqui desde samples (ver M14 _dump_all_sample_derivatives).
     """
-    s = fit["samples"]
-    eta_pres = s["eta_pressure"]                      # (S, P, K)
-    p_to_idx = fit["p_to_idx"]
-    inv_p = {v: k for k, v in p_to_idx.items()}
-    # Per-sample idx = mean across channels
-    pri_samples = eta_pres.mean(axis=2)               # (S, P)
-    rows = []
-    for p_i in range(eta_pres.shape[1]):
-        x = pri_samples[:, p_i]
-        rows.append({
-            "pff_player_id":                inv_p[p_i],
-            "pressure_response_idx":        float(x.mean()),
-            "pressure_response_sd":         float(x.std()),
-            "pressure_response_lo80":       float(np.quantile(x, 0.10)),
-            "pressure_response_hi80":       float(np.quantile(x, 0.90)),
-            "p_pressure_clutch_positive":   float((x > 0).mean()),
-        })
-    return pl.DataFrame(rows)
+    posterior        = pl.read_parquet(_CATE_DIR / "posterior_player.parquet")
+    indices          = pl.read_parquet(_CATE_DIR / "indices.parquet")
+    rankings         = pl.read_parquet(_CATE_DIR / "rankings.parquet")
+    posterior_probs  = pl.read_parquet(_CATE_DIR / "posterior_probs.parquet")
+    pressure         = pl.read_parquet(_CATE_DIR / "pressure_player.parquet")
+    intra_corr       = pl.read_parquet(_CATE_DIR / "intra_corr_player.parquet")
+    scenarios_wide   = pl.read_parquet(_CATE_DIR / "scenarios_player.parquet")
+    return dict(posterior=posterior, indices=indices, rankings=rankings,
+                 posterior_probs=posterior_probs, pressure=pressure,
+                 intra_corr=intra_corr, scenarios_wide=scenarios_wide)
 
 
 def _load_player_meta() -> pl.DataFrame:
@@ -496,35 +486,6 @@ def _compute_acute_window_per_player(window: int = ACUTE_WINDOW) -> pl.DataFrame
     return out
 
 
-def _compute_intra_player_corr(fit: dict) -> pl.DataFrame:
-    """Per player: corr(eta_atk_GA, eta_off_GA) y corr(eta_def_GF, eta_phys_GF)
-    a lo largo de los 4000 samples NUTS. Captura "tipo" de clutch.
-
-    Alta corr_chasing = remontador coordinado (atk + off-ball juntos).
-    Baja/negativa = remontador disperso (uno u otro, no ambos).
-    """
-    s = fit["samples"]
-    p_to_idx = fit["p_to_idx"]
-    ch = fit["ch_to_idx"]
-    eta_ga = s["eta_ga"]            # (4000, P, K)
-    eta_gf = s["eta_gf"]
-    n_samples, n_players, _ = eta_ga.shape
-    rows = []
-    idx_to_pid = {v: k for k, v in p_to_idx.items()}
-    atk = ch["ataque"]; off = ch["offball"]
-    df_ = ch["defensa"]; phy = ch["fisico"]
-    for i in range(n_players):
-        atk_ga = eta_ga[:, i, atk]; off_ga = eta_ga[:, i, off]
-        def_gf = eta_gf[:, i, df_]; phy_gf = eta_gf[:, i, phy]
-        # Pearson via numpy
-        c1 = float(np.corrcoef(atk_ga, off_ga)[0, 1]) if atk_ga.std() > 0 and off_ga.std() > 0 else 0.0
-        c2 = float(np.corrcoef(def_gf, phy_gf)[0, 1]) if def_gf.std() > 0 and phy_gf.std() > 0 else 0.0
-        rows.append(dict(pff_player_id=idx_to_pid[i],
-                         intra_corr_chasing_atk_off=c1,
-                         intra_corr_protecting_def_phys=c2))
-    return pl.DataFrame(rows)
-
-
 def _compute_absolute_indices_for_h5(panel_abs: pl.DataFrame) -> pl.DataFrame:
     """Indices ABSOLUTOS paralelos (H5: comparacion absoluto vs relativo).
 
@@ -558,128 +519,6 @@ def _compute_absolute_indices_for_h5(panel_abs: pl.DataFrame) -> pl.DataFrame:
         "chasing_clutch_idx_absolute",
         "protecting_clutch_idx_absolute",
     ])
-
-
-def _compute_scenario_outcomes(fit: dict) -> pl.DataFrame:
-    """Per (jugador, canal, shock_type, escenario_team_dir): mean/sd/lo80/hi80
-    + p_pos del eta player + eta_x_td * sign.
-
-    Para cada sample r del posterior:
-      eta_ga + eta_ga_x_td * (+1) = post-GA cuando equipo se vuelca al ataque
-      eta_ga + eta_ga_x_td * (-1) = post-GA cuando equipo se cierra atras
-      (idem GF)
-
-    Distingue perfiles tacticos:
-      'team_attacks': cuando tu bloque sigue empujando post-shock
-      'team_defends': cuando tu bloque se cierra atras post-shock
-    Cada uno × 4 canales × 2 shock_types = 16 cells per jugador.
-
-    Output: long (player x channel x shock_type x scenario), pivoteable a wide.
-    """
-    s = fit["samples"]
-    inv_p = {v: k for k, v in fit["p_to_idx"].items()}
-    inv_c = {v: k for k, v in fit["ch_to_idx"].items()}
-    eta_ga = s["eta_ga"]; eta_gf = s["eta_gf"]
-    eta_ga_xtd = s["eta_ga_x_td"]; eta_gf_xtd = s["eta_gf_x_td"]
-    n_samples, n_players, n_channels = eta_ga.shape
-
-    rows = []
-    for shock_name, eta_base, eta_xtd in [
-        ("GOAL_AGAINST", eta_ga, eta_ga_xtd),
-        ("GOAL_FOR",     eta_gf, eta_gf_xtd),
-    ]:
-        for sign, scenario in [(+1.0, "team_attacks"), (-1.0, "team_defends")]:
-            # samples del escenario contextualizado: (n_samples, n_players, n_channels)
-            samp = eta_base + sign * eta_xtd
-            mean    = samp.mean(axis=0)
-            sd      = samp.std(axis=0)
-            lo80    = np.quantile(samp, 0.10, axis=0)
-            hi80    = np.quantile(samp, 0.90, axis=0)
-            p_pos   = (samp > 0).mean(axis=0)
-            for c_i in range(n_channels):
-                for p_i in range(n_players):
-                    rows.append(dict(
-                        pff_player_id=inv_p[p_i],
-                        channel=inv_c[c_i],
-                        shock_type=shock_name,
-                        scenario=scenario,
-                        cate_mean=float(mean[p_i, c_i]),
-                        cate_sd=float(sd[p_i, c_i]),
-                        ci_lo80=float(lo80[p_i, c_i]),
-                        ci_hi80=float(hi80[p_i, c_i]),
-                        p_positive=float(p_pos[p_i, c_i]),
-                    ))
-    return pl.DataFrame(rows)
-
-
-def _build_scenario_wide(scenarios: pl.DataFrame) -> pl.DataFrame:
-    """Pivot scenarios long → wide. 4 canales × 2 shocks × 2 escenarios × 5 stats
-    = 80 cols nuevas con prefijo `clutch_<canal>_<shock>_<scenario>_<stat>`.
-    """
-    canal_short = {"ataque": "atk", "defensa": "def", "offball": "off", "fisico": "phys"}
-    rows = []
-    for r in scenarios.iter_rows(named=True):
-        pid = r["pff_player_id"]
-        c = canal_short.get(r["channel"], r["channel"])
-        prefix = f"clutch_{c}_{r['shock_type']}_{r['scenario']}"
-        rows.append((pid, f"{prefix}_mean",  r["cate_mean"]))
-        rows.append((pid, f"{prefix}_sd",    r["cate_sd"]))
-        rows.append((pid, f"{prefix}_lo80",  r["ci_lo80"]))
-        rows.append((pid, f"{prefix}_hi80",  r["ci_hi80"]))
-        rows.append((pid, f"{prefix}_ppos",  r["p_positive"]))
-    long = pl.DataFrame(rows, schema=["pff_player_id", "key", "val"], orient="row")
-    return long.pivot("key", index="pff_player_id", values="val")
-
-
-def _compute_posterior_probs(fit: dict) -> pl.DataFrame:
-    """Per jugador: P(chasing>0|data), P(protecting>0|data), P(dual>0|data).
-
-    Usa eta_ga + eta_gf samples (4000, 598, 4):
-      chasing_clutch_idx  = mean(eta_ga[:, atk] + eta_ga[:, off])  (per sample)
-      protecting_clutch_idx = mean(eta_gf[:, def] + eta_gf[:, phys]) (per sample)
-    """
-    s = fit["samples"]
-    p_to_idx = fit["p_to_idx"]
-    ch = fit["ch_to_idx"]
-    eta_ga = s["eta_ga"]   # (n_samples, n_players, n_channels)
-    eta_gf = s["eta_gf"]
-    # chasing: mean across atk + off
-    chasing_samples = (eta_ga[:, :, ch["ataque"]] + eta_ga[:, :, ch["offball"]]) / 2
-    # protecting: mean across def + phys
-    protecting_samples = (eta_gf[:, :, ch["defensa"]] + eta_gf[:, :, ch["fisico"]]) / 2
-    # IC95 ya esta en posterior_player; aqui calculamos posterior probabilities + IC80
-    n_samples = chasing_samples.shape[0]
-    p_chasing_pos = (chasing_samples > 0).mean(axis=0)        # (n_players,)
-    p_protecting_pos = (protecting_samples > 0).mean(axis=0)
-    p_dual_pos = ((chasing_samples > 0) & (protecting_samples > 0)).mean(axis=0)
-    chasing_mean = chasing_samples.mean(axis=0)
-    chasing_sd = chasing_samples.std(axis=0)
-    chasing_lo80 = np.quantile(chasing_samples, 0.10, axis=0)
-    chasing_hi80 = np.quantile(chasing_samples, 0.90, axis=0)
-    protecting_mean = protecting_samples.mean(axis=0)
-    protecting_sd = protecting_samples.std(axis=0)
-    protecting_lo80 = np.quantile(protecting_samples, 0.10, axis=0)
-    protecting_hi80 = np.quantile(protecting_samples, 0.90, axis=0)
-
-    # Map idx → pff_player_id
-    idx_to_pid = {v: k for k, v in p_to_idx.items()}
-    rows = []
-    for i in range(eta_ga.shape[1]):
-        rows.append(dict(
-            pff_player_id=idx_to_pid[i],
-            chasing_clutch_idx=float(chasing_mean[i]),
-            chasing_clutch_sd=float(chasing_sd[i]),
-            chasing_clutch_lo80=float(chasing_lo80[i]),
-            chasing_clutch_hi80=float(chasing_hi80[i]),
-            protecting_clutch_idx=float(protecting_mean[i]),
-            protecting_clutch_sd=float(protecting_sd[i]),
-            protecting_clutch_lo80=float(protecting_lo80[i]),
-            protecting_clutch_hi80=float(protecting_hi80[i]),
-            p_chasing_positive=float(p_chasing_pos[i]),
-            p_protecting_positive=float(p_protecting_pos[i]),
-            p_dual_positive=float(p_dual_pos[i]),
-        ))
-    return pl.DataFrame(rows)
 
 
 # ----------------------------------------------------------------------------
@@ -880,9 +719,17 @@ def _add_rankings(df: pl.DataFrame) -> pl.DataFrame:
 # Build maestro
 # ----------------------------------------------------------------------------
 def build_pcj_table() -> pl.DataFrame:
-    print("[M15] Cargando M14 outputs + samples...")
+    print("[M15] Cargando M14 outputs (parquets, sin pkl)...")
     m14 = _load_m14()
     posterior = m14["posterior"]
+    posterior_probs = m14["posterior_probs"]
+    scenarios_wide  = m14["scenarios_wide"]
+    intra           = m14["intra_corr"]
+    pressure        = m14["pressure"]
+    print(f"  posterior_probs: {posterior_probs.height} jugadores")
+    print(f"  scenarios_wide:  {scenarios_wide.height} jugadores, "
+          f"{scenarios_wide.width-1} cols clutch_*")
+    print(f"  pressure:        {pressure.height} jugadores con pressure_response")
 
     print("[M15] Cargando metadata jugadores...")
     meta = _load_player_meta()
@@ -895,16 +742,6 @@ def build_pcj_table() -> pl.DataFrame:
     print("[M15] Cargando exposicion shocks...")
     shocks = _load_shock_exposure()
 
-    print("[M15] Calculando posterior probabilities desde samples NUTS...")
-    posterior_probs = _compute_posterior_probs(m14["fit"])
-    print(f"  posterior_probs: {posterior_probs.height} jugadores")
-
-    print("[M15] Escenarios contextualizados (4 canales x 2 shocks x 2 directions)...")
-    scenarios = _compute_scenario_outcomes(m14["fit"])
-    scenarios_wide = _build_scenario_wide(scenarios)
-    print(f"  scenarios_wide: {scenarios_wide.height} jugadores, "
-          f"{scenarios_wide.width-1} cols clutch_*")
-
     print("[M15] Construyendo CATE wide (5 perspectivas x 4 canales x 4 stats)...")
     cate_wide = _build_cate_wide(posterior)
     print(f"  cate_wide: {cate_wide.height} jugadores, {cate_wide.width} cols")
@@ -915,9 +752,6 @@ def build_pcj_table() -> pl.DataFrame:
     print("[M15] Acute window CATE +-5 min per player (M12B window_sensitivity)...")
     acute = _compute_acute_window_per_player(window=ACUTE_WINDOW)
     print(f"  acute: {acute.height} jugadores con acute deltas")
-
-    print("[M15] Intra-player cross-canal correlation desde samples...")
-    intra = _compute_intra_player_corr(m14["fit"])
 
     print("[M15] Channel credibility (M12 pre-trend + M13 AIPW + sensitivity)...")
     cred = _load_channel_credibility()
@@ -939,10 +773,6 @@ def build_pcj_table() -> pl.DataFrame:
 
     print("[M15] Metricas fisicas per-90 Bradley 2024 (tracking PFF 25Hz)...")
     physical = _load_physical_per90()
-
-    print("[M15] Pressure response 3a dimension (eta_pressure desde M14 unificado)...")
-    pressure = _load_m14_pressure_from_posterior(m14["fit"])
-    print(f"  pressure: {pressure.height} jugadores con pressure_response")
 
     print("[M15] Indices ABSOLUTOS paralelos (H5: ranking absoluto vs relativo)...")
     sys.path.insert(0, str(_REPO / "src"))
@@ -968,21 +798,40 @@ def build_pcj_table() -> pl.DataFrame:
             .join(pressure,         on="pff_player_id", how="left")
             .join(abs_idx,          on="pff_player_id", how="left"))
     n_total = df.height
-    df = df.filter(pl.col("minutes_played") >= MIN_MINUTES)
-    print(f"  {df.height}/{n_total} jugadores >={MIN_MINUTES} min")
+    # n_shocks_total = exposicion al canal causal (sample size del modelo Bayes)
+    df = df.with_columns(
+        (pl.col("n_shocks_for").fill_null(0) + pl.col("n_shocks_against").fill_null(0))
+            .cast(pl.UInt32).alias("n_shocks_total")
+    )
+    df = df.filter(pl.col("n_shocks_total") >= MIN_SHOCKS)
+    print(f"  {df.height}/{n_total} jugadores con n_shocks_total>={MIN_SHOCKS}")
+    # Flag low_sample: CI anchos / per-90 fisicas no fiables. Scout-facing
+    # advertencia, no filtra.
+    df = df.with_columns(
+        ((pl.col("n_shocks_total") < LOW_SAMPLE_SHOCKS) |
+         (pl.col("minutes_played") < LOW_SAMPLE_MINUTES))
+            .alias("low_sample")
+    )
 
-    # Compute physical per-90 desde totals + minutes_played
+    # Compute physical per-90 desde totals + minutes_played. NULL si <90 min
+    # (per-90 ratios inestables con sample chico).
+    _ok = pl.col("minutes_played") >= MIN_MINUTES_FOR_PER90
     df = df.with_columns([
-        (pl.col("_phys_dist_total_m") / 1000 / pl.col("minutes_played") * 90)
-            .alias("physical_distance_km_per90"),
-        (pl.col("_phys_hsr_s_total") * 5.5 / pl.col("minutes_played") * 90)
-            .alias("physical_hsr_m_per90"),    # 5.5 m/s = HSR threshold
-        (pl.col("_phys_sprints_total") / pl.col("minutes_played") * 90)
-            .alias("physical_sprints_per90"),
-        (pl.col("_phys_accels_total") / pl.col("minutes_played") * 90)
-            .alias("physical_high_accels_per90"),
-        (pl.col("_phys_hmld_total_m") / pl.col("minutes_played") * 90)
-            .alias("physical_hmld_m_per90"),
+        pl.when(_ok)
+          .then(pl.col("_phys_dist_total_m") / 1000 / pl.col("minutes_played") * 90)
+          .otherwise(None).alias("physical_distance_km_per90"),
+        pl.when(_ok)
+          .then(pl.col("_phys_hsr_s_total") * 5.5 / pl.col("minutes_played") * 90)
+          .otherwise(None).alias("physical_hsr_m_per90"),    # 5.5 m/s = HSR threshold
+        pl.when(_ok)
+          .then(pl.col("_phys_sprints_total") / pl.col("minutes_played") * 90)
+          .otherwise(None).alias("physical_sprints_per90"),
+        pl.when(_ok)
+          .then(pl.col("_phys_accels_total") / pl.col("minutes_played") * 90)
+          .otherwise(None).alias("physical_high_accels_per90"),
+        pl.when(_ok)
+          .then(pl.col("_phys_hmld_total_m") / pl.col("minutes_played") * 90)
+          .otherwise(None).alias("physical_hmld_m_per90"),
     ]).drop([c for c in df.columns if c.startswith("_phys_")])
 
     print("[M15] Rankings + tiers + sig flags + uncertainty + channel credibility wide...")
@@ -1021,8 +870,8 @@ def build_pcj_table() -> pl.DataFrame:
     # 4-vec → CATEs 8 → acute → baselines → meta → rankings → tiers → sig → cred
     front = ["pff_player_id", "player_name", "team_name", "position_group",
              "age_years", "height_cm",
-             "minutes_played", "n_matches_played",
-             "n_shocks_for", "n_shocks_against",
+             "minutes_played", "n_matches_played", "low_sample",
+             "n_shocks_total", "n_shocks_for", "n_shocks_against",
              "n_shocks_groups", "n_shocks_ko",
              "n_high_leverage_shocks", "avg_leverage_at_shock",
              "max_leverage_at_shock",
@@ -1166,7 +1015,9 @@ def main():
 
     # Resumen sanity
     print(f"\n=== PCJ Table summary ===")
-    print(f"Jugadores >= {MIN_MINUTES} min: {pcj.height}")
+    n_low = int(pcj["low_sample"].sum())
+    print(f"Jugadores n_shocks>={MIN_SHOCKS}: {pcj.height} "
+           f"({n_low} con low_sample flag)")
     print(f"Posiciones cubiertas: {pcj['position_group'].n_unique()}")
     print(f"Equipos cubiertos: {pcj['team_name'].n_unique()}")
     print(f"\nDistribucion sig_chasing:")
