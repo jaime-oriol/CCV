@@ -1,34 +1,31 @@
-"""
-M01_loader_pff - API de lectura de los parquets PFF (events, tracking, metadata, rosters).
+"""M01_loader_pff - API de lectura de los parquets PFF.
 
 I/O puro + normalizacion de tipos + vistas derivadas (goles, disparos, subs).
-Todo lo que M02-M15 necesitan para tocar PFF sin parsear JSON ni lidiar con
-inconsistencias del proveedor.
+Todo lo que M02-M15 necesitan para tocar PFF sin parsear JSON ni lidiar
+con las inconsistencias del proveedor.
 
 Filosofia:
-  - events y catalogos: eager (baratos, 69 MB total, 144.541 filas).
-  - tracking: SIEMPRE lazy (5.4 GB, 11.9M frames, 64 partidos). Un partido
-    tiene 150-200k frames; concatenar los 64 revienta RAM.
+  - events y catalogos: eager (~69 MB total, 64 ficheros)
+  - tracking: SIEMPRE lazy (5.4 GB, 64 partidos x ~180k frames). Concatenar
+    eager revienta RAM.
   - Vistas derivadas (list_goals, list_shots, list_subs) filtran y aplanan
     structs — NO transforman. Score state, direccion de ataque y minutos
-    jugados van en M03 preprocess.
+    jugados viven en M03.
 
-Normalizaciones obligatorias (PFF es inconsistente entre ficheros):
-  - match_id : Int64 en todas partes (metadata.id viene String, tracking.gameRefId
-               viene Float64, events.gameId ya es Int64).
-  - player_id / team_id : Int64 (rosters los trae String dentro de struct).
-  - shirt_number : Int64 (rosters lo trae String).
+Normalizaciones obligatorias (PFF es inconsistente):
+  - match_id            Int64 (metadata.id viene String, tracking.gameRefId Float64)
+  - player_id/team_id   Int64 (rosters los trae String dentro de struct)
+  - shirt_number        Int64 (idem)
 
 Uso rapido:
     from src.M01_loader_pff import (
         list_matches, load_events, scan_tracking,
         list_goals, list_shots, list_subs,
     )
-
     inv    = list_matches()           # 64 filas, has_tracking True en las 64
-    ev     = load_events(10502)       # eventos 1 partido, structs intactas
+    ev     = load_events(10502)       # eventos 1 partido, structs intactos
     tr     = scan_tracking(10502)     # LazyFrame de tracking
-    goals  = list_goals()             # todos los goles del torneo (172 validos)
+    goals  = list_goals()             # todos los goles validos del torneo
 """
 
 from __future__ import annotations
@@ -39,7 +36,7 @@ from typing import Iterable
 import polars as pl
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO         = Path(__file__).resolve().parents[1]
 _PARQUET      = _REPO / "data" / "parquet"
@@ -50,7 +47,7 @@ _METADATA     = _PFF / "metadata.parquet"
 _ROSTERS      = _PFF / "rosters.parquet"
 
 
-# -- Descubrimiento ---------------------------------------------------------
+# ---- Descubrimiento ----
 
 def list_event_match_ids() -> list[int]:
     """IDs de los 64 partidos con event data."""
@@ -76,7 +73,7 @@ def list_matches() -> pl.DataFrame:
     ]).sort("match_id")
 
 
-# -- Raw: metadata / rosters ------------------------------------------------
+# ---- Raw: metadata / rosters ----
 
 def load_metadata(match_id: int | None = None) -> pl.DataFrame:
     """Metadata con match_id y team ids en Int64, pitch y flags de direccion planos.
@@ -122,7 +119,7 @@ def load_rosters(match_id: int | None = None) -> pl.DataFrame:
     return df.sort(["match_id", "team_id", "shirt_number"])
 
 
-# -- Raw: events ------------------------------------------------------------
+# ---- Raw: events ----
 
 def load_events(match_id: int) -> pl.DataFrame:
     """Events de 1 partido. Structs (gameEvents, possessionEvents, grades, ...) preservadas."""
@@ -141,7 +138,7 @@ def scan_events(match_ids: Iterable[int] | None = None) -> pl.LazyFrame:
     return pl.concat([pl.scan_parquet(f) for f in files], how="diagonal_relaxed")
 
 
-# -- Raw: tracking ----------------------------------------------------------
+# ---- Raw: tracking ----
 
 def scan_tracking(match_id: int) -> pl.LazyFrame:
     """LazyFrame de tracking de 1 partido. NO concatenar varios (5.4 GB totales).
@@ -156,7 +153,7 @@ def scan_tracking(match_id: int) -> pl.LazyFrame:
     )
 
 
-# -- Vistas derivadas -------------------------------------------------------
+# ---- Vistas derivadas ----
 
 def _flatten_events(lf: pl.LazyFrame) -> pl.LazyFrame:
     """Expone cols planas de gameEvents + possessionEvents necesarias en las vistas."""
@@ -270,12 +267,12 @@ def list_subs(match_id: int | None = None) -> pl.DataFrame:
     ]).sort(["match_id", "start_game_clock"]).collect()
 
 
-# -- Sanity inline ----------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M01_loader_pff sanity ===")
+    print("[M01] sanity check")
 
     t0 = time.time()
     inv = list_matches()

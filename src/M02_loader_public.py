@@ -1,29 +1,26 @@
-"""
-M02_loader_public - API de lectura de los parquets publicos (Wyscout + StatsBomb).
+"""M02_loader_public - API de lectura de los parquets publicos.
 
-polars nativo, sin socceraction. I/O puro + normalizacion de tipos + helpers
-por competicion. Para convertir events a SPADL (si Z01_vaep lo requiere),
-usar `socceraction.spadl.wyscout.convert_to_actions` sobre el DataFrame
-devuelto por `scan_wyscout_events` tras pasarlo a pandas.
+Polars nativo (sin socceraction). I/O puro + normalizacion + helpers por
+competicion. Para convertir events a SPADL (si Z01_vaep lo requiere),
+usar socceraction.spadl.{wyscout,statsbomb}.convert_to_actions sobre el
+DataFrame en pandas.
 
-Wyscout 2017/18 — corpus base de training (Big 5 + WC18 + Euro16):
-    7 parquets de events (uno por competicion), 1.941 matches, 3.25M eventos,
-    3.603 jugadores, 142 equipos, 208 coaches, 46.897 rankings.
+Wyscout 2017/18 (corpus training):
+    5 ligas + Euro16 + WC18. 7 parquets events, ~1941 matches, ~3.25M eventos.
 
-StatsBomb open subset (200 partidos para PSxG + cross-val):
-    WC22 (64) + Euro24 (51) + Euro20 (51) + Bundes23/24 (34), 753k eventos,
-    653k freeze-frames 360, 400 lineups (2 por partido).
+StatsBomb open subset (PSxG training + cross-val):
+    WC22 (64) + Euro20 (51) + Euro24 (51) + Bundes23/24 (34). 200 matches.
+    Incluye 360 freeze-frames y lineups.
 
 Uso rapido:
     from src.M02_loader_public import (
         scan_wyscout_events, load_wyscout_matches,
         list_statsbomb_competitions, load_statsbomb_events, load_statsbomb_360,
     )
-
-    wc = scan_wyscout_events("World_Cup").collect()     # 101.759 eventos
-    cmps = list_statsbomb_competitions()                # 4 torneos con n_matches
-    ev = load_statsbomb_events(3857256)                 # WC22 partido
-    ff = load_statsbomb_360(3857256)                    # freeze frames
+    wc   = scan_wyscout_events("World_Cup").collect()
+    cmps = list_statsbomb_competitions()
+    ev   = load_statsbomb_events(3857256)
+    ff   = load_statsbomb_360(3857256)
 """
 
 from __future__ import annotations
@@ -34,7 +31,7 @@ from typing import Iterable
 import polars as pl
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _PARQUET = _REPO / "data" / "parquet"
@@ -42,7 +39,7 @@ _WYSCOUT = _PARQUET / "wyscout"
 _SB      = _PARQUET / "statsbomb"
 
 
-# -- Constantes -------------------------------------------------------------
+# ---- Constantes ----
 
 # Wyscout: 5 ligas + Euro 16 + WC 18. Las 7 unicas competiciones del open dataset.
 WYSCOUT_COMPETITIONS: tuple[str, ...] = (
@@ -60,9 +57,7 @@ STATSBOMB_COMPETITIONS: dict[str, tuple[int, int]] = {
 }
 
 
-# ---------------------------------------------------------------------------
-#  WYSCOUT
-# ---------------------------------------------------------------------------
+# ---- Wyscout ----
 
 def list_wyscout_competitions() -> list[str]:
     """Nombres de las 7 competiciones disponibles."""
@@ -112,9 +107,7 @@ def _check_wyscout_competition(name: str) -> None:
         raise ValueError(f"competition '{name}' no existe; usa una de {WYSCOUT_COMPETITIONS}")
 
 
-# ---------------------------------------------------------------------------
-#  STATSBOMB
-# ---------------------------------------------------------------------------
+# ---- StatsBomb ----
 
 def list_statsbomb_competitions() -> pl.DataFrame:
     """Torneos efectivamente disponibles (filtrados), con n_matches por torneo.
@@ -194,14 +187,14 @@ def load_statsbomb_360(match_id: int) -> pl.DataFrame:
     return pl.read_parquet(path)
 
 
-# -- Sanity inline ----------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
 
-    print("=== M02_loader_public sanity ===")
+    print("[M02] sanity check")
 
-    # --- Wyscout ---
+    # ---- Wyscout ----
     t0 = time.time()
     comps_w = list_wyscout_competitions()
     wm = load_wyscout_matches()
@@ -222,7 +215,7 @@ if __name__ == "__main__":
     print(f"wyscout events totales (lazy concat): {n_all:,} "
           f"en {time.time()-t0:.2f}s")
 
-    # --- StatsBomb ---
+    # ---- StatsBomb ----
     t0 = time.time()
     cmps = list_statsbomb_competitions()
     mids = list_statsbomb_match_ids()
