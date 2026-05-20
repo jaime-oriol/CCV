@@ -1,28 +1,19 @@
-"""
-M03_preprocess - Normalizaciones que todo el pipeline asume.
+"""M03_preprocess - Normalizaciones que todo el pipeline asume.
 
 Funciones nucleares:
-  - attacking_direction(match_id) : (team_id, period) -> 'L' o 'R'
-  - goals_timeline(match_id)      : goles validos con cum_home / cum_away
-  - player_minutes(match_id)      : minutos jugados por jugador-partido
-  - enrich_events(match_id)       : events enriquecidos (acceptance M03)
+    attacking_direction(match_id)   (team_id, period) -> 'L' o 'R'
+    goals_timeline(match_id)        goles validos + cum_home/cum_away
+    player_minutes(match_id)        minutos jugados por jugador-partido
+    enrich_events(match_id)         events enriquecidos (acceptance M03)
 
-Convencion de direccion: 'R' = equipo ataca hacia x creciente (lado derecho
-de la camara principal); 'L' = hacia x decreciente. Sistema de coordenadas
-PFF: metros, (0,0) = centro, x in [-L/2, L/2], y in [-W/2, W/2].
-
-Convencion de normalizacion de coordenadas post-flip: el equipo en posesion
-SIEMPRE ataca hacia x_norm > 0. Implementado en cols `ball_x_norm`, `ball_y_norm`.
-
-Semantica del score state: asof BACKWARD por start_game_clock. Si un gol
-cae exactamente en el mismo segundo que un evento, el evento ya lo ve
-contado (interpretable como 'score AT event moment'). Para ventanas de 10 min
-esto es irrelevante.
+Convenciones:
+    direccion       'R' = equipo ataca hacia x creciente; 'L' = hacia x decreciente
+    coords PFF      metros, (0,0) en el centro, x in [-L/2, L/2], y in [-W/2, W/2]
+    normalizacion   en cols *_norm el equipo en posesion SIEMPRE ataca hacia x>0
+    score state     asof BACKWARD por start_game_clock (score AT event moment)
 
 Cache idempotente en data/parquet/derived/preprocess/events_enriched/.
-Si el parquet existe y cache=True, se lee en vez de recomputar.
-
-Depende de M01 (loader PFF). M02 publicos no se tocan aqui.
+Depende de M01 (PFF). M02 publicos no se tocan aqui.
 """
 
 from __future__ import annotations
@@ -45,13 +36,13 @@ from M01_loader_pff import (
 from M02_loader_public import load_statsbomb_matches, load_statsbomb_events
 
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO    = Path(__file__).resolve().parents[1]
 _DERIVED = _REPO / "data" / "parquet" / "derived" / "preprocess"
 
 
-# -- Direccion de ataque ----------------------------------------------------
+# ---- Direccion de ataque ----
 
 def validate_attacking_direction(match_id: int) -> tuple[bool, str]:
     """Cross-check `attacking_direction` vs primer frame de tracking.
@@ -117,7 +108,7 @@ def attacking_direction(match_id: int) -> pl.DataFrame:
                         orient="row")
 
 
-# -- Score state ------------------------------------------------------------
+# ---- Score state ----
 
 _PFF_SB_MATCH_CACHE: dict[int, int] | None = None
 
@@ -369,7 +360,7 @@ def _score_state_before(
     return ev
 
 
-# -- Score state post-shock + week index continuo --------------------------
+# ---- Score state post-shock + week index continuo ----
 
 _WC22_LAST_WEEK = 8   # J1, J2, J3, Octavos, Cuartos, Semis, 3rd-place, Final
 
@@ -417,7 +408,7 @@ def week_index_continuous(match_id: int,
     return float((int(w) - 1) / (last_week - 1))
 
 
-# -- Minutos jugados --------------------------------------------------------
+# ---- Minutos jugados ----
 
 def player_minutes(match_id: int) -> pl.DataFrame:
     """Minutos jugados por jugador-partido.
@@ -477,7 +468,7 @@ def player_minutes(match_id: int) -> pl.DataFrame:
     return out.sort(["team_id", "minute_in"])
 
 
-# -- Enrich events (acceptance M03) -----------------------------------------
+# ---- Enrich events (acceptance M03) ----
 
 def enrich_events(match_id: int, cache: bool = True,
                    overwrite: bool = False) -> pl.DataFrame:
@@ -587,13 +578,13 @@ def cache_all_enriched(overwrite: bool = False) -> dict:
     return out
 
 
-# -- Sanity inline ----------------------------------------------------------
+# ---- Sanity inline ----
 
 if __name__ == "__main__":
     import time
     from M01_loader_pff import list_matches
 
-    print("=== M03_preprocess sanity ===")
+    print("[M03] sanity check")
     inv = list_matches()
     gid = int(inv.filter(pl.col("has_tracking"))["match_id"][0])
 
