@@ -412,7 +412,7 @@ if __name__ == "__main__":
     for t in sorted(nm["near_miss_type"].unique().to_list()):
         sub = nm.filter(pl.col("near_miss_type") == t).head(5)
         if sub.height == 0: continue
-        print(f"\n  -- {t} ({sub.height} muestra de {nm.filter(pl.col('near_miss_type')==t).height} total) --")
+        print(f"\n  [{t}] ({sub.height} muestra de {nm.filter(pl.col('near_miss_type')==t).height} total)")
         print(sub.select(["sb_match_id", "minute", "team_name", "shot_outcome",
                           "xg_baseline", "psxg", "margin_info"]))
 

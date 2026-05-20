@@ -211,7 +211,7 @@ def _compute_velocities_clean(positions_x: np.ndarray, positions_y: np.ndarray,
                                fs: float = _FPS_DEFAULT
                                ) -> tuple[np.ndarray, np.ndarray, np.ndarray,
                                           np.ndarray]:
-    """Pipeline ELITE: posiciones -> (vx, vy, speed, signed_accel).
+    """Posiciones -> (vx, vy, speed, signed_accel).
 
     Segmenta por teleports y procesa cada segmento independientemente con
     `_process_segment` (Butterworth filtfilt + Hampel + cap proporcional).
@@ -957,7 +957,7 @@ if __name__ == "__main__":
 
     print("[M11] sanity check")
 
-    # Paso 1: Metricas raw Bradley 2024 SOTA
+    # Paso 1: metricas raw Bradley 2024
     print("[1] Metricas raw fisicas (Butterworth 1Hz + Hampel + segmentacion teleports)")
     t0 = time.time()
     raw = build_raw_per_minute(cache=True, overwrite=False)

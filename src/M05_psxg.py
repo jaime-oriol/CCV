@@ -659,7 +659,7 @@ if __name__ == "__main__":
     big = pl.read_parquet(out)
     print(f"  {big.height} shots, {big['is_goal'].sum()} goles")
 
-    # -- Validacion rigorosa adicional (WC22 holdout + calibration) --
+    # ---- Validacion WC22 holdout + calibration ----
     from sklearn.metrics import roc_auc_score, brier_score_loss, log_loss
     wc22 = build_wc22_shots(cache=True)
     psxg_w = predict_psxg(wc22, fit)

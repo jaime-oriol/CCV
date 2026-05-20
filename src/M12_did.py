@@ -76,10 +76,9 @@ HONEST_M_VALUES     = (0.5, 1.0, 2.0) # Rambachan-Roth M restrictions
 #                   (ese minuto se excluye del estimador, NO se imputa 0,
 #                   porque score_phys es z-score residualizado y 0 != "ausencia").
 CHANNELS: dict[str, tuple[str, str, float | None]] = {
-    # Canal ataque SOTA: atomic-VAEP (Decroos 2020) + un-xPass (Robberechts 2023).
+    # Canal ataque: atomic-VAEP (Decroos 2020) + un-xPass (Robberechts 2023).
     "ataque":  ("ataque/per_minute.parquet",  "score_atk_v2_minute", 0.0),
-    # Canal defensa SOTA: vdep_strict (Toda 2022 cabeza dedicada
-    # P(recovery)-C*P(attacked)) + xpress (Lee 2025 tracking 25Hz) +
+    # Canal defensa: vdep_strict (Toda 2022) + xpress (Lee 2025) +
     # maejima (Maejima 2024 nearest-defender frame-level).
     "defensa": ("defensa/per_minute.parquet", "score_def_v4_minute", 0.0),
     # c_obso_mean (counterfactual Teranishi 2022). Raw OBSO descartado:

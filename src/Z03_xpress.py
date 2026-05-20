@@ -51,7 +51,7 @@ _DERIVED = _REPO / "data" / "parquet" / "derived" / "defensa" / "xpress"
 RECOVERY_WINDOW_SEC = 5.0
 
 
-# --- Features extraction --------------------------------------------------
+# ---- Features extraction ----
 
 _PRESS_TYPE_ORD = {"A": 0, "L": 1, "P": 2}
 _TOUCH_TYPE_ORD = {"S": 0, "G": 1, "P": 2, "B": 3, "M": 4}    # standard < good < plus < bad < miscontrol
@@ -194,7 +194,7 @@ FEATURE_COLS_EVENTS = [
     "f_is_home_ball", "f_score_diff",
 ]
 
-# Features tracking 25Hz (Lee et al. 2025 SOTA): geometria defensor-balon-rival
+# Features tracking 25Hz (Lee et al. 2025): geometria defensor-balon-rival
 FEATURE_COLS_TRACKING = [
     "f_dist_def_ball",          # dist defensor-balon (m)
     "f_dist_def_carrier",       # dist defensor-portador (m)
@@ -212,7 +212,7 @@ FEATURE_COLS = FEATURE_COLS_EVENTS + FEATURE_COLS_TRACKING
 def _extract_tracking_features(match_id: int,
                                   press_df: pl.DataFrame) -> pl.DataFrame:
     """Lee 1 frame del tracking PFF por cada press event y extrae features
-    geometricas (Lee et al. 2025 exPress SOTA).
+    geometricas (Lee et al. 2025 exPress).
 
     Mecanica:
       1. Ball position from `ballsSmoothed`.
@@ -384,7 +384,7 @@ def _extract_tracking_features(match_id: int,
     return press_df.join(feats, on=["startTime", "press_player_id"], how="left")
 
 
-# --- Train + cross-fit + isotonic calibration -----------------------------
+# ---- Train + cross-fit + isotonic calibration ----
 
 def fit_xpress(df: pl.DataFrame, n_folds: int = 5,
                n_trials: int = 30, seed: int = 42) -> dict:
@@ -489,7 +489,7 @@ def load_fit(path: Path | None = None) -> dict:
         return pickle.load(f)
 
 
-# --- Apply: per_event predictions + per (player, minute) aggregation ------
+# ---- Apply: per_event predictions + per (player, minute) aggregation ----
 
 def predict_per_event(fit: dict, df: pl.DataFrame) -> pl.DataFrame:
     X = df.select(fit["feature_cols"]).to_numpy().astype(np.float32)

@@ -128,8 +128,8 @@ def build_shocks_table(cache: bool = True,
 
     # Leverage + elim_prox map: M04 WP per_minute per (match, minute).
     # leverage = sensibilidad WP a un gol mas (pivotal moment).
-    # elim_prox_home/away = P(equipo NO clasifica) — la "proximidad de irse a casa"
-    # propuesta_final.md:27. Antes elim_prox NO se propagaba (gap auditoria).
+    # elim_prox_home/away = P(equipo NO clasifica), "proximidad de irse a casa"
+    # (propuesta_final.md:27).
     wp_path = _DERIVED.parent / "wp" / "per_minute.parquet"
     leverage_map: dict[tuple[int, int], float] = {}
     elim_prox_home_map: dict[tuple[int, int], float] = {}

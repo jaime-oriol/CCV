@@ -31,9 +31,7 @@ import numpy as np
 import pandas as pd
 
 
-# ---------------------------------------------------------------------
-# Model parameters
-# ---------------------------------------------------------------------
+# ---- Model parameters ----
 
 def default_model_params(time_to_control_veto: int = 3) -> dict:
     """Return default PPCF model parameters (Spearman 2018).
@@ -68,9 +66,7 @@ def default_model_params(time_to_control_veto: int = 3) -> dict:
     return params
 
 
-# ---------------------------------------------------------------------
-# Core PPCF (Spearman 2018 / LaurieOnTracking) - vectorizado
-# ---------------------------------------------------------------------
+# ---- Core PPCF (Spearman 2018 / LaurieOnTracking) vectorizado ----
 
 def _ppcf_vectorized(
     targets: np.ndarray,
@@ -143,7 +139,7 @@ def _ppcf_vectorized(
     if len(eidx) == 0:
         return result
 
-    # --- Euler integration for contested targets ---
+    # Euler integration for contested targets
     M = len(eidx)
     e_btt = ball_tt[eidx]                                              # (M,)
     e_att = att_tti[:, eidx]                                           # (Pa, M)
@@ -185,9 +181,7 @@ def _ppcf_vectorized(
     return result
 
 
-# ---------------------------------------------------------------------
-# Helpers de extraccion sobre frame_data (formato neutro)
-# ---------------------------------------------------------------------
+# ---- Helpers de extraccion sobre frame_data (formato neutro) ----
 
 def _extract_teams(frame_data: pd.DataFrame, att_team_id):
     """Extract (pos, vel, is_gk) arrays for attacking and defending teams."""
@@ -219,9 +213,7 @@ def get_ball_pos(frame_data: pd.DataFrame) -> Optional[np.ndarray]:
     return np.array([ball.iloc[0]["x_tracking"], ball.iloc[0]["y_tracking"]])
 
 
-# ---------------------------------------------------------------------
-# API publica: PPCF a targets especificos
-# ---------------------------------------------------------------------
+# ---- API publica: PPCF a targets especificos ----
 
 def ppcf_at_targets(
     frame_data: pd.DataFrame,

@@ -4,7 +4,7 @@ Canal 2/4 del PCJ. Combina on-ball (VAEP de M08) con off-ball (tracking PFF
 25 Hz). Outcome principal `score_def_v4` = vdep_strict + xpress + maejima_value.
 
 Sub-canales agregados per (match, player, minute):
-    score_def_v4_minute      OUTCOME PRINCIPAL = vdep_strict + xpress + maejima
+    score_def_v4_minute      outcome principal = vdep_strict + xpress + maejima
     vdep_strict_minute       VDEP fiel a Toda 2022 (PLOS ONE): cabeza dedicada
                              P(recovery_in_3) - C*P(attacked_in_5) (Z04)
     xpress_value_minute      exPress Lee 2025: P(recovery<5s | press event)
@@ -472,15 +472,13 @@ def aggregate_per_player_minute(cache: bool = True) -> pl.DataFrame:
             pl.lit(None, dtype=pl.Int64).alias("oppo_possession_frames"),
         ])
 
-    # Canal defensa SOTA v4 (TOP REAL FULL): vdep_strict (Toda 2022 cabeza
-    # dedicada P(recovery)-C*P(attacked) AUC 0.80) + xpress_value (Lee 2025
-    # tracking 25Hz AUC 0.62) + maejima_value (Maejima 2024 nearest-defender
-    # frame-level, credito a quien mas cerca del balon en cada accion
-    # offensive del oponente). Tres componentes complementarios:
+    # Canal defensa v4: vdep_strict (Toda 2022, AUC 0.80) + xpress (Lee 2025
+    # tracking 25Hz, AUC 0.62) + maejima (Maejima 2024 nearest-defender
+    # frame-level). Tres componentes complementarios:
     #   - vdep_strict:  acciones defensivas SPADL valoradas (recovery vs attacked)
     #   - xpress:       pressing calibrado P(recovery<5s|press_event)
     #   - maejima:      oposicion espacial frame-level (signo segun outcome)
-    # v2/v3 + componentes preservados como sensitivity.
+    # v2/v3 preservados como sensitivity.
     agg = agg.with_columns([
         (pl.col("vdep_like_minute") + pl.col("xpress_value_minute"))
             .alias("score_def_v2_minute"),
@@ -496,7 +494,7 @@ def aggregate_per_player_minute(cache: bool = True) -> pl.DataFrame:
         "pff_match_id", "sb_match_id",
         "pff_player_id", "sb_player_id",
         "period", "minute_in_period", "sec_abs",
-        "score_def_v4_minute",                  # OUTCOME PRINCIPAL TOP: + maejima
+        "score_def_v4_minute",                  # outcome principal: vdep_strict + xpress + maejima
         "score_def_v3_minute",                  # v3 (vdep_strict + xpress)
         "score_def_v2_minute",                  # v2 (vdep_like + xpress)
         "score_def_minute", "vdep_like_minute",  # legacy + componente
@@ -735,7 +733,7 @@ def aggregate_per_shock_window(cache: bool = True) -> pl.DataFrame:
             "pff_match_id", "sb_match_id",
             "shock_id", "shock_type",
             "pff_player_id", "sb_player_id",
-            # Outcome principal v4 SOTA TOP REAL FULL: vdep_strict + xpress + maejima
+            # Outcome principal v4: vdep_strict + xpress + maejima
             "score_def_v4_pre", "score_def_v4_post",
             "score_def_v4_team_loo_pre", "score_def_v4_team_loo_post",
             "score_def_v4_relative_pre", "score_def_v4_relative_post",

@@ -217,7 +217,7 @@ def train_vaep_model(atomic_df: pd.DataFrame,
                      seed: int = 42,
                      tune: bool = True,
                      n_trials: int = 30) -> dict:
-    """Entrena atomic-VAEP TOP RIGUROSO via CatBoost.
+    """Entrena atomic-VAEP via CatBoost (2 cabezas: scores + concedes).
 
     Pipeline:
       1. Optuna tuning opcional (3-fold CV by match, log-loss).
@@ -469,9 +469,9 @@ def aggregate_per_player_minute(wc22_with_vaep: pd.DataFrame,
     else:
         agg = agg.with_columns(pl.lit(0.0).alias("unxpass_value_minute"))
 
-    # Canal ataque v2 SOTA: atomic-VAEP (valor on-ball) + un-xPass (creative
-    # decision residual). Captura tanto valor de la accion como
-    # "decisiones inesperadas exitosas" (Robberechts 2023 KDD).
+    # Canal ataque v2: atomic-VAEP (valor on-ball) + un-xPass (creative
+    # decision residual). Captura valor de la accion + "decisiones
+    # inesperadas exitosas" (Robberechts 2023 KDD).
     agg = agg.with_columns(
         (pl.col("score_atk_minute") + pl.col("unxpass_value_minute"))
             .alias("score_atk_v2_minute")
@@ -482,7 +482,7 @@ def aggregate_per_player_minute(wc22_with_vaep: pd.DataFrame,
         "pff_match_id", "sb_match_id",
         "pff_player_id", "sb_player_id",
         "period", "minute_in_period", "sec_abs",
-        "score_atk_v2_minute",                   # OUTCOME PRINCIPAL: VAEP + un-xPass
+        "score_atk_v2_minute",                   # outcome principal: VAEP + un-xPass
         "score_atk_minute",                      # legacy atomic-VAEP solo
         "unxpass_value_minute",                  # componente un-xPass
         "vaep_minute", "n_actions",
@@ -939,7 +939,7 @@ def aggregate_per_shock_window(per_minute: pl.DataFrame,
             "pff_match_id", "sb_match_id",
             "shock_id", "shock_type",
             "pff_player_id", "sb_player_id",
-            # Outcome principal v2 SOTA: atomic-VAEP + un-xPass
+            # Outcome principal v2: atomic-VAEP + un-xPass
             "score_atk_v2_pre", "score_atk_v2_post",
             "score_atk_v2_team_loo_pre", "score_atk_v2_team_loo_post",
             "score_atk_v2_relative_pre", "score_atk_v2_relative_post",
@@ -981,7 +981,7 @@ if __name__ == "__main__":
     wc22_df = build_wc22_atomic(overwrite=False)
     print(f"  atomic actions WC22: {len(wc22_df):,} en {time.time()-t0:.1f}s")
 
-    # 3. Train VAEP model (TOP RIGUROSO: 5-fold CV + isotonic + overfit check)
+    # 3. Train VAEP model: 5-fold CV + isotonic + overfit check
     model_prefix = _MODEL_DIR / "vaep_atk"
     meta_path = Path(f"{model_prefix}_meta.pkl")
     if (Path(f"{model_prefix}_scores.cbm").exists() and
@@ -990,7 +990,7 @@ if __name__ == "__main__":
         fit = load_models()
         print("\n[3] VAEP models + calibradores cargados desde cache")
     else:
-        print("\n[3] Training CatBoost atomic-VAEP TOP (5-fold CV + isotonic)...")
+        print("\n[3] Training CatBoost atomic-VAEP (5-fold CV + isotonic)...")
         t0 = time.time()
         fit = train_vaep_model(train_df, n_folds=5, seed=42)
         print(f"  train completo en {time.time()-t0:.1f}s")

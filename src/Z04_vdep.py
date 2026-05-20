@@ -62,7 +62,7 @@ DEF_ACTION_TYPES = {
 }
 
 
-# --- Features (reuso atomic-SPADL existing en M08) ------------------------
+# ---- Features (reuso atomic-SPADL existing en M08) ----
 
 # Subset compacto de cols atomic-SPADL pre-accion utiles para VDEP
 FEATURE_COLS = [
@@ -194,7 +194,7 @@ def build_training_table(atomic_df, cache: bool = True,
     return train
 
 
-# --- Train -----------------------------------------------------------------
+# ---- Train ----
 
 def fit_vdep(df: pl.DataFrame, n_folds: int = 5, n_trials: int = 25,
              seed: int = 42) -> dict:
@@ -306,7 +306,7 @@ def load_fit(path: Path | None = None) -> dict:
         return pickle.load(f)
 
 
-# --- Apply WC22 -----------------------------------------------------------
+# ---- Apply WC22 ----
 
 def predict_per_event(fit: dict, atomic_df) -> pl.DataFrame:
     """Aplica las dos cabezas a las acciones defensivas WC22 + computa VDEP."""

@@ -96,9 +96,7 @@ POS_BUCKET_MAP: dict[str, str] = {
 }
 
 
-# ----------------------------------------------------------------------------
-# Schema contract estable de la tabla PCJ
-# ----------------------------------------------------------------------------
+# ---- Schema contract estable de la tabla PCJ ----
 # Campos requeridos en pcj_table.parquet. Si falta alguno, M15 falla con
 # mensaje claro antes de persistir — protege a downstream consumers
 # (notebooks scout, exports, etc.) de schemas rotos.
@@ -193,9 +191,8 @@ PER_MIN_OUTCOL = {"ataque": "score_atk_v2_minute", "defensa": "score_def_v4_minu
                   "offball": "c_obso_mean",     "fisico": "score_phys"}
 
 
-# ----------------------------------------------------------------------------
-# Loaders
-# ----------------------------------------------------------------------------
+# ---- Loaders ----
+
 def _load_m14() -> dict:
     """Lee outputs M14 (parquets). YA NO necesita cate_nuts.pkl: M14 ahora
     vuelca a parquet los 4 derivados del posterior que antes se computaban
@@ -421,9 +418,8 @@ def _load_shock_exposure() -> pl.DataFrame:
     ]))
 
 
-# ----------------------------------------------------------------------------
-# Posterior probabilities desde samples
-# ----------------------------------------------------------------------------
+# ---- Posterior probabilities desde samples ----
+
 def _compute_acute_window_per_player(window: int = ACUTE_WINDOW) -> pl.DataFrame:
     """Per (player, channel, shock_type): within-player diff (post-pre) en
     ventana ACUTA +-window min, computed desde per_minute parquets.
@@ -522,9 +518,8 @@ def _compute_absolute_indices_for_h5(panel_abs: pl.DataFrame) -> pl.DataFrame:
     ])
 
 
-# ----------------------------------------------------------------------------
-# CATEs 8-valores preservados (4 canales × 2 shocks)
-# ----------------------------------------------------------------------------
+# ---- CATEs 8-valores preservados (4 canales x 2 shocks) ----
+
 def _build_cate_wide(posterior: pl.DataFrame) -> pl.DataFrame:
     """Pivot posterior_player (long) → wide con 32 cols (8 channels x 4 stats)."""
     rows = []
@@ -539,9 +534,8 @@ def _build_cate_wide(posterior: pl.DataFrame) -> pl.DataFrame:
     return long.pivot("key", index="pff_player_id", values="val")
 
 
-# ----------------------------------------------------------------------------
-# Vector PCJ summary 4-canal directional
-# ----------------------------------------------------------------------------
+# ---- Vector PCJ summary 4-canal directional ----
+
 def _build_pcj_summary_vector(cate_wide: pl.DataFrame) -> pl.DataFrame:
     """4-vector directional: cada canal usa shock_type de máxima leverage.
 
@@ -562,9 +556,8 @@ def _build_pcj_summary_vector(cate_wide: pl.DataFrame) -> pl.DataFrame:
     ])
 
 
-# ----------------------------------------------------------------------------
-# Tier labels (percentile-based)
-# ----------------------------------------------------------------------------
+# ---- Tier labels (percentile-based) ----
+
 def _tier_from_percentile(pct: float) -> str:
     if pct >= 0.95:  return "Elite"
     if pct >= 0.85:  return "Top"
@@ -714,9 +707,8 @@ def _add_significance(df: pl.DataFrame) -> pl.DataFrame:
     return out
 
 
-# ----------------------------------------------------------------------------
-# Rankings (global + in-position)
-# ----------------------------------------------------------------------------
+# ---- Rankings (global + in-position) ----
+
 def _add_rankings(df: pl.DataFrame) -> pl.DataFrame:
     """Rankings global + within-position (16 labels) + within-bucket (4 grupos)
     para las 3 dimensiones.
@@ -747,9 +739,8 @@ def _add_rankings(df: pl.DataFrame) -> pl.DataFrame:
     return out
 
 
-# ----------------------------------------------------------------------------
-# Build maestro
-# ----------------------------------------------------------------------------
+# ---- Build maestro ----
+
 def build_pcj_table() -> pl.DataFrame:
     print("[M15] Cargando M14 outputs (parquets, sin pkl)...")
     m14 = _load_m14()
@@ -1057,7 +1048,7 @@ def main():
         print(f"  + aux: {name}.parquet ({df.height} rows)")
 
     # Resumen sanity
-    print(f"\n=== PCJ Table summary ===")
+    print(f"\n[PCJ Table summary]")
     n_low = int(pcj["low_sample"].sum())
     print(f"Jugadores n_shocks>={MIN_SHOCKS}: {pcj.height} "
            f"({n_low} con low_sample flag)")

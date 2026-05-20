@@ -82,11 +82,11 @@ CHANNELS: dict[str, tuple[str, str, str, str]] = {
     # (path, col_pre_abs, col_post_abs, col_delta_relative).
     # delta_relative viene precomputed por attach_team_loo de M07 en los
     # per_shock_window de M08-M11 — usamos directo sin recomputar.
-    # Canal ataque SOTA: atomic-VAEP (Decroos 2020) + un-xPass (Robberechts 2023).
+    # Canal ataque: atomic-VAEP (Decroos 2020) + un-xPass (Robberechts 2023).
     "ataque":  ("ataque/per_shock_window.parquet", "score_atk_v2_pre", "score_atk_v2_post",
                 "score_atk_v2_delta_relative"),
-    # Canal defensa SOTA: vdep_strict (Toda 2022) + xpress (Lee 2025 tracking
-    # 25Hz) + maejima (Maejima 2024 nearest-defender frame-level).
+    # Canal defensa: vdep_strict (Toda 2022) + xpress (Lee 2025 tracking 25Hz)
+    # + maejima (Maejima 2024 nearest-defender frame-level).
     "defensa": ("defensa/per_shock_window.parquet", "score_def_v4_pre", "score_def_v4_post",
                 "score_def_v4_delta_relative"),
     "offball": ("offball/per_shock_window.parquet", "c_obso_pre",    "c_obso_post",
@@ -505,7 +505,7 @@ def fit_cate_nuts(panel: pl.DataFrame,
 def compute_diagnostics(fit: dict) -> pl.DataFrame:
     """split-R-hat + ESS por componente escalar de cada parametro de escala.
 
-    Usa los estimadores SOTA de numpyro.diagnostics:
+    Usa los estimadores de numpyro.diagnostics:
       - split_gelman_rubin   : R-hat con split-chains (Gelman et al. 2013).
       - effective_sample_size: ESS rank-normalizada (Vehtari et al. 2021).
     Acceptance: R-hat < 1.05 + ESS_bulk > 400 = convergencia OK.
@@ -1221,6 +1221,6 @@ if __name__ == "__main__":
         print("\n[ABORT] Smoke test fallido — corrige el modelo antes de lanzar el run completo.")
         sys.exit(1)
 
-    print("\n=== Smoke test OK — para el run completo lanza compute_all() manualmente ===")
+    print("\n[smoke OK] para el run completo lanza compute_all() manualmente")
     print("  Ejemplo: python -c \"from M14_cate import compute_all; compute_all(overwrite=True)\"")
     print("  ETA: ~22 min con NUTS 4 chains x 2000 iter sobre 14k obs.")

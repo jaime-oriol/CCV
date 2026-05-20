@@ -76,9 +76,9 @@ SHOCK_TYPES     = ("GOAL_FOR", "GOAL_AGAINST")
 
 # Mapeo canal -> (path per_minute, outcome col, fill_value)
 CHANNELS: dict[str, tuple[str, str, float | None]] = {
-    # Canal ataque SOTA: atomic-VAEP (Decroos 2020) + un-xPass (Robberechts 2023).
+    # Canal ataque: atomic-VAEP (Decroos 2020) + un-xPass (Robberechts 2023).
     "ataque":  ("ataque/per_minute.parquet",  "score_atk_v2_minute", 0.0),
-    # Canal defensa SOTA: vdep_strict (Toda 2022) + xpress (Lee 2025) + maejima (2024).
+    # Canal defensa: vdep_strict (Toda 2022) + xpress (Lee 2025) + maejima (2024).
     "defensa": ("defensa/per_minute.parquet", "score_def_v4_minute", 0.0),
     # c_obso_mean (counterfactual Teranishi 2022) — canonical en M12. Raw
     # obso_mean descartado tras validacion (signo invertido vs PFF off grades).

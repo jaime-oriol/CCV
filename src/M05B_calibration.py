@@ -108,7 +108,7 @@ def compute_all() -> None:
     model = fit["model"]
     calibrator = fit["calibrator"]
 
-    # --- OOF (training) ---
+    # ---- OOF (training) ----
     train = pl.read_parquet(_PSXG_DIR / "training_shots.parquet")
     X_tr = train.select(feature_cols).to_numpy().astype(np.float32)
     y_tr = train["_label"].to_numpy()
@@ -132,7 +132,7 @@ def compute_all() -> None:
         oof_raw[val_mask] = m.predict_proba(X_tr[val_mask])[:, 1]
     oof_cal = calibrator.predict(oof_raw)
 
-    # --- WC22 holdout ---
+    # ---- WC22 holdout ----
     wc22 = pl.read_parquet(_PSXG_DIR / "wc22_shots.parquet")
     X_wc = wc22.select(feature_cols).to_numpy().astype(np.float32)
     y_wc = wc22["_label"].to_numpy()
@@ -140,7 +140,7 @@ def compute_all() -> None:
     pred_raw_wc = model.predict_proba(X_wc)[:, 1]
     pred_cal_wc = calibrator.predict(pred_raw_wc)
 
-    # --- Calibration curves ---
+    # ---- Calibration curves ----
     curves = []
     for label, p, y in [
         ("oof_psxg_calibrated", oof_cal, y_tr),
@@ -156,7 +156,7 @@ def compute_all() -> None:
     curve_df.write_parquet(_OUT_DIR / "calibration_curve.parquet")
     print(f"[curve] Saved calibration_curve.parquet ({curve_df.height} rows)")
 
-    # --- Metrics combined ---
+    # ---- Metrics combined ----
     rows = []
     for label, p, y in [
         ("oof_psxg_calibrated", oof_cal, y_tr),
@@ -184,13 +184,13 @@ def compute_all() -> None:
     print(metrics.select(["model", "n", "auc", "brier", "ece",
                           "reliability", "resolution"]))
 
-    # --- Brier decomposition table ---
+    # ---- Brier decomposition table ----
     decomp_df = metrics.select(["model", "brier", "reliability",
                                 "resolution", "uncertainty"])
     decomp_df.write_parquet(_OUT_DIR / "brier_decomposition.parquet")
     print(f"[decomp] Saved brier_decomposition.parquet ({decomp_df.height} rows)")
 
-    # --- Isotonic mapping curve ---
+    # ---- Isotonic mapping curve ----
     iso_x = np.linspace(0, 1, 1000)
     iso_y = calibrator.predict(iso_x)
     iso_df = pl.DataFrame(dict(raw_pred=iso_x, calibrated_pred=iso_y))

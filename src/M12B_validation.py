@@ -13,7 +13,7 @@ Tests:
     window_sensitivity.parquet   re-estima ATE con ventanas +-3/5/7/10/15 min
     stage_stratified.parquet     ATE separado por stage (groups vs ko)
 
-Lee panels de M12 (`panel_{ch}.parquet`) con outcome canonico SOTA. Para
+Lee panels de M12 (`panel_{ch}.parquet`) con outcome canonico por canal. Para
 window_sensitivity construye panel propio desde per_minute.parquet.
 
 Uso:
@@ -38,7 +38,7 @@ N_PERM = 1000
 N_BOOT = 1000
 SEED = 42
 
-# Outcome col SOTA por canal (per_minute) — DEBE coincidir con M12.CHANNELS
+# Outcome col por canal (per_minute) — DEBE coincidir con M12.CHANNELS
 # para que window_sensitivity sea sensitivity coherente del ATE canonico.
 _OUTCOME_COL = {
     "ataque":  "score_atk_v2_minute",   # atomic-VAEP + un-xPass
@@ -49,9 +49,8 @@ _OUTCOME_COL = {
 _PER_MIN_DIR = _REPO / "data" / "parquet" / "derived"
 
 
-# ----------------------------------------------------------------------------
-# Estimadores
-# ----------------------------------------------------------------------------
+# ---- Estimadores ----
+
 def _within_diff_per_ps(panel: pl.DataFrame) -> tuple[np.ndarray, dict]:
     """Devuelve array de diffs (post - pre) por (player, shock).
 
@@ -81,9 +80,8 @@ def _within_ate(diffs: np.ndarray) -> dict:
     )
 
 
-# ----------------------------------------------------------------------------
-# Baseline naive vs M12 DiD
-# ----------------------------------------------------------------------------
+# ---- Baseline naive vs M12 DiD ----
+
 def baseline_naive() -> pl.DataFrame:
     rows = []
     m12 = (pl.read_parquet(_PANEL_DIR / "ate_population.parquet")
@@ -122,9 +120,8 @@ def baseline_naive() -> pl.DataFrame:
     return out
 
 
-# ----------------------------------------------------------------------------
-# Placebo test (Fisher exact via within-series permutation)
-# ----------------------------------------------------------------------------
+# ---- Placebo test (Fisher exact via within-series permutation) ----
+
 def placebo_test(n_perm: int = N_PERM) -> pl.DataFrame:
     rng = np.random.default_rng(SEED)
     rows = []
@@ -200,9 +197,8 @@ def placebo_test(n_perm: int = N_PERM) -> pl.DataFrame:
     return out
 
 
-# ----------------------------------------------------------------------------
-# Power analysis (bootstrap MDE + effective_n + observed power)
-# ----------------------------------------------------------------------------
+# ---- Power analysis (bootstrap MDE + effective_n + observed power) ----
+
 def _icc_one_way(diffs: np.ndarray, cluster_ids: np.ndarray) -> float:
     """ICC one-way ANOVA: ratio of between-cluster variance to total."""
     df = pl.DataFrame({"y": diffs, "g": cluster_ids})
@@ -276,9 +272,8 @@ def power_analysis(n_boot: int = N_BOOT) -> pl.DataFrame:
     return out
 
 
-# ----------------------------------------------------------------------------
-# Window sensitivity ±3/5/7/10/15 min con panel extendido desde per_minute
-# ----------------------------------------------------------------------------
+# ---- Window sensitivity +-3/5/7/10/15 min con panel extendido desde per_minute ----
+
 def _build_extended_window_panel(channel: str, window: int) -> pl.DataFrame:
     """Reconstruye panel con ventana arbitraria desde per_minute + shocks_table.
 
@@ -337,9 +332,8 @@ def window_sensitivity() -> pl.DataFrame:
     return out
 
 
-# ----------------------------------------------------------------------------
-# Multiple test correction (Benjamini-Hochberg FDR)
-# ----------------------------------------------------------------------------
+# ---- Multiple test correction (Benjamini-Hochberg FDR) ----
+
 def _bh_fdr(pvals: np.ndarray, alpha: float = 0.05) -> tuple:
     """Benjamini-Hochberg FDR adjustment. Returns (p_adj, reject_h0)."""
     n = len(pvals)
@@ -376,9 +370,8 @@ def add_multiple_test_correction() -> pl.DataFrame:
     return placebo
 
 
-# ----------------------------------------------------------------------------
-# Stage-stratified ATE (groups vs KO)
-# ----------------------------------------------------------------------------
+# ---- Stage-stratified ATE (groups vs KO) ----
+
 def stage_stratified_ate() -> pl.DataFrame:
     """Estima ATE separado por stage (groups vs KO).
 
@@ -411,7 +404,8 @@ def stage_stratified_ate() -> pl.DataFrame:
     return out
 
 
-# ----------------------------------------------------------------------------
+# ---- Entry point ----
+
 def main(overwrite: bool = False):
     print("[M12] sanity check")
     naive = baseline_naive()
@@ -441,7 +435,7 @@ def main(overwrite: bool = False):
     stage = stage_stratified_ate()
     print(stage.pivot(on="stage", index=["channel", "shock_type"],
                       values="ate"))
-    print("\n=== Validation suite OK — outputs en data/parquet/derived/did_validation/ ===")
+    print("\n[validation OK] outputs en data/parquet/derived/did_validation/")
 
 
 if __name__ == "__main__":
