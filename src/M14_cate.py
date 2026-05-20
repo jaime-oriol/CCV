@@ -870,7 +870,11 @@ def compute_rankings(indices: pl.DataFrame, panel: pl.DataFrame) -> pl.DataFrame
 
 def _dump_posterior_probs(fit: dict, path: Path) -> None:
     """Per jugador: P(chasing>0), P(protecting>0), P(dual>0) + chasing/protecting
-    idx/sd/lo80/hi80. 12 cols × 598 jugadores.
+    idx/sd/lo80/hi80 (12 cols agregadas) + P(eta>0) PER CANAL × SHOCK (8 cells
+    canal-a-canal: la inferencia individual realmente vive aqui, no en
+    agregados; vease _dump_posterior_probs analisis).
+
+    Total: 20 cols × 598 jugadores.
     """
     s = fit["samples"]; p_to_idx = fit["p_to_idx"]; ch = fit["ch_to_idx"]
     eta_ga = s["eta_ga"]; eta_gf = s["eta_gf"]
@@ -879,10 +883,16 @@ def _dump_posterior_probs(fit: dict, path: Path) -> None:
     p_ch_pos = (chasing > 0).mean(axis=0)
     p_pr_pos = (protect > 0).mean(axis=0)
     p_dual_pos = ((chasing > 0) & (protect > 0)).mean(axis=0)
+    # Per-canal × shock_type p_positive (8 cells)
+    canal_short = {"ataque": "atk", "defensa": "def", "offball": "off", "fisico": "phys"}
+    pcell = {}      # (canal_short, shock) -> array (n_players,)
+    for shock_name, eta_base in [("GA", eta_ga), ("GF", eta_gf)]:
+        for c_name, c_i in ch.items():
+            pcell[(canal_short[c_name], shock_name)] = (eta_base[:, :, c_i] > 0).mean(axis=0)
     inv_p = {v: k for k, v in p_to_idx.items()}
     rows = []
     for i in range(eta_ga.shape[1]):
-        rows.append(dict(
+        r = dict(
             pff_player_id=inv_p[i],
             chasing_clutch_idx=float(chasing[:, i].mean()),
             chasing_clutch_sd=float(chasing[:, i].std()),
@@ -895,7 +905,10 @@ def _dump_posterior_probs(fit: dict, path: Path) -> None:
             p_chasing_positive=float(p_ch_pos[i]),
             p_protecting_positive=float(p_pr_pos[i]),
             p_dual_positive=float(p_dual_pos[i]),
-        ))
+        )
+        for (cs, sh), arr in pcell.items():
+            r[f"p_{cs}_{sh}_positive"] = float(arr[i])
+        rows.append(r)
     pl.DataFrame(rows).write_parquet(path, compression="snappy")
 
 

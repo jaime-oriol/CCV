@@ -66,7 +66,7 @@ _PLAYERS_CSV = _REPO / "data_mundial" / "players.csv"
 _OUT_DIR     = _REPO / "outputs"
 _AUX_DIR     = _OUT_DIR / "pcj_aux"
 
-MIN_SHOCKS = 3                # identificabilidad random effect jerarquico
+MIN_SHOCKS = 2                # minimo viable: hay equipos (Tunisia) con max 2 shocks/jug
 MIN_MINUTES_FOR_PER90 = 90    # estabilidad ratios per-90 fisicas (1 partido)
 LOW_SAMPLE_SHOCKS = 8         # bajo este N, flag low_sample (CI ancho)
 LOW_SAMPLE_MINUTES = 270      # bajo este min, flag low_sample (sample limitado)
@@ -76,6 +76,12 @@ LOW_SAMPLE_MINUTES = 270      # bajo este min, flag low_sample (sample limitado)
 # de certeza posterior — dual flag para reportar maximo nivel de confianza.
 SIG_THRESHOLD = 0.85
 SIG_STRONG_THRESHOLD = 0.95
+# Threshold debil para los agregados (chasing/protecting/pressure). El analisis
+# del posterior muestra que solo ataque_GF tiene senal/ruido alta (sigma_player
+# /sigma_eps=0.26); los agregados que mezclan canales diluyen senal por bajas
+# correlaciones intra-jugador. Sig_weak captura "tendencia robusta" sin pedir
+# certeza posterior fuerte. Documenta limitacion sample size WC22 (N=172 shocks).
+SIG_WEAK_THRESHOLD = 0.75
 # Acute window +-5min: M12B window_sensitivity mostro decay 7x de w3 a w10
 # en fisico/offball; +-10 dilute el efecto, +-5 captura el numero scout.
 ACUTE_WINDOW = 5
@@ -647,10 +653,15 @@ def _add_tier_with_uncertainty(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def _add_significance(df: pl.DataFrame) -> pl.DataFrame:
-    """Dual sig flags por dimension:
-       sig_*       : Sig si P(>0)>=SIG_THRESHOLD (0.85), anti si <=0.15.
-       sig_*_strong: STRONG si P(>0)>=SIG_STRONG_THRESHOLD (0.95).
-    3 dimensiones: Remontador / Cerrojo / Pressure.
+    """Sig flags multi-nivel:
+       sig_*           : Sig si P(>0)>=SIG_THRESHOLD (0.85), anti si <=0.15.
+       sig_*_strong    : STRONG si P(>0)>=SIG_STRONG_THRESHOLD (0.95).
+       sig_*_weak      : WEAK si P(>0)>=SIG_WEAK_THRESHOLD (0.75), anti <=0.25.
+                          Threshold relajado para chasing/protecting/pressure
+                          agregados (dilucion intra-canal).
+       sig_<canal>_<sh>: Per-canal individual (P>0.85). 8 cells donde la
+                          inferencia individual es realmente identificable
+                          (ataque_GF concentra casi toda la senal).
     """
     def _sig_expr(p_col: str, name: str, thr: float, anti_label: str | None = None
                    ) -> pl.Expr:
@@ -662,11 +673,16 @@ def _add_significance(df: pl.DataFrame) -> pl.DataFrame:
                   .when(pl.col(p_col) <= 1 - thr).then(pl.lit(f"Sig_anti_{name}_strong"))
                   .otherwise(pl.lit("Inconclusive")))
 
+    # Agregados: 3 niveles (weak/normal/strong)
     out = df.with_columns([
+        _sig_expr("p_chasing_positive",   "remontador", SIG_WEAK_THRESHOLD, "anti")
+            .alias("sig_chasing_weak"),
         _sig_expr("p_chasing_positive",   "remontador", SIG_THRESHOLD, "anti")
             .alias("sig_chasing"),
         _sig_expr("p_chasing_positive",   "remontador", SIG_STRONG_THRESHOLD)
             .alias("sig_chasing_strong"),
+        _sig_expr("p_protecting_positive","cerrojo",    SIG_WEAK_THRESHOLD, "anti")
+            .alias("sig_protecting_weak"),
         _sig_expr("p_protecting_positive","cerrojo",    SIG_THRESHOLD, "anti")
             .alias("sig_protecting"),
         _sig_expr("p_protecting_positive","cerrojo",    SIG_STRONG_THRESHOLD)
@@ -675,10 +691,31 @@ def _add_significance(df: pl.DataFrame) -> pl.DataFrame:
     if "p_pressure_clutch_positive" in df.columns:
         out = out.with_columns([
             _sig_expr("p_pressure_clutch_positive", "pressure_clutch",
+                       SIG_WEAK_THRESHOLD, "anti").alias("sig_pressure_weak"),
+            _sig_expr("p_pressure_clutch_positive", "pressure_clutch",
                        SIG_THRESHOLD, "anti").alias("sig_pressure"),
             _sig_expr("p_pressure_clutch_positive", "pressure_clutch",
                        SIG_STRONG_THRESHOLD).alias("sig_pressure_strong"),
         ])
+    # Per-canal × shock_type (8 cells): Sig+ / Sig- / Inconclusive con P>0.85
+    canal_cells = [("atk","GA"), ("def","GA"), ("phys","GA"), ("off","GA"),
+                    ("atk","GF"), ("def","GF"), ("phys","GF"), ("off","GF")]
+    cell_sigs = []
+    for c, sh in canal_cells:
+        pcol = f"p_{c}_{sh}_positive"
+        if pcol in out.columns:
+            cell_sigs.append(
+                _sig_expr(pcol, f"{c}_{sh}", SIG_THRESHOLD, "anti")
+                    .alias(f"sig_{c}_{sh}")
+            )
+    if cell_sigs:
+        out = out.with_columns(cell_sigs)
+        # Conteo de cells significativas por jugador (donde el modelo dice algo)
+        sig_cols = [f"sig_{c}_{sh}" for c, sh in canal_cells if f"sig_{c}_{sh}" in out.columns]
+        out = out.with_columns(
+            sum((pl.col(c) != "Inconclusive").cast(pl.Int32) for c in sig_cols)
+                .alias("n_sig_cells")
+        )
     return out
 
 
@@ -890,14 +927,25 @@ def build_pcj_table() -> pl.DataFrame:
              "tier_chasing_global", "tier_protecting_global",
              "tier_chasing_global_certain", "tier_protecting_global_certain",
              "tier_chasing_in_position", "tier_protecting_in_position",
-             "sig_chasing", "sig_protecting",
+             "sig_chasing_weak", "sig_chasing", "sig_chasing_strong",
+             "sig_protecting_weak", "sig_protecting", "sig_protecting_strong",
              # Pressure response 3a dimension (eta_pressure de M14 unificado)
              "pressure_response_idx", "pressure_response_sd",
              "pressure_response_lo80", "pressure_response_hi80",
              "p_pressure_clutch_positive",
              "rank_pressure_global", "rank_pressure_in_position",
              "tier_pressure_global", "tier_pressure_in_position",
-             "sig_pressure",
+             "sig_pressure_weak", "sig_pressure", "sig_pressure_strong",
+             # Per-canal x shock_type sig (8 cells donde inferencia individual
+             # es realmente identificable — ataque_GF concentra casi toda la
+             # senal por mayor sigma_player/sigma_eps)
+             "n_sig_cells",
+             "p_atk_GA_positive", "p_def_GA_positive",
+             "p_phys_GA_positive", "p_off_GA_positive",
+             "p_atk_GF_positive", "p_def_GF_positive",
+             "p_phys_GF_positive", "p_off_GF_positive",
+             "sig_atk_GA", "sig_def_GA", "sig_phys_GA", "sig_off_GA",
+             "sig_atk_GF", "sig_def_GF", "sig_phys_GF", "sig_off_GF",
              # Physical Bradley 2024 per-90
              "physical_distance_km_per90", "physical_hsr_m_per90",
              "physical_sprints_per90", "physical_high_accels_per90",
