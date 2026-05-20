@@ -1,238 +1,4 @@
 kind,key,name,team,fotmob_id,file,status
-face,118,Harry Maguire,England,255610,outputs/assets/faces/118.png,ok
-face,8042,Wojciech Szczesny,Poland,169718,outputs/assets/faces/8042.png,ok
-face,5097,Ibrahima Konaté,France,820140,outputs/assets/faces/5097.png,ok
-face,1675,Raphael Varane,France,230982,outputs/assets/faces/1675.png,ok
-face,1687,Luka Modric,Croatia,31097,outputs/assets/faces/1687.png,ok
-face,1534,Antoine Griezmann,France,184138,outputs/assets/faces/1534.png,ok
-face,1789,Jules Kounde,France,705450,outputs/assets/faces/1789.png,ok
-face,963,Tajon Buchanan,Canada,1026135,outputs/assets/faces/963.png,ok
-face,13945,Boualem Khoukhi,Qatar,308921,outputs/assets/faces/13945.png,ok
-face,8026,Daley Blind,Netherlands,161012,outputs/assets/faces/8026.png,ok
-face,4625,Robert Lewandowski,Poland,93447,outputs/assets/faces/4625.png,ok
-face,13864,Yahia Attiat-Allah,Morocco,903233,outputs/assets/faces/13864.png,ok
-face,13819,Mitchell Duke,Australia,245633,outputs/assets/faces/13819.png,ok
-face,12502,Min Jae Kim,South Korea,828159,outputs/assets/faces/12502.png,ok
-face,8134,Denzel Dumfries,Netherlands,593118,outputs/assets/faces/8134.png,ok
-face,2074,Raphinha,Brazil,696679,outputs/assets/faces/2074.png,ok
-face,3343,Guillermo Ochoa,Mexico,31047,outputs/assets/faces/3343.png,ok
-face,4758,Ellyes Skhiri,Tunisia,574642,outputs/assets/faces/4758.png,ok
-face,4908,Dani Olmo,Spain,614834,outputs/assets/faces/4908.png,ok
-face,14034,Lawrence Ati Zigi,Ghana,615411,outputs/assets/faces/14034.png,ok
-face,1683,Casemiro,Brazil,208494,outputs/assets/faces/1683.png,ok
-face,1025,Kamal Miller,Canada,1027412,outputs/assets/faces/1025.png,ok
-face,37,Virgil van Dijk,Netherlands,209405,outputs/assets/faces/37.png,ok
-face,8341,Gavi,Spain,1279040,outputs/assets/faces/8341.png,ok
-face,1971,Tim Ream,United States,198444,outputs/assets/faces/1971.png,ok
-face,926,Alistair Johnston,Canada,1055426,outputs/assets/faces/926.png,ok
-face,127,Diogo Dalot,Portugal,751550,outputs/assets/faces/127.png,ok
-face,7443,Christian Eriksen,Denmark,157723,outputs/assets/faces/7443.png,ok
-face,163,Bukayo Saka,England,961995,outputs/assets/faces/163.png,ok
-face,7988,Boulaye Dia,Senegal,972120,outputs/assets/faces/7988.png,ok
-face,8583,Theo Hernandez,France,724371,outputs/assets/faces/8583.png,ok
-face,4677,Jude Bellingham,England,1077894,outputs/assets/faces/4677.png,ok
-face,3303,Jesús Gallardo,Mexico,597976,outputs/assets/faces/3303.png,ok
-face,3841,Keylor Navas,Costa Rica,51949,outputs/assets/faces/3841.png,ok
-face,27,Bernardo Silva,Portugal,488139,outputs/assets/faces/27.png,ok
-face,11094,Cody Gakpo,Netherlands,806552,outputs/assets/faces/11094.png,ok
-face,1977,André Zambo Anguissa,Cameroon,612863,outputs/assets/faces/1977.png,ok
-face,200,Kasper Schmeichel,Denmark,37770,outputs/assets/faces/200.png,ok
-face,13935,Hernan Galindez,Ecuador,146801,outputs/assets/faces/13935.png,ok
-face,10,John Stones,England,263653,outputs/assets/faces/10.png,ok
-face,1684,Federico Valverde,Uruguay,743533,outputs/assets/faces/1684.png,ok
-face,13872,Collins Fai,Cameroon,462085,outputs/assets/faces/13872.png,ok
-face,5029,Silvan Widmer,Switzerland,275034,outputs/assets/faces/5029.png,ok
-face,13923,Gue-sung Cho,South Korea,1026781,outputs/assets/faces/13923.png,ok
-face,1681,Achraf Hakimi,Morocco,770881,outputs/assets/faces/1681.png,ok
-face,1368,Jose Gimenez,Uruguay,474589,outputs/assets/faces/1368.png,ok
-face,8343,Sergiño Dest,United States,892816,outputs/assets/faces/8343.png,ok
-face,8061,Danilo,Brazil,362120,outputs/assets/faces/8061.png,ok
-face,1810,Youssef En-Nesyri,Morocco,788555,outputs/assets/faces/1810.png,ok
-face,1785,Bono,Morocco,621547,outputs/assets/faces/1785.png,ok
-face,12514,Piotr Zielinski,Poland,362212,outputs/assets/faces/12514.png,ok
-face,113,Olivier Giroud,France,46469,outputs/assets/faces/113.png,ok
-face,11241,Andries Noppert,Netherlands,466852,outputs/assets/faces/11241.png,ok
-face,4606,Dayot Upamecano,France,658554,outputs/assets/faces/4606.png,ok
-face,1695,Vinícius Junior,Brazil,846033,outputs/assets/faces/1695.png,ok
-face,4626,Eric Maxim Choupo-Moting,Cameroon,95082,outputs/assets/faces/4626.png,ok
-face,5116,Cristian Romero,Argentina,789066,outputs/assets/faces/5116.png,ok
-face,13848,Kamil Glik,Poland,150670,outputs/assets/faces/13848.png,ok
-face,14010,Firas Al-Buraikan,Saudi Arabia,844226,outputs/assets/faces/14010.png,ok
-face,17,João Cancelo,Portugal,361757,outputs/assets/faces/17.png,ok
-face,1991,Aleksandar Mitrovic,Serbia,351860,outputs/assets/faces/1991.png,ok
-face,157,Granit Xhaka,Switzerland,207236,outputs/assets/faces/157.png,ok
-face,4674,Axel Witsel,Belgium,39591,outputs/assets/faces/4674.png,ok
-face,13911,Young-gwon Kim,South Korea,460632,outputs/assets/faces/13911.png,ok
-face,240,Rúben Neves,Portugal,534684,outputs/assets/faces/240.png,ok
-face,214,Nampalys Mendy,Senegal,210128,outputs/assets/faces/214.png,ok
-face,1910,Mohammed Salisu,Ghana,938247,outputs/assets/faces/1910.png,ok
-face,13924,Sergio Rochet,Uruguay,553476,outputs/assets/faces/13924.png,ok
-face,13944,Abdelkarim Hassan,Qatar,251923,outputs/assets/faces/13944.png,ok
-face,107,Christian Pulisic,United States,688295,outputs/assets/faces/107.png,ok
-face,1938,Hakim Ziyech,Morocco,360559,outputs/assets/faces/1938.png,ok
-face,1896,Matty Cash,Poland,729731,outputs/assets/faces/1896.png,ok
-face,6895,Rodrigo de Paul,Argentina,324578,outputs/assets/faces/6895.png,ok
-face,4566,Rubén Vargas,Switzerland,860752,outputs/assets/faces/4566.png,ok
-face,286,Chris Mepham,Wales,819762,outputs/assets/faces/286.png,ok
-face,4666,Raphaël Guerreiro,Portugal,352994,outputs/assets/faces/4666.png,ok
-face,4661,Manuel Akanji,Switzerland,521318,outputs/assets/faces/4661.png,ok
-face,13121,Yunus Musah,United States,1137272,outputs/assets/faces/13121.png,ok
-face,8129,Marcelo Brozovic,Croatia,206508,outputs/assets/faces/8129.png,ok
-face,2095,Daichi Kamada,Japan,621515,outputs/assets/faces/2095.png,ok
-face,13977,Morteza Pouraliganji,Iran,622250,outputs/assets/faces/13977.png,ok
-face,12820,Jakub Kiwior,Poland,1021834,outputs/assets/faces/12820.png,ok
-face,265,Declan Rice,England,654096,outputs/assets/faces/265.png,ok
-face,13799,Shuichi Gonda,Japan,98238,outputs/assets/faces/13799.png,ok
-face,8328,Remo Freuler,Switzerland,201704,outputs/assets/faces/8328.png,ok
-face,3846,Marquinhos,Brazil,267365,outputs/assets/faces/3846.png,ok
-face,13788,Yeltsin Tejeda,Costa Rica,288783,outputs/assets/faces/13788.png,ok
-face,1257,In-beom Hwang,South Korea,623698,outputs/assets/faces/1257.png,ok
-face,144,Emiliano Martínez,Argentina,268375,outputs/assets/faces/144.png,ok
-face,395,Pierre-Emile Höjbjerg,Denmark,266523,outputs/assets/faces/395.png,ok
-face,4324,Azzedine Ounahi,Morocco,1073143,outputs/assets/faces/4324.png,ok
-face,3734,Félix Torres,Ecuador,825641,outputs/assets/faces/3734.png,ok
-face,8022,Jurrien Timber,Netherlands,942381,outputs/assets/faces/8022.png,ok
-face,9178,Marcos Acuña,Argentina,561187,outputs/assets/faces/9178.png,ok
-face,13866,Selim Amallah,Morocco,658658,outputs/assets/faces/13866.png,ok
-face,133,Bruno Fernandes,Portugal,422685,outputs/assets/faces/133.png,ok
-face,4002,Nayef Aguerd,Morocco,617310,outputs/assets/faces/4002.png,ok
-face,14019,Yassine Meriah,Tunisia,620583,outputs/assets/faces/14019.png,ok
-face,2083,Joe Rodon,Wales,717174,outputs/assets/faces/2083.png,ok
-face,3865,Neymar,Brazil,19533,outputs/assets/faces/3865.png,ok
-face,100,Mateo Kovacic,Croatia,239219,outputs/assets/faces/100.png,ok
-face,13858,Josip Juranovic,Croatia,622373,outputs/assets/faces/13858.png,ok
-face,11841,Hidemasa Morita,Japan,915102,outputs/assets/faces/11841.png,ok
-face,8136,Ivan Perisic,Croatia,163670,outputs/assets/faces/8136.png,ok
-face,4608,Niklas Süle,Germany,447084,outputs/assets/faces/4608.png,ok
-face,1513,Jordi Alba,Spain,150739,outputs/assets/faces/1513.png,ok
-face,2066,Ruben Dias,Portugal,614006,outputs/assets/faces/2066.png,ok
-face,11,Nicolás Otamendi,Argentina,174321,outputs/assets/faces/11.png,ok
-face,83,Heung-min Son,South Korea,212867,outputs/assets/faces/83.png,ok
-face,67,Jan Vertonghen,Belgium,37762,outputs/assets/faces/67.png,ok
-face,12960,Ricardo Rodriguez,Switzerland,115591,outputs/assets/faces/12960.png,ok
-face,40,Dejan Lovren,Croatia,114268,outputs/assets/faces/40.png,ok
-face,123,Luke Shaw,England,362694,outputs/assets/faces/123.png,ok
-face,13820,Aziz Behich,Australia,192735,outputs/assets/faces/13820.png,ok
-face,66,Toby Alderweireld,Belgium,160599,outputs/assets/faces/66.png,ok
-face,13049,Gonzalo Plata,Ecuador,980311,outputs/assets/faces/13049.png,ok
-face,3455,Luis Chávez,Mexico,527616,outputs/assets/faces/3455.png,ok
-face,8564,Pepe,Portugal,850356,outputs/assets/faces/8564.png,ok
-face,3848,Abdou Diallo,Senegal,563215,outputs/assets/faces/3848.png,ok
-face,2073,Joachim Andersen,Denmark,503659,outputs/assets/faces/2073.png,ok
-face,916,Walker Zimmerman,United States,431956,outputs/assets/faces/916.png,ok
-face,428,Ismaïla Sarr,Senegal,771294,outputs/assets/faces/428.png,ok
-face,1334,Weston McKennie,United States,848266,outputs/assets/faces/1334.png,ok
-face,5195,Piero Hincapie,Ecuador,1137667,outputs/assets/faces/5195.png,ok
-face,12766,Bartosz Bereszynski,Poland,198099,outputs/assets/faces/12766.png,ok
-face,6020,Cristiano Ronaldo,Portugal,30893,outputs/assets/faces/6020.png,ok
-face,453,Alexis MacAllister,Argentina,831489,outputs/assets/faces/453.png,ok
-face,3858,Idrissa Gueye,Senegal,179410,outputs/assets/faces/3858.png,ok
-face,4926,Borna Sosa,Croatia,622091,outputs/assets/faces/4926.png,ok
-face,10715,Julian Alvarez,Argentina,974753,outputs/assets/faces/10715.png,ok
-face,11856,Enzo Fernandez,Argentina,1137705,outputs/assets/faces/11856.png,ok
-face,4623,Serge Gnabry,Germany,385437,outputs/assets/faces/4623.png,ok
-face,14031,Milan Borjan,Canada,198337,outputs/assets/faces/14031.png,ok
-face,13951,Homam Ahmed,Qatar,887139,outputs/assets/faces/13951.png,ok
-face,1,Harry Kane,England,194165,outputs/assets/faces/1.png,ok
-face,13228,Youssouf Sabaly,Senegal,467689,outputs/assets/faces/13228.png,ok
-face,14003,Mohamed Kanno,Saudi Arabia,866373,outputs/assets/faces/14003.png,ok
-face,2134,Moises Caicedo,Ecuador,1137668,outputs/assets/faces/2134.png,ok
-face,13912,Jin-su Kim,South Korea,1826139,,http:403
-face,92,Andreas Christensen,Denmark,449232,outputs/assets/faces/92.png,ok
-face,1926,Thiago Silva,Brazil,80562,outputs/assets/faces/1926.png,ok
-face,1406,Pervis Estupinan,Ecuador,688278,outputs/assets/faces/1406.png,ok
-face,13371,Bryan Oviedo,Costa Rica,193859,outputs/assets/faces/13371.png,ok
-face,12222,Majid Hosseini,Iran,746015,outputs/assets/faces/12222.png,ok
-face,32,Alisson,Brazil,319784,outputs/assets/faces/32.png,ok
-face,8330,Mario Pasalic,Croatia,446266,outputs/assets/faces/8330.png,ok
-face,8138,Lautaro Martinez,Argentina,690230,outputs/assets/faces/8138.png,ok
-face,90,Antonio Rüdiger,Germany,276738,outputs/assets/faces/90.png,ok
-face,3868,Angel Di Maria,Argentina,46509,outputs/assets/faces/3868.png,ok
-face,13854,Dominik Livakovic,Croatia,383971,outputs/assets/faces/13854.png,ok
-face,940,Matt Turner,United States,729988,outputs/assets/faces/940.png,ok
-face,2088,Maya Yoshida,Japan,72665,outputs/assets/faces/2088.png,ok
-face,61,Hugo Lloris,France,26295,outputs/assets/faces/61.png,ok
-face,8025,Nicolas Tagliafico,Argentina,195750,outputs/assets/faces/8025.png,ok
-face,1341,Unai Simon,Spain,660625,outputs/assets/faces/1341.png,ok
-face,4602,Manuel Neuer,Germany,27299,outputs/assets/faces/4602.png,ok
-face,3299,César Montes,Mexico,664644,outputs/assets/faces/3299.png,ok
-face,1532,Ousmane Dembele,France,692984,outputs/assets/faces/1532.png,ok
-face,4928,Wataru Endo,Japan,202643,outputs/assets/faces/4928.png,ok
-face,8561,Mehdi Taremi,Iran,619506,outputs/assets/faces/8561.png,ok
-face,13907,Seun-gyu Kim,South Korea,167247,outputs/assets/faces/13907.png,ok
-face,13222,Nahuel Molina,Argentina,726345,outputs/assets/faces/13222.png,ok
-face,3888,Aurélien Tchouaméni,France,914458,outputs/assets/faces/3888.png,ok
-face,13998,Salem Al-Dawsari,Saudi Arabia,307753,outputs/assets/faces/13998.png,ok
-face,169,Jordan Pickford,England,303919,outputs/assets/faces/169.png,ok
-face,8342,Memphis Depay,Netherlands,303824,outputs/assets/faces/8342.png,ok
-face,449,Aaron Mooy,Australia,231592,outputs/assets/faces/449.png,ok
-face,47,Jordan Henderson,England,156008,outputs/assets/faces/47.png,ok
-face,4717,Breel Embolo,Switzerland,527103,outputs/assets/faces/4717.png,ok
-face,4616,Joshua Kimmich,Germany,460632,outputs/assets/faces/4616.png,ok
-face,5098,Ko Itakura,Japan,620917,outputs/assets/faces/5098.png,ok
-face,1593,Óscar Duarte,Costa Rica,209922,outputs/assets/faces/1593.png,ok
-face,3870,Kylian Mbappé,France,701154,outputs/assets/faces/3870.png,ok
-face,9993,Kalidou Koulibaly,Senegal,210428,outputs/assets/faces/9993.png,ok
-face,4892,Josko Gvardiol,Croatia,1070712,outputs/assets/faces/4892.png,ok
-face,233,Romain Saïss,Morocco,292678,outputs/assets/faces/233.png,ok
-face,8062,Aaron Ramsey,Wales,1113670,outputs/assets/faces/8062.png,ok
-face,1380,Thomas Partey,Ghana,434325,outputs/assets/faces/1380.png,ok
-face,13922,Woo-young Jung,South Korea,302338,outputs/assets/faces/13922.png,ok
-face,13850,Grzegorz Krychowiak,Poland,154232,outputs/assets/faces/13850.png,ok
-face,8023,Lisandro Martinez,Argentina,847983,outputs/assets/faces/8023.png,ok
-face,2059,Edouard Mendy,Senegal,773229,outputs/assets/faces/2059.png,ok
-face,284,Nathan Aké,Netherlands,417068,outputs/assets/faces/284.png,ok
-face,1531,Lionel Messi,Argentina,30981,outputs/assets/faces/1531.png,ok
-face,9824,Montassar Talbi,Tunisia,846392,outputs/assets/faces/9824.png,ok
-face,213,Daniel Amartey,Ghana,436036,outputs/assets/faces/213.png,ok
-face,13961,Akram Afif,Qatar,613792,outputs/assets/faces/13961.png,ok
-face,21,Phil Foden,England,815006,outputs/assets/faces/21.png,ok
-face,13946,Pedro Miguel,Qatar,734637,outputs/assets/faces/13946.png,ok
-face,1519,Sergio Busquets,Spain,154257,outputs/assets/faces/1519.png,ok
-face,13987,Mohammed Al-Owais,Saudi Arabia,535669,outputs/assets/faces/13987.png,ok
-face,18,Rodri,Spain,675088,outputs/assets/faces/18.png,ok
-face,435,Mathew Ryan,Australia,185644,outputs/assets/faces/435.png,ok
-face,13815,Mathew Leckie,Australia,185014,outputs/assets/faces/13815.png,ok
-face,1363,Inaki Williams,Ghana,604105,outputs/assets/faces/1363.png,ok
-face,22,Kevin De Bruyne,Belgium,169200,outputs/assets/faces/22.png,ok
-face,1672,Thibaut Courtois,Belgium,170323,outputs/assets/faces/1672.png,ok
-face,4691,Yann Sommer,Switzerland,41618,outputs/assets/faces/4691.png,ok
-face,12576,Nikola Milenkovic,Serbia,766611,outputs/assets/faces/12576.png,ok
-face,4611,Alphonso Davies,Canada,751202,outputs/assets/faces/4611.png,ok
-face,13994,Saud Abdulhamid,Saudi Arabia,1002617,outputs/assets/faces/13994.png,ok
-face,1522,Frenkie de Jong,Netherlands,638622,outputs/assets/faces/1522.png,ok
-face,12653,Vanja Milinković-Savić,Serbia,543021,outputs/assets/faces/12653.png,ok
-face,3930,Lucas Paquetá,Brazil,766435,outputs/assets/faces/3930.png,ok
-face,401,Sofiane Boufal,Morocco,365672,outputs/assets/faces/401.png,ok
-face,13937,Angelo Preciado,Ecuador,848593,outputs/assets/faces/13937.png,ok
-face,1960,Timothy Castagne,Belgium,465750,outputs/assets/faces/1960.png,ok
-face,4621,Jamal Musiala,Germany,1156141,outputs/assets/faces/4621.png,ok
-face,2443,Moon-hwan Kim,South Korea,460632,outputs/assets/faces/2443.png,ok
-face,4883,Andrej Kramaric,Croatia,173461,outputs/assets/faces/4883.png,ok
-face,13044,Jawad El Yamiq,Morocco,798736,outputs/assets/faces/13044.png,ok
-face,3301,Héctor Moreno,Mexico,70812,outputs/assets/faces/3301.png,ok
-face,12586,Sofyan Amrabat,Morocco,593116,outputs/assets/faces/12586.png,ok
-face,1393,Joao Felix,Portugal,794427,outputs/assets/faces/1393.png,ok
-face,13824,Kye Rowles,Australia,825231,outputs/assets/faces/13824.png,ok
-face,2094,Junya Ito,Japan,604044,outputs/assets/faces/2094.png,ok
-face,8538,Diogo Costa,Portugal,795630,outputs/assets/faces/8538.png,ok
-face,1339,Tyler Adams,United States,729769,outputs/assets/faces/1339.png,ok
-face,8054,Adrien Rabiot,France,352879,outputs/assets/faces/8054.png,ok
-face,1168,Nouhou Tolo,Cameroon,797551,outputs/assets/faces/1168.png,ok
-face,14013,Aymen Dahmen,Tunisia,982855,outputs/assets/faces/14013.png,ok
-face,9,Aymeric Laporte,Spain,411617,outputs/assets/faces/9.png,ok
-face,8257,Harry Souttar,Australia,671518,outputs/assets/faces/8257.png,ok
-face,195,Richarlison,Brazil,654908,outputs/assets/faces/195.png,ok
-face,8037,Dusan Tadić,Serbia,94267,outputs/assets/faces/8037.png,ok
-face,1530,Pedri,Spain,1083323,outputs/assets/faces/1530.png,ok
-face,3316,Joel Campbell,Costa Rica,242094,outputs/assets/faces/3316.png,ok
-face,1676,Eder Militao,Brazil,844415,outputs/assets/faces/1676.png,ok
-face,1336,Timothy Weah,United States,889536,outputs/assets/faces/1336.png,ok
-face,8027,Noussair Mazraoui,Morocco,775539,outputs/assets/faces/8027.png,ok
-face,8854,Jackson Irvine,Australia,369742,outputs/assets/faces/8854.png,ok
-face,1973,Antonee Robinson,United States,662428,outputs/assets/faces/1973.png,ok
-face,3895,Ismail Jakobs,Senegal,906945,outputs/assets/faces/3895.png,ok
-face,11790,Steven Vitoria,Canada,163994,outputs/assets/faces/11790.png,ok
 logo,arg,,Argentina,,outputs/assets/logos/arg.png,ok
 logo,bra,,Brazil,,outputs/assets/logos/bra.png,ok
 logo,ecu,,Ecuador,,outputs/assets/logos/ecu.png,ok
@@ -265,3 +31,514 @@ logo,mex,,Mexico,,outputs/assets/logos/mex.png,ok
 logo,usa,,United States,,outputs/assets/logos/usa.png,ok
 logo,crc,,Costa Rica,,outputs/assets/logos/crc.png,ok
 logo,aus,,Australia,,outputs/assets/logos/aus.png,ok
+face,13942,Meshaal Barsham,Qatar,922387,outputs/assets/faces/13942.png,ok
+face,1025,Kamal Miller,Canada,,outputs/assets/faces/1025.png,cached
+face,1697,Rodrygo,Brazil,895362,outputs/assets/faces/1697.png,ok
+face,1910,Mohammed Salisu,Ghana,,outputs/assets/faces/1910.png,cached
+face,1675,Raphael Varane,France,,outputs/assets/faces/1675.png,cached
+face,9824,Montassar Talbi,Tunisia,,outputs/assets/faces/9824.png,cached
+face,3996,Bamba Dieng,Senegal,1230848,outputs/assets/faces/3996.png,ok
+face,1950,Ferran Torres,Spain,881771,outputs/assets/faces/1950.png,ok
+face,1383,Koke,Spain,184533,outputs/assets/faces/1383.png,ok
+face,8551,Stephen Eustaquio,Canada,816223,outputs/assets/faces/8551.png,ok
+face,13945,Boualem Khoukhi,Qatar,,outputs/assets/faces/13945.png,cached
+face,8079,Matheus Nunes,Portugal,955529,outputs/assets/faces/8079.png,ok
+face,3858,Idrissa Gueye,Senegal,,outputs/assets/faces/3858.png,cached
+face,13953,Karim Boudiaf,Qatar,309153,outputs/assets/faces/13953.png,ok
+face,113,Olivier Giroud,France,,outputs/assets/faces/113.png,cached
+face,8327,Marten De Roon,Netherlands,198559,outputs/assets/faces/8327.png,ok
+face,37,Virgil van Dijk,Netherlands,,outputs/assets/faces/37.png,cached
+face,13983,Mehdi Torabi,Iran,621519,outputs/assets/faces/13983.png,ok
+face,13911,Young-gwon Kim,South Korea,,outputs/assets/faces/13911.png,cached
+face,5097,Ibrahima Konaté,France,,outputs/assets/faces/5097.png,cached
+face,13813,Fran Karacic,Australia,653965,outputs/assets/faces/13813.png,ok
+face,16,Kyle Walker,England,734042,outputs/assets/faces/16.png,ok
+face,13788,Yeltsin Tejeda,Costa Rica,,outputs/assets/faces/13788.png,cached
+face,2088,Maya Yoshida,Japan,,outputs/assets/faces/2088.png,cached
+face,13977,Morteza Pouraliganji,Iran,,outputs/assets/faces/13977.png,cached
+face,13815,Mathew Leckie,Australia,,outputs/assets/faces/13815.png,cached
+face,12766,Bartosz Bereszynski,Poland,,outputs/assets/faces/12766.png,cached
+face,1687,Luka Modric,Croatia,,outputs/assets/faces/1687.png,cached
+face,5035,Edimilson Fernandes,Switzerland,451335,outputs/assets/faces/5035.png,ok
+face,1067,Brenden Aaronson,United States,952322,outputs/assets/faces/1067.png,ok
+face,13867,Bilal El Khannouss,Morocco,1340895,outputs/assets/faces/13867.png,ok
+face,4615,Josip Stanisic,Croatia,950824,outputs/assets/faces/4615.png,ok
+face,137,Daniel James,Wales,717176,outputs/assets/faces/137.png,ok
+face,3868,Angel Di Maria,Argentina,,outputs/assets/faces/3868.png,cached
+face,1977,André Zambo Anguissa,Cameroon,,outputs/assets/faces/1977.png,cached
+face,6596,Jeremy Sarmiento,Ecuador,1298925,outputs/assets/faces/6596.png,ok
+face,8854,Jackson Irvine,Australia,,outputs/assets/faces/8854.png,cached
+face,1380,Thomas Partey,Ghana,,outputs/assets/faces/1380.png,cached
+face,5968,Lovro Majer,Croatia,762721,outputs/assets/faces/5968.png,ok
+face,916,Walker Zimmerman,United States,,outputs/assets/faces/916.png,cached
+face,13799,Shuichi Gonda,Japan,,outputs/assets/faces/13799.png,cached
+face,7419,Krystian Bielik,Poland,556952,outputs/assets/faces/7419.png,ok
+face,4624,Thomas Müller,Germany,116772,outputs/assets/faces/4624.png,ok
+face,3343,Guillermo Ochoa,Mexico,,outputs/assets/faces/3343.png,cached
+face,4892,Josko Gvardiol,Croatia,,outputs/assets/faces/4892.png,cached
+face,13821,Keanu Baccus,Australia,817901,outputs/assets/faces/13821.png,ok
+face,940,Matt Turner,United States,,outputs/assets/faces/940.png,cached
+face,1452,Nestor Araujo,Mexico,207793,outputs/assets/faces/1452.png,ok
+face,13226,German Pezzella,Argentina,186991,outputs/assets/faces/13226.png,ok
+face,11853,Antonio Silva,Portugal,1292092,outputs/assets/faces/11853.png,ok
+face,4152,Pape Sarr,Senegal,1107280,outputs/assets/faces/4152.png,ok
+face,1672,Thibaut Courtois,Belgium,,outputs/assets/faces/1672.png,cached
+face,13856,Josip Sutalo,Croatia,1186228,outputs/assets/faces/13856.png,ok
+face,213,Daniel Amartey,Ghana,,outputs/assets/faces/213.png,cached
+face,233,Romain Saïss,Morocco,,outputs/assets/faces/233.png,cached
+face,71,Ben Davies,Wales,276121,outputs/assets/faces/71.png,ok
+face,428,Ismaïla Sarr,Senegal,,outputs/assets/faces/428.png,cached
+face,7584,Rodrigo Bentancur,Uruguay,620618,outputs/assets/faces/7584.png,ok
+face,13941,Saad Al-Sheeb,Qatar,117496,outputs/assets/faces/13941.png,ok
+face,13823,Craig Goodwin,Australia,305033,outputs/assets/faces/13823.png,ok
+face,13912,Jin-su Kim,South Korea,1826139,,http:403
+face,13780,Keysher Fuller,Costa Rica,916029,outputs/assets/faces/13780.png,ok
+face,1931,Ethan Ampadu,Wales,780432,outputs/assets/faces/1931.png,ok
+face,3989,Nemanja Radonjic,Serbia,719360,outputs/assets/faces/3989.png,ok
+face,14006,Ali Al-Hassan,Saudi Arabia,919900,outputs/assets/faces/14006.png,ok
+face,13848,Kamil Glik,Poland,,outputs/assets/faces/13848.png,cached
+face,201,Danny Ward,Wales,254472,outputs/assets/faces/201.png,ok
+face,12576,Nikola Milenkovic,Serbia,,outputs/assets/faces/12576.png,cached
+face,8583,Theo Hernandez,France,,outputs/assets/faces/8583.png,cached
+face,144,Emiliano Martínez,Argentina,,outputs/assets/faces/144.png,cached
+face,9330,Dani Alves,Brazil,33988,outputs/assets/faces/9330.png,ok
+face,1368,Jose Gimenez,Uruguay,,outputs/assets/faces/1368.png,cached
+face,1810,Youssef En-Nesyri,Morocco,,outputs/assets/faces/1810.png,cached
+face,311,Callum Wilson,England,184321,outputs/assets/faces/311.png,ok
+face,2094,Junya Ito,Japan,,outputs/assets/faces/2094.png,cached
+face,1336,Timothy Weah,United States,,outputs/assets/faces/1336.png,cached
+face,11967,Victor Nelsson,Denmark,776594,outputs/assets/faces/11967.png,ok
+face,13951,Homam Ahmed,Qatar,,outputs/assets/faces/13951.png,cached
+face,1682,Daniel Carvajal,Spain,282674,outputs/assets/faces/1682.png,ok
+face,649,Francisco Calvo,Costa Rica,272005,outputs/assets/faces/649.png,ok
+face,8138,Lautaro Martinez,Argentina,,outputs/assets/faces/8138.png,cached
+face,11960,Enner Valencia,Ecuador,195927,outputs/assets/faces/11960.png,ok
+face,2073,Joachim Andersen,Denmark,,outputs/assets/faces/2073.png,cached
+face,4674,Axel Witsel,Belgium,,outputs/assets/faces/4674.png,cached
+face,7478,Milos Degenek,Australia,416124,outputs/assets/faces/7478.png,ok
+face,8538,Diogo Costa,Portugal,,outputs/assets/faces/8538.png,cached
+face,13960,Hasan Al-Haydos,Qatar,117539,outputs/assets/faces/13960.png,ok
+face,13980,Saeid Ezatolahi,Iran,505281,outputs/assets/faces/13980.png,ok
+face,9820,Achraf Dari,Morocco,971617,outputs/assets/faces/9820.png,ok
+face,5173,Ismael Kone,Canada,1288119,outputs/assets/faces/5173.png,ok
+face,13970,Roozbeh Cheshmi,Iran,505385,outputs/assets/faces/13970.png,ok
+face,127,Diogo Dalot,Portugal,,outputs/assets/faces/127.png,cached
+face,12664,Saša Lukić,Serbia,556972,outputs/assets/faces/12664.png,ok
+face,371,Jack Grealish,England,312765,outputs/assets/faces/371.png,ok
+face,1519,Sergio Busquets,Spain,,outputs/assets/faces/1519.png,cached
+face,13961,Akram Afif,Qatar,,outputs/assets/faces/13961.png,cached
+face,13811,Nathaniel Atkinson,Australia,907799,outputs/assets/faces/13811.png,ok
+face,4656,Gregor Kobel,Switzerland,764018,outputs/assets/faces/4656.png,ok
+face,4625,Robert Lewandowski,Poland,,outputs/assets/faces/4625.png,cached
+face,13978,Ramin Rezaeian,Iran,505959,outputs/assets/faces/13978.png,ok
+face,13987,Mohammed Al-Owais,Saudi Arabia,,outputs/assets/faces/13987.png,cached
+face,13999,Salman Al-Faraj,Saudi Arabia,201174,outputs/assets/faces/13999.png,ok
+face,7441,Sardar Azmoun,Iran,441309,outputs/assets/faces/7441.png,ok
+face,112,Michy Batshuayi,Belgium,248689,outputs/assets/faces/112.png,ok
+face,3856,Leandro Paredes,Argentina,237606,outputs/assets/faces/3856.png,ok
+face,107,Christian Pulisic,United States,,outputs/assets/faces/107.png,cached
+face,13870,Abderrazak Hamdallah,Morocco,422288,outputs/assets/faces/13870.png,ok
+face,457,Alireza Jahanbakhsh,Iran,466890,outputs/assets/faces/457.png,ok
+face,8326,Teun Koopmeiners,Netherlands,866516,outputs/assets/faces/8326.png,ok
+face,4174,Jean-Charles Castelletto,Cameroon,439368,outputs/assets/faces/4174.png,ok
+face,12586,Sofyan Amrabat,Morocco,,outputs/assets/faces/12586.png,cached
+face,1971,Tim Ream,United States,,outputs/assets/faces/1971.png,cached
+face,13956,Assim Madibo,Qatar,615414,outputs/assets/faces/13956.png,ok
+face,13971,Ehsan Hajsafi,Iran,117222,outputs/assets/faces/13971.png,ok
+face,13121,Yunus Musah,United States,,outputs/assets/faces/13121.png,cached
+face,13969,Hossein Hosseini,Iran,431418,outputs/assets/faces/13969.png,ok
+face,1937,Kai Havertz,Germany,749736,outputs/assets/faces/1937.png,ok
+face,3455,Luis Chávez,Mexico,,outputs/assets/faces/3455.png,cached
+face,215,Youri Tielemans,Belgium,465960,outputs/assets/faces/215.png,ok
+face,286,Chris Mepham,Wales,,outputs/assets/faces/286.png,cached
+face,5195,Piero Hincapie,Ecuador,,outputs/assets/faces/5195.png,cached
+face,7966,Kieffer Moore,Wales,469202,outputs/assets/faces/7966.png,ok
+face,1938,Hakim Ziyech,Morocco,,outputs/assets/faces/1938.png,cached
+face,12537,Nicola Zalewski,Poland,1053714,outputs/assets/faces/12537.png,ok
+face,13859,Mislav Orsic,Croatia,184595,outputs/assets/faces/13859.png,ok
+face,385,Jan Bednarek,Poland,490868,outputs/assets/faces/385.png,ok
+face,13906,Andrija Zivkovic,Serbia,463268,outputs/assets/faces/13906.png,ok
+face,4712,Marcus Thuram,France,621562,outputs/assets/faces/4712.png,ok
+face,2087,Takehiro Tomiyasu,Japan,664444,outputs/assets/faces/2087.png,ok
+face,4012,Eduardo Camavinga,France,1015185,outputs/assets/faces/4012.png,ok
+face,4868,David Raum,Germany,806669,outputs/assets/faces/4868.png,ok
+face,4713,Jonas Hofmann,Germany,331542,outputs/assets/faces/4713.png,ok
+face,61,Hugo Lloris,France,,outputs/assets/faces/61.png,cached
+face,8011,Haris Seferovic,Switzerland,170775,outputs/assets/faces/8011.png,ok
+face,5116,Cristian Romero,Argentina,,outputs/assets/faces/5116.png,cached
+face,1522,Frenkie de Jong,Netherlands,,outputs/assets/faces/1522.png,cached
+face,963,Tajon Buchanan,Canada,,outputs/assets/faces/963.png,cached
+face,8555,Otavio,Portugal,397019,outputs/assets/faces/8555.png,ok
+face,14031,Milan Borjan,Canada,,outputs/assets/faces/14031.png,cached
+face,3352,Jorge Sánchez,Mexico,727586,outputs/assets/faces/3352.png,ok
+face,8022,Jurrien Timber,Netherlands,,outputs/assets/faces/8022.png,cached
+face,13918,Sang-ho Na,South Korea,828055,outputs/assets/faces/13918.png,ok
+face,1860,Takefusa Kubo,Japan,848289,outputs/assets/faces/1860.png,ok
+face,4602,Manuel Neuer,Germany,,outputs/assets/faces/4602.png,cached
+face,8023,Lisandro Martinez,Argentina,,outputs/assets/faces/8023.png,cached
+face,4758,Ellyes Skhiri,Tunisia,,outputs/assets/faces/4758.png,cached
+face,754,Kendall Waston,Costa Rica,119019,outputs/assets/faces/754.png,ok
+face,169,Jordan Pickford,England,,outputs/assets/faces/169.png,cached
+face,163,Bukayo Saka,England,,outputs/assets/faces/163.png,cached
+face,3994,Arkadiusz Milik,Poland,277460,outputs/assets/faces/3994.png,ok
+face,1377,Kieran Trippier,England,191869,outputs/assets/faces/1377.png,ok
+face,11488,Ricardo Horta,Portugal,432591,outputs/assets/faces/11488.png,ok
+face,1339,Tyler Adams,United States,,outputs/assets/faces/1339.png,cached
+face,1257,In-beom Hwang,South Korea,,outputs/assets/faces/1257.png,cached
+face,8129,Marcelo Brozovic,Croatia,,outputs/assets/faces/8129.png,cached
+face,4626,Eric Maxim Choupo-Moting,Cameroon,,outputs/assets/faces/4626.png,cached
+face,1341,Unai Simon,Spain,,outputs/assets/faces/1341.png,cached
+face,395,Pierre-Emile Höjbjerg,Denmark,,outputs/assets/faces/395.png,cached
+face,12315,Sam Adekugbe,Canada,498143,outputs/assets/faces/12315.png,ok
+face,4622,Kingsley Coman,France,429265,outputs/assets/faces/4622.png,ok
+face,4717,Breel Embolo,Switzerland,,outputs/assets/faces/4717.png,cached
+face,11856,Enzo Fernandez,Argentina,,outputs/assets/faces/11856.png,cached
+face,13858,Josip Juranovic,Croatia,,outputs/assets/faces/13858.png,cached
+face,8045,Matthijs De Ligt,Netherlands,769895,outputs/assets/faces/8045.png,ok
+face,14034,Lawrence Ati Zigi,Ghana,,outputs/assets/faces/14034.png,cached
+face,3841,Keylor Navas,Costa Rica,,outputs/assets/faces/3841.png,cached
+face,1926,Thiago Silva,Brazil,,outputs/assets/faces/1926.png,cached
+face,9918,Mario Götze,Germany,177714,outputs/assets/faces/9918.png,ok
+face,1406,Pervis Estupinan,Ecuador,,outputs/assets/faces/1406.png,cached
+face,13873,Pierre Kunde,Cameroon,639434,outputs/assets/faces/13873.png,ok
+face,308,Harry Wilson,Wales,494417,outputs/assets/faces/308.png,ok
+face,13937,Angelo Preciado,Ecuador,,outputs/assets/faces/13937.png,cached
+face,12960,Ricardo Rodriguez,Switzerland,,outputs/assets/faces/12960.png,cached
+face,12222,Majid Hosseini,Iran,,outputs/assets/faces/12222.png,cached
+face,13930,Giorgian De Arrascaeta,Uruguay,438647,outputs/assets/faces/13930.png,ok
+face,5098,Ko Itakura,Japan,,outputs/assets/faces/5098.png,cached
+face,3301,Héctor Moreno,Mexico,,outputs/assets/faces/3301.png,cached
+face,13563,Jewison Bennette,Costa Rica,1283779,outputs/assets/faces/13563.png,ok
+face,100,Mateo Kovacic,Croatia,,outputs/assets/faces/100.png,cached
+face,1684,Federico Valverde,Uruguay,,outputs/assets/faces/1684.png,cached
+face,435,Mathew Ryan,Australia,,outputs/assets/faces/435.png,cached
+face,13939,Djorkaeff Reasco,Ecuador,809537,outputs/assets/faces/13939.png,ok
+face,83,Heung-min Son,South Korea,,outputs/assets/faces/83.png,cached
+face,13920,Jun-ho Son,South Korea,1135902,,http:403
+face,11790,Steven Vitoria,Canada,,outputs/assets/faces/11790.png,cached
+face,1991,Aleksandar Mitrovic,Serbia,,outputs/assets/faces/1991.png,cached
+face,1960,Timothy Castagne,Belgium,,outputs/assets/faces/1960.png,cached
+face,9947,Milos Veljkovic,Serbia,515333,outputs/assets/faces/9947.png,ok
+face,13917,Chang-hoon Kwon,South Korea,1085809,outputs/assets/faces/13917.png,ok
+face,975,Ronald Matarrita,Costa Rica,498045,outputs/assets/faces/975.png,ok
+face,96,César Azpilicueta,Spain,72541,outputs/assets/faces/96.png,ok
+face,2111,Hirving Lozano,Mexico,521210,outputs/assets/faces/2111.png,ok
+face,320,Fabian Schär,Switzerland,189982,outputs/assets/faces/320.png,ok
+face,802,Jesús Ferreira,United States,825608,outputs/assets/faces/802.png,ok
+face,27,Bernardo Silva,Portugal,,outputs/assets/faces/27.png,cached
+face,13872,Collins Fai,Cameroon,,outputs/assets/faces/13872.png,cached
+face,1785,Bono,Morocco,,outputs/assets/faces/1785.png,cached
+face,3734,Félix Torres,Ecuador,,outputs/assets/faces/3734.png,cached
+face,13055,Nicolas Jackson,Senegal,1197347,outputs/assets/faces/13055.png,ok
+face,13973,Hossein Kanaani,Iran,500637,outputs/assets/faces/13973.png,ok
+face,8037,Dusan Tadić,Serbia,,outputs/assets/faces/8037.png,cached
+face,4915,Hee-chan Hwang,South Korea,620026,outputs/assets/faces/4915.png,ok
+face,13798,Yuto Nagatomo,Japan,98254,outputs/assets/faces/13798.png,ok
+face,157,Granit Xhaka,Switzerland,,outputs/assets/faces/157.png,cached
+face,14000,Nawaf Al-Abed,Saudi Arabia,196000,outputs/assets/faces/14000.png,ok
+face,5038,Jae-sung Lee,South Korea,523749,outputs/assets/faces/5038.png,ok
+face,13787,Youstin Salas,Costa Rica,874551,outputs/assets/faces/13787.png,ok
+face,13862,Munir,Morocco,522579,outputs/assets/faces/13862.png,ok
+face,8050,Alex Sandro,Brazil,157865,outputs/assets/faces/8050.png,ok
+face,1812,Luuk de Jong,Netherlands,150201,outputs/assets/faces/1812.png,ok
+face,11,Nicolás Otamendi,Argentina,,outputs/assets/faces/11.png,cached
+face,4666,Raphaël Guerreiro,Portugal,,outputs/assets/faces/4666.png,cached
+face,84,Steven Bergwijn,Netherlands,564818,outputs/assets/faces/84.png,ok
+face,8342,Memphis Depay,Netherlands,,outputs/assets/faces/8342.png,cached
+face,1168,Nouhou Tolo,Cameroon,,outputs/assets/faces/1168.png,cached
+face,12561,Sergej Milinković-Savić,Serbia,463301,outputs/assets/faces/12561.png,ok
+face,3924,Bruno Guimaraes,Brazil,850354,outputs/assets/faces/3924.png,ok
+face,1393,Joao Felix,Portugal,,outputs/assets/faces/1393.png,cached
+face,9981,Ritsu Doan,Japan,629805,outputs/assets/faces/9981.png,ok
+face,3903,Krepin Diatta,Senegal,837061,outputs/assets/faces/3903.png,ok
+face,8031,Mohammed Kudus,Ghana,891743,outputs/assets/faces/8031.png,ok
+face,1034,Jhegson Méndez,Ecuador,729088,outputs/assets/faces/1034.png,ok
+face,9837,Jackson Porozo,Ecuador,1032039,outputs/assets/faces/9837.png,ok
+face,2099,Takuma Asano,Japan,430856,outputs/assets/faces/2099.png,ok
+face,13222,Nahuel Molina,Argentina,,outputs/assets/faces/13222.png,cached
+face,136,Marcus Rashford,England,696365,outputs/assets/faces/136.png,ok
+face,57,Xherdan Shaqiri,Switzerland,176300,outputs/assets/faces/57.png,ok
+face,2443,Moon-hwan Kim,South Korea,,outputs/assets/faces/2443.png,cached
+face,13820,Aziz Behich,Australia,,outputs/assets/faces/13820.png,cached
+face,13927,Guillermo Varela,Uruguay,465614,outputs/assets/faces/13927.png,ok
+face,8042,Wojciech Szczesny,Poland,,outputs/assets/faces/8042.png,cached
+face,8136,Ivan Perisic,Croatia,,outputs/assets/faces/8136.png,cached
+face,8099,Rasmus Kristensen,Denmark,722207,outputs/assets/faces/8099.png,ok
+face,18,Rodri,Spain,,outputs/assets/faces/18.png,cached
+face,13996,Hassan Tambakti,Saudi Arabia,848607,outputs/assets/faces/13996.png,ok
+face,14004,Abdulelah Al-Malki,Saudi Arabia,670415,outputs/assets/faces/14004.png,ok
+face,8593,Rafael Leao,Portugal,848844,outputs/assets/faces/8593.png,ok
+face,13786,Carlos Martinez,Costa Rica,155507,,http:403
+face,12779,Mikkel Damsgaard,Denmark,888912,outputs/assets/faces/12779.png,ok
+face,13990,Yasser Al-Shahrani,Saudi Arabia,392208,outputs/assets/faces/13990.png,ok
+face,13790,Brandon Aguilera,Costa Rica,1021336,outputs/assets/faces/13790.png,ok
+face,1681,Achraf Hakimi,Morocco,,outputs/assets/faces/1681.png,cached
+face,3890,Youssouf Fofana,France,954621,outputs/assets/faces/3890.png,ok
+face,4928,Wataru Endo,Japan,,outputs/assets/faces/4928.png,cached
+face,3965,Jonathan David,Canada,939569,outputs/assets/faces/3965.png,ok
+face,328,DeAndre Yedlin,United States,432040,outputs/assets/faces/328.png,ok
+face,3848,Abdou Diallo,Senegal,,outputs/assets/faces/3848.png,cached
+face,3519,Michael Estrada,Ecuador,497330,outputs/assets/faces/3519.png,ok
+face,4408,Salis Abdul Samed,Ghana,1074642,outputs/assets/faces/4408.png,ok
+face,4623,Serge Gnabry,Germany,,outputs/assets/faces/4623.png,cached
+face,1531,Lionel Messi,Argentina,,outputs/assets/faces/1531.png,cached
+face,4677,Jude Bellingham,England,,outputs/assets/faces/4677.png,cached
+face,11841,Hidemasa Morita,Japan,,outputs/assets/faces/11841.png,cached
+face,9,Aymeric Laporte,Spain,,outputs/assets/faces/9.png,cached
+face,8420,Papu Gómez,Argentina,45220,outputs/assets/faces/8420.png,ok
+face,6895,Rodrigo de Paul,Argentina,,outputs/assets/faces/6895.png,cached
+face,3934,Karl Toko Ekambi,Cameroon,426906,outputs/assets/faces/3934.png,ok
+face,4265,Gideon Mensah,Ghana,771630,outputs/assets/faces/4265.png,ok
+face,449,Aaron Mooy,Australia,,outputs/assets/faces/449.png,cached
+face,3870,Kylian Mbappé,France,,outputs/assets/faces/3870.png,cached
+face,14011,Saleh Al-Shehri,Saudi Arabia,384407,outputs/assets/faces/14011.png,ok
+face,6020,Cristiano Ronaldo,Portugal,,outputs/assets/faces/6020.png,cached
+face,13992,Ali Al-Bulayhi,Saudi Arabia,670885,outputs/assets/faces/13992.png,ok
+face,2042,Kamil Grosicki,Poland,69541,outputs/assets/faces/2042.png,ok
+face,8039,Antony,Brazil,967622,outputs/assets/faces/8039.png,ok
+face,13824,Kye Rowles,Australia,,outputs/assets/faces/13824.png,cached
+face,13779,Juan Pablo Vargas,Costa Rica,734283,outputs/assets/faces/13779.png,ok
+face,4661,Manuel Akanji,Switzerland,,outputs/assets/faces/4661.png,cached
+face,483,Jordan Ayew,Ghana,154280,outputs/assets/faces/483.png,ok
+face,8008,Goncalo Ramos,Portugal,940087,outputs/assets/faces/8008.png,ok
+face,2074,Raphinha,Brazil,,outputs/assets/faces/2074.png,cached
+face,13998,Salem Al-Dawsari,Saudi Arabia,,outputs/assets/faces/13998.png,cached
+face,12653,Vanja Milinković-Savić,Serbia,,outputs/assets/faces/12653.png,cached
+face,3299,César Montes,Mexico,,outputs/assets/faces/3299.png,cached
+face,3930,Lucas Paquetá,Brazil,,outputs/assets/faces/3930.png,cached
+face,13032,Pathe Ciss,Senegal,872396,outputs/assets/faces/13032.png,ok
+face,2106,Edson Alvarez,Mexico,783505,outputs/assets/faces/2106.png,ok
+face,66,Toby Alderweireld,Belgium,,outputs/assets/faces/66.png,cached
+face,13783,Bryan Ruiz,Costa Rica,38229,outputs/assets/faces/13783.png,ok
+face,13962,Almoez Ali,Qatar,644017,outputs/assets/faces/13962.png,ok
+face,13981,Ali Gholizadeh,Iran,746018,outputs/assets/faces/13981.png,ok
+face,4231,Alexander Djiku,Ghana,407765,outputs/assets/faces/4231.png,ok
+face,8025,Nicolas Tagliafico,Argentina,,outputs/assets/faces/8025.png,cached
+face,3452,Kevin Álvarez,Mexico,924737,outputs/assets/faces/3452.png,ok
+face,1593,Óscar Duarte,Costa Rica,,outputs/assets/faces/1593.png,cached
+face,13228,Youssouf Sabaly,Senegal,,outputs/assets/faces/13228.png,cached
+face,6019,Nikola Vlasic,Croatia,557677,outputs/assets/faces/6019.png,ok
+face,8330,Mario Pasalic,Croatia,,outputs/assets/faces/8330.png,cached
+face,13875,Vincent Aboubakar,Cameroon,1369001,,http:403
+face,3978,Pape Gueye,Senegal,844544,outputs/assets/faces/3978.png,ok
+face,3367,Henry Martín,Mexico,558452,outputs/assets/faces/3367.png,ok
+face,55,Takumi Minamino,Japan,408943,outputs/assets/faces/55.png,ok
+face,8027,Noussair Mazraoui,Morocco,,outputs/assets/faces/8027.png,cached
+face,8627,Atiba Hutchinson,Canada,1215652,outputs/assets/faces/8627.png,ok
+face,11241,Andries Noppert,Netherlands,,outputs/assets/faces/11241.png,cached
+face,13860,Marko Livaja,Croatia,206242,outputs/assets/faces/13860.png,ok
+face,13984,Karim Ansarifard,Iran,117308,outputs/assets/faces/13984.png,ok
+face,5074,Bryan Mbeumo,Cameroon,923312,outputs/assets/faces/5074.png,ok
+face,2108,Uriel Antuna,Mexico,767021,outputs/assets/faces/2108.png,ok
+face,1536,Martin Braithwaite,Denmark,169865,outputs/assets/faces/1536.png,ok
+face,926,Alistair Johnston,Canada,,outputs/assets/faces/926.png,cached
+face,214,Nampalys Mendy,Senegal,,outputs/assets/faces/214.png,cached
+face,8324,Joakim Maehle,Denmark,759097,outputs/assets/faces/8324.png,ok
+face,1841,Pau Torres,Spain,792645,outputs/assets/faces/1841.png,ok
+face,5029,Silvan Widmer,Switzerland,,outputs/assets/faces/5029.png,cached
+face,13850,Grzegorz Krychowiak,Poland,,outputs/assets/faces/13850.png,cached
+face,1789,Jules Kounde,France,,outputs/assets/faces/1789.png,cached
+face,118,Harry Maguire,England,,outputs/assets/faces/118.png,cached
+face,2144,Iliman Ndiaye,Senegal,965764,outputs/assets/faces/2144.png,ok
+face,13784,Johan Venegas,Costa Rica,187364,outputs/assets/faces/13784.png,ok
+face,13993,Sultan Al-Ghannam,Saudi Arabia,722259,outputs/assets/faces/13993.png,ok
+face,401,Sofiane Boufal,Morocco,,outputs/assets/faces/401.png,cached
+face,8077,Joao Palhinha,Portugal,524434,outputs/assets/faces/8077.png,ok
+face,13797,Shogo Taniguchi,Japan,523731,outputs/assets/faces/13797.png,ok
+face,13923,Gue-sung Cho,South Korea,,outputs/assets/faces/13923.png,cached
+face,10704,Kaoru Mitoma,Japan,862608,outputs/assets/faces/10704.png,ok
+face,1535,Luis Suarez,Uruguay,40636,outputs/assets/faces/1535.png,ok
+face,12820,Jakub Kiwior,Poland,,outputs/assets/faces/12820.png,cached
+face,162,Gabriel Martinelli,Brazil,1021586,outputs/assets/faces/162.png,ok
+face,4053,Kasper Dolberg,Denmark,640742,outputs/assets/faces/4053.png,ok
+face,2075,Facundo Pellistri,Uruguay,1073402,outputs/assets/faces/2075.png,ok
+face,13822,Jason Cummings,Australia,481541,outputs/assets/faces/13822.png,ok
+face,14003,Mohamed Kanno,Saudi Arabia,,outputs/assets/faces/14003.png,cached
+face,26,Leroy Sané,Germany,530859,outputs/assets/faces/26.png,ok
+face,1973,Antonee Robinson,United States,,outputs/assets/faces/1973.png,cached
+face,8343,Sergiño Dest,United States,,outputs/assets/faces/8343.png,cached
+face,1363,Inaki Williams,Ghana,,outputs/assets/faces/1363.png,cached
+face,13982,Ahmad Nourollahi,Iran,619504,outputs/assets/faces/13982.png,ok
+face,14008,Riad Sharahili,Saudi Arabia,528303,outputs/assets/faces/14008.png,ok
+face,3303,Jesús Gallardo,Mexico,,outputs/assets/faces/3303.png,cached
+face,13975,Milad Mohammadi,Iran,630459,outputs/assets/faces/13975.png,ok
+face,1683,Casemiro,Brazil,,outputs/assets/faces/1683.png,cached
+face,5178,Osman Bukari,Ghana,949859,outputs/assets/faces/5178.png,ok
+face,8564,Pepe,Portugal,,outputs/assets/faces/8564.png,cached
+face,4734,Filip Kostic,Serbia,281012,outputs/assets/faces/4734.png,ok
+face,3878,Axel Disasi,France,696646,outputs/assets/faces/3878.png,ok
+face,13178,Nico Williams,Spain,1202110,outputs/assets/faces/13178.png,ok
+face,13901,Pape Abou Cissé,Senegal,1178444,outputs/assets/faces/13901.png,ok
+face,8419,Gonzalo Montiel,Argentina,687008,outputs/assets/faces/8419.png,ok
+face,12777,Abdelhamid Sabiri,Morocco,769644,outputs/assets/faces/12777.png,ok
+face,4324,Azzedine Ounahi,Morocco,,outputs/assets/faces/4324.png,cached
+face,12235,Ali Karimi,Iran,443182,outputs/assets/faces/12235.png,ok
+face,8059,Dušan Vlahović,Serbia,737857,outputs/assets/faces/8059.png,ok
+face,13910,Kyung-won Kwon,South Korea,1085809,outputs/assets/faces/13910.png,ok
+face,4002,Nayef Aguerd,Morocco,,outputs/assets/faces/4002.png,cached
+face,252,Raúl Jiménez,Mexico,292313,outputs/assets/faces/252.png,ok
+face,1876,William Carvalho,Portugal,257865,outputs/assets/faces/1876.png,ok
+face,10715,Julian Alvarez,Argentina,,outputs/assets/faces/10715.png,cached
+face,4611,Alphonso Davies,Canada,,outputs/assets/faces/4611.png,cached
+face,1698,Gareth Bale,Wales,31921,outputs/assets/faces/1698.png,ok
+face,9178,Marcos Acuña,Argentina,,outputs/assets/faces/9178.png,cached
+face,13216,Stefan Mitrovic,Serbia,196203,outputs/assets/faces/13216.png,ok
+face,8061,Danilo,Brazil,,outputs/assets/faces/8061.png,cached
+face,4795,Woo-yeong Jeong,South Korea,949673,outputs/assets/faces/4795.png,ok
+face,14022,Aissa Laidouni,Tunisia,715642,outputs/assets/faces/14022.png,ok
+face,265,Declan Rice,England,,outputs/assets/faces/265.png,cached
+face,1513,Jordi Alba,Spain,,outputs/assets/faces/1513.png,cached
+face,8034,Steven Berghuis,Netherlands,209786,outputs/assets/faces/8034.png,ok
+face,9993,Kalidou Koulibaly,Senegal,,outputs/assets/faces/9993.png,cached
+face,195,Richarlison,Brazil,,outputs/assets/faces/195.png,cached
+face,1225,Richie Laryea,Canada,729506,outputs/assets/faces/1225.png,ok
+face,3414,Alexis Vega,Mexico,728365,outputs/assets/faces/3414.png,ok
+face,6967,Riley McGree,Australia,733486,outputs/assets/faces/6967.png,ok
+face,13871,Devis Epassy,Cameroon,504321,outputs/assets/faces/13871.png,ok
+face,3460,Romario Ibarra,Ecuador,458659,outputs/assets/faces/3460.png,ok
+face,2083,Joe Rodon,Wales,,outputs/assets/faces/2083.png,cached
+face,8000,Joao Mario,Portugal,958421,outputs/assets/faces/8000.png,ok
+face,13948,Bassam Al-Rawi,Qatar,644016,outputs/assets/faces/13948.png,ok
+face,67,Jan Vertonghen,Belgium,,outputs/assets/faces/67.png,cached
+face,8009,Darwin Nunez,Uruguay,950561,outputs/assets/faces/8009.png,ok
+face,8071,Sebastian Coates,Uruguay,165526,outputs/assets/faces/8071.png,ok
+face,13819,Mitchell Duke,Australia,,outputs/assets/faces/13819.png,cached
+face,4779,Nico Schlotterbeck,Germany,1002058,outputs/assets/faces/4779.png,ok
+face,74,Eric Dier,England,361315,outputs/assets/faces/74.png,ok
+face,9963,Niclas Fullkrug,Germany,276791,outputs/assets/faces/9963.png,ok
+face,8113,Noah Okafor,Switzerland,915797,outputs/assets/faces/8113.png,ok
+face,1907,Vitinha,Portugal,1061249,outputs/assets/faces/1907.png,ok
+face,4618,Leon Goretzka,Germany,343748,outputs/assets/faces/4618.png,ok
+face,3865,Neymar,Brazil,,outputs/assets/faces/3865.png,cached
+face,4897,Lukas Klostermann,Germany,526657,outputs/assets/faces/4897.png,ok
+face,8033,Davy Klaassen,Netherlands,298448,outputs/assets/faces/8033.png,ok
+face,9094,Cyle Larin,Canada,544312,outputs/assets/faces/9094.png,ok
+face,13864,Yahia Attiat-Allah,Morocco,,outputs/assets/faces/13864.png,cached
+face,3857,Danilo Pereira,Portugal,240235,outputs/assets/faces/3857.png,ok
+face,5085,Abdul Rahman Baba,Ghana,324910,outputs/assets/faces/5085.png,ok
+face,4691,Yann Sommer,Switzerland,,outputs/assets/faces/4691.png,cached
+face,9939,Jakub Kaminski,Poland,1067260,outputs/assets/faces/9939.png,ok
+face,20,Ilkay Gündogan,Germany,178818,outputs/assets/faces/20.png,ok
+face,4695,Nico Elvedi,Switzerland,517346,outputs/assets/faces/4695.png,ok
+face,13857,Borna Barisic,Croatia,462272,outputs/assets/faces/13857.png,ok
+face,1550,Nemanja Maksimovic,Serbia,495962,outputs/assets/faces/1550.png,ok
+face,12183,Haji Wright,United States,848268,outputs/assets/faces/12183.png,ok
+face,4616,Joshua Kimmich,Germany,,outputs/assets/faces/4616.png,cached
+face,6935,Joe Allen,Wales,47558,outputs/assets/faces/6935.png,ok
+face,4606,Dayot Upamecano,France,,outputs/assets/faces/4606.png,cached
+face,6018,Connor Roberts,Wales,484878,outputs/assets/faces/6018.png,ok
+face,4566,Rubén Vargas,Switzerland,,outputs/assets/faces/4566.png,cached
+face,4613,Benjamin Pavard,France,611223,outputs/assets/faces/4613.png,ok
+face,4681,Giovanni Reyna,United States,1071179,outputs/assets/faces/4681.png,ok
+face,8257,Harry Souttar,Australia,,outputs/assets/faces/8257.png,cached
+face,13976,Sadegh Moharrami,Iran,825343,outputs/assets/faces/13976.png,ok
+face,13935,Hernan Galindez,Ecuador,,outputs/assets/faces/13935.png,cached
+face,200,Kasper Schmeichel,Denmark,,outputs/assets/faces/200.png,cached
+face,13861,Bruno Petkovic,Croatia,424875,outputs/assets/faces/13861.png,ok
+face,3316,Joel Campbell,Costa Rica,,outputs/assets/faces/3316.png,cached
+face,22,Kevin De Bruyne,Belgium,,outputs/assets/faces/22.png,cached
+face,1829,Carlos Soler,Spain,708890,outputs/assets/faces/1829.png,ok
+face,13994,Saud Abdulhamid,Saudi Arabia,,outputs/assets/faces/13994.png,cached
+face,1228,Jonathan Osorio,Canada,432605,outputs/assets/faces/1228.png,ok
+face,4908,Dani Olmo,Spain,,outputs/assets/faces/4908.png,cached
+face,13944,Abdelkarim Hassan,Qatar,,outputs/assets/faces/13944.png,cached
+face,453,Alexis MacAllister,Argentina,,outputs/assets/faces/453.png,cached
+face,105,Mason Mount,England,750032,outputs/assets/faces/105.png,ok
+face,13044,Jawad El Yamiq,Morocco,,outputs/assets/faces/13044.png,cached
+face,8927,Ao Tanaka,Japan,935728,outputs/assets/faces/8927.png,ok
+face,1532,Ousmane Dembele,France,,outputs/assets/faces/1532.png,cached
+face,92,Andreas Christensen,Denmark,,outputs/assets/faces/92.png,cached
+face,47,Jordan Henderson,England,,outputs/assets/faces/47.png,cached
+face,8561,Mehdi Taremi,Iran,,outputs/assets/faces/8561.png,cached
+face,1695,Vinícius Junior,Brazil,,outputs/assets/faces/1695.png,cached
+face,5135,Josh Sargent,United States,848011,outputs/assets/faces/5135.png,ok
+face,40,Dejan Lovren,Croatia,,outputs/assets/faces/40.png,cached
+face,1394,Alvaro Morata,Spain,213501,outputs/assets/faces/1394.png,ok
+face,14013,Aymen Dahmen,Tunisia,,outputs/assets/faces/14013.png,cached
+face,4404,Alidu Seidu,Ghana,1177779,outputs/assets/faces/4404.png,ok
+face,4703,Denis Zakaria,Switzerland,598355,outputs/assets/faces/4703.png,ok
+face,284,Nathan Aké,Netherlands,,outputs/assets/faces/284.png,cached
+face,1287,José Cifuentes,Ecuador,1053698,outputs/assets/faces/1287.png,ok
+face,13954,Abdulaziz Hatem,Qatar,308909,outputs/assets/faces/13954.png,ok
+face,14040,Andre Ayew,Ghana,95955,outputs/assets/faces/14040.png,ok
+face,1,Harry Kane,England,,outputs/assets/faces/1.png,cached
+face,8026,Daley Blind,Netherlands,,outputs/assets/faces/8026.png,cached
+face,13946,Pedro Miguel,Qatar,,outputs/assets/faces/13946.png,cached
+face,2095,Daichi Kamada,Japan,,outputs/assets/faces/2095.png,cached
+face,4926,Borna Sosa,Croatia,,outputs/assets/faces/4926.png,cached
+face,8134,Denzel Dumfries,Netherlands,,outputs/assets/faces/8134.png,cached
+face,1545,Mathí­as Olivera,Uruguay,729093,outputs/assets/faces/1545.png,ok
+face,1289,Mark-Anthony Kaye,Canada,632748,outputs/assets/faces/1289.png,ok
+face,13924,Sergio Rochet,Uruguay,,outputs/assets/faces/13924.png,cached
+face,1896,Matty Cash,Poland,,outputs/assets/faces/1896.png,cached
+face,13049,Gonzalo Plata,Ecuador,,outputs/assets/faces/13049.png,cached
+face,13782,Anthony Contreras,Costa Rica,1073924,outputs/assets/faces/13782.png,ok
+face,5009,Wout Weghorst,Netherlands,351999,outputs/assets/faces/5009.png,ok
+face,13963,Mohammed Muntari,Qatar,431151,outputs/assets/faces/13963.png,ok
+face,25,Raheem Sterling,England,246575,outputs/assets/faces/25.png,ok
+face,240,Rúben Neves,Portugal,,outputs/assets/faces/240.png,cached
+face,12640,Martin Hongla,Cameroon,797758,outputs/assets/faces/12640.png,ok
+face,1334,Weston McKennie,United States,,outputs/assets/faces/1334.png,cached
+face,13371,Bryan Oviedo,Costa Rica,,outputs/assets/faces/13371.png,cached
+face,11994,Dries Mertens,Belgium,46104,outputs/assets/faces/11994.png,ok
+face,13922,Woo-young Jung,South Korea,,outputs/assets/faces/13922.png,cached
+face,8054,Adrien Rabiot,France,,outputs/assets/faces/8054.png,cached
+face,8341,Gavi,Spain,,outputs/assets/faces/8341.png,cached
+face,3895,Ismail Jakobs,Senegal,,outputs/assets/faces/3895.png,cached
+face,13947,Ismaeel Mohammed,Qatar,309173,outputs/assets/faces/13947.png,ok
+face,4621,Jamal Musiala,Germany,,outputs/assets/faces/4621.png,cached
+face,12514,Piotr Zielinski,Poland,,outputs/assets/faces/12514.png,cached
+face,668,Przemyslaw Frankowski,Poland,402419,outputs/assets/faces/668.png,ok
+face,133,Bruno Fernandes,Portugal,,outputs/assets/faces/133.png,cached
+face,589,Neco Williams,Wales,1078788,outputs/assets/faces/589.png,ok
+face,11094,Cody Gakpo,Netherlands,,outputs/assets/faces/11094.png,cached
+face,7443,Christian Eriksen,Denmark,,outputs/assets/faces/7443.png,cached
+face,4732,Djibril Sow,Switzerland,707970,outputs/assets/faces/4732.png,ok
+face,4737,Jesper Lindström,Denmark,958335,outputs/assets/faces/4737.png,ok
+face,123,Luke Shaw,England,,outputs/assets/faces/123.png,cached
+face,2059,Edouard Mendy,Senegal,,outputs/assets/faces/2059.png,cached
+face,1384,Hector Herrera,Mexico,274623,outputs/assets/faces/1384.png,ok
+face,1530,Pedri,Spain,,outputs/assets/faces/1530.png,cached
+face,13781,Celso Borges,Costa Rica,51953,outputs/assets/faces/13781.png,ok
+face,12502,Min Jae Kim,South Korea,,outputs/assets/faces/12502.png,cached
+face,32,Alisson,Brazil,,outputs/assets/faces/32.png,cached
+face,6916,Junior Hoilett,Canada,113465,outputs/assets/faces/6916.png,ok
+face,8328,Remo Freuler,Switzerland,,outputs/assets/faces/8328.png,cached
+face,14019,Yassine Meriah,Tunisia,,outputs/assets/faces/14019.png,cached
+face,10,John Stones,England,,outputs/assets/faces/10.png,cached
+face,14010,Firas Al-Buraikan,Saudi Arabia,,outputs/assets/faces/14010.png,cached
+face,3880,Strahinja Pavlovic,Serbia,1048023,outputs/assets/faces/3880.png,ok
+face,444,Tariq Lamptey,Ghana,955139,outputs/assets/faces/444.png,ok
+face,2066,Ruben Dias,Portugal,,outputs/assets/faces/2066.png,cached
+face,4194,Randal Kolo Muani,France,823825,outputs/assets/faces/4194.png,ok
+face,12642,Ivan Ilić,Serbia,1036182,outputs/assets/faces/12642.png,ok
+face,1534,Antoine Griezmann,France,,outputs/assets/faces/1534.png,cached
+face,462,Wayne Hennessey,Wales,36283,outputs/assets/faces/462.png,ok
+face,21,Phil Foden,England,,outputs/assets/faces/21.png,cached
+face,13795,Alvaro Zamora,Costa Rica,1401581,outputs/assets/faces/13795.png,ok
+face,1696,Marco Asensio,Spain,498033,outputs/assets/faces/1696.png,ok
+face,1830,Kang-in Lee,South Korea,940976,outputs/assets/faces/1830.png,ok
+face,90,Antonio Rüdiger,Germany,,outputs/assets/faces/90.png,cached
+face,13854,Dominik Livakovic,Croatia,,outputs/assets/faces/13854.png,cached
+face,7008,Brennan Johnson,Wales,1076756,outputs/assets/faces/7008.png,ok
+face,7988,Boulaye Dia,Senegal,,outputs/assets/faces/7988.png,cached
+face,3846,Marquinhos,Brazil,,outputs/assets/faces/3846.png,cached
+face,17,João Cancelo,Portugal,,outputs/assets/faces/17.png,cached
+face,3387,Orbelín Pineda,Mexico,559986,outputs/assets/faces/3387.png,ok
+face,8062,Aaron Ramsey,Wales,,outputs/assets/faces/8062.png,cached
+face,6655,Nicolas N'Koulou,Cameroon,149962,outputs/assets/faces/6655.png,ok
+face,9865,Zakaria Aboukhlal,Morocco,846761,outputs/assets/faces/9865.png,ok
+face,13118,Eray Comert,Switzerland,705484,outputs/assets/faces/13118.png,ok
+face,13802,Daizen Maeda,Japan,728765,outputs/assets/faces/13802.png,ok
+face,1676,Eder Militao,Brazil,,outputs/assets/faces/1676.png,cached
+face,3888,Aurélien Tchouaméni,France,,outputs/assets/faces/3888.png,cached
+face,11090,Erick Gutierrez,Mexico,497838,outputs/assets/faces/11090.png,ok
+face,13995,Abdulelah Al-Amri,Saudi Arabia,848600,outputs/assets/faces/13995.png,ok
+face,4608,Niklas Süle,Germany,,outputs/assets/faces/4608.png,cached
+face,12154,Famara Diedhiou,Senegal,426638,outputs/assets/faces/12154.png,ok
+face,8344,Alex Balde,Spain,1878042,,http:403
+face,4883,Andrej Kramaric,Croatia,,outputs/assets/faces/4883.png,cached
+face,13830,Pedro,Brazil,1021382,outputs/assets/faces/13830.png,ok
+face,12945,Bremer,Brazil,857269,outputs/assets/faces/12945.png,ok
+face,2134,Moises Caicedo,Ecuador,,outputs/assets/faces/2134.png,cached
+face,13907,Seun-gyu Kim,South Korea,,outputs/assets/faces/13907.png,cached
