@@ -1,15 +1,12 @@
-"""ficha - Ficha PCJ completa: radar + tabla de percentiles lado a lado.
+"""radar_report - Reporte PCJ completo: radar + tabla de percentiles lado a lado.
 
 Tabla = port 1:1 de jaime-oriol/footballdecoded (viz/stats_radar.py,
-`create_stats_table`): cabecera + Minutos/Partidos, filas metrica con valor
-+ percentil coloreado (node_cmap), sombreado alterno, leyenda 5 tramos +
-flecha BAJO->ALTO. Combinacion radar|tabla = `combine_radar_and_table`.
-
-Adaptaciones minimas vs el original: datos pcj_table, percentil vs POSICION,
-logo Diagonality (sin "Created by"), formato de valor para CATEs con signo.
+`create_stats_table`): cabecera con cara+escudo+logo JO, filas metrica con
+valor + percentil coloreado, sombreado alterno, leyenda 5 tramos +
+flecha BAJO->ALTO. Combinacion radar|tabla = `_combine`.
 
 Uso:
-    python -m src.viz.ficha "Messi"
+    python -m src.viz.radar_report "Messi"
 """
 
 from __future__ import annotations
@@ -60,7 +57,7 @@ TABLE_TITLES = [
     "Off-ball · post-GF", "Fisico · post-GF",
 ]
 
-_NAME_COLOR = "#FF6B6B"   # team_colors[0] del original footballdecoded
+_NAME_COLOR = WHITE       # nombre en BLANCO — convencion identidad PCJ
 
 
 def _short(name: str, max_len: int = 16) -> str:
@@ -288,10 +285,10 @@ def _combine(radar_path: Path, table_path: Path, out_path: Path) -> None:
     canvas.save(out_path, dpi=(300, 300))
 
 
-def player_ficha(df: pl.DataFrame, player_id: int, save_path=None) -> Path:
+def player_radar_report(df: pl.DataFrame, player_id: int, save_path=None) -> Path:
     """Ficha PCJ completa: radar geometrico + tabla de percentiles."""
     tmp = Path(tempfile.gettempdir())
-    radar_p, table_p = tmp / f"_pcj_r_{player_id}.png", tmp / f"_pcj_t_{player_id}.png"
+    radar_p, table_p = tmp / f"_rad_{player_id}.png", tmp / f"_tab_{player_id}.png"
 
     # Radar sin titulo ni logo: la identidad va en la tabla.
     player_radar(df, player_id, PCJ_METRICS, PCJ_TITLES,
@@ -299,7 +296,7 @@ def player_ficha(df: pl.DataFrame, player_id: int, save_path=None) -> Path:
     create_stats_table(df, player_id, save_path=table_p)
 
     if save_path is None:
-        save_path = _SRC.parent / "outputs" / "viz" / f"ficha_{player_id}.png"
+        save_path = _SRC.parent / "outputs" / "viz" / f"radar_report_{player_id}.png"
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
     _combine(radar_p, table_p, save_path)
@@ -311,5 +308,5 @@ def player_ficha(df: pl.DataFrame, player_id: int, save_path=None) -> Path:
 if __name__ == "__main__":
     df = pl.read_parquet(_TABLE)
     pid = _find(df, sys.argv[1] if len(sys.argv) > 1 else "Messi")
-    out = player_ficha(df, pid)
+    out = player_radar_report(df, pid)
     print(f"OK -> {out}")

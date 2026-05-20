@@ -26,7 +26,10 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import BG, PCT_CMAP, WHITE, add_logo
+from viz.common import BG, PCT_CMAP, WHITE, _LOGO_PATH
+from matplotlib.offsetbox import AnnotationBbox, OffsetImage
+from PIL import Image
+import numpy as np
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
 
@@ -68,7 +71,22 @@ def diamond_scatter(df: pl.DataFrame,
         top = pdf[(pdf["_px"] >= 75) & (pdf["_py"] >= 75)]
     top = top.assign(_tot=top["_px"] + top["_py"]).nlargest(10, "_tot")
 
-    fig = plt.figure(figsize=(9.5, 10), facecolor=BG)
+    fig = plt.figure(figsize=(10, 11.5), facecolor=BG)
+
+    # ---- Header style pass-plot: titulo grande + logo JO derecha ----
+    fig.text(0.50, 0.965, "Quien tira y quien sostiene",
+              ha="center", va="center", color=WHITE, fontsize=20, fontweight="bold")
+    fig.text(0.50, 0.935,
+              "Mundial Qatar 2022  ·  511 jugadores  ·  cambio post-shock aislando "
+              "lo que aporta el resto del equipo",
+              ha="center", va="center", color=WHITE, fontsize=11)
+    if _LOGO_PATH.exists():
+        limg = Image.open(_LOGO_PATH)
+        ab = AnnotationBbox(OffsetImage(np.asarray(limg.convert("RGBA")), zoom=0.13),
+                             (0.87, 0.945), frameon=False,
+                             xycoords="figure fraction", box_alignment=(0.5, 0.5))
+        ab.set_clip_on(False)
+        fig.add_artist(ab)
 
     # Marcas de eje: valor real (con signo) en 6 posiciones
     left_dict = {i: f"{lmin + (i / 0.99) * (lmax - lmin):+.3f}" for i in _TICKS}
@@ -81,7 +99,7 @@ def diamond_scatter(df: pl.DataFrame,
         tick_formatter1=DictFormatter(right_dict),
         tick_formatter2=DictFormatter(left_dict))
     ax = floating_axes.FloatingSubplot(fig, 111, grid_helper=helper)
-    ax.set_position([0.10, 0.10, 0.80, 0.70], which="both")
+    ax.set_position([0.08, 0.07, 0.84, 0.78], which="both")
     aux = ax.get_aux_axes(transform)
     ax = fig.add_axes(ax)
     aux.patch = ax.patch
@@ -126,38 +144,19 @@ def diamond_scatter(df: pl.DataFrame,
                                arrowprops=dict(arrowstyle="-", color="yellow",
                                                alpha=0.9, linewidth=1.2))
 
-    # Titulo + subtitulo (lenguaje simple)
-    fig.text(0.5, 0.965, "Quien tira del equipo y quien lo sostiene",
-             ha="center", va="top", color=WHITE, fontsize=18, fontweight="bold")
-    fig.text(0.5, 0.93,
-             "Mundial Qatar 2022  ·  como cambia cada jugador tras un gol, "
-             "aislando lo que aporta el resto del equipo",
-             ha="center", va="top", color="#c8c8c8", fontsize=10.5)
+    # Carteles laterales (blanco)
+    fig.text(0.20, 0.62, "Por este lado\nLOS QUE TIRAN DEL EQUIPO\ncuando toca remontar",
+              ha="center", va="center", color=WHITE, fontsize=10, linespacing=1.5)
+    fig.text(0.80, 0.62, "Por este lado\nLOS QUE AGUANTAN EL RESULTADO\ncuando hay que cerrar",
+              ha="center", va="center", color=WHITE, fontsize=10, linespacing=1.5)
+    fig.text(0.50, 0.72, "ARRIBA: los que hacen LAS DOS COSAS",
+              ha="center", va="center", color=WHITE, fontsize=10,
+              fontweight="bold", style="italic")
 
-    # Carteles laterales en lenguaje futbolero
-    fig.text(0.205, 0.70, "Por este lado\nLOS QUE TIRAN DEL EQUIPO\ncuando toca remontar",
-             ha="center", va="center", color="#e8e8e8", fontsize=10,
-             linespacing=1.5)
-    fig.text(0.795, 0.70, "Por este lado\nLOS QUE AGUANTAN EL RESULTADO\ncuando hay que cerrar",
-             ha="center", va="center", color="#e8e8e8", fontsize=10,
-             linespacing=1.5)
-    fig.text(0.5, 0.795, "ARRIBA: los que hacen LAS DOS COSAS",
-             ha="center", va="center", color="yellow", fontsize=10,
-             fontweight="bold", style="italic")
-
-    # Notas (en esquinas libres del lienzo, no sobre el diamante)
-    fig.text(0.045, 0.085, "Lineas discontinuas: la mediana (percentil 50) "
-             "de cada indice — parten el campo en 4 cuadrantes.",
-             ha="left", va="bottom", color="#9a9c9b", fontsize=8.5, style="italic")
-    # Matiz tecnico al pie — honestidad sobre que mide cada canal
-    fig.text(0.045, 0.045,
-             "Matiz: CERROJO mide acciones defensivas (recuperaciones, presiones, "
-             "intervenciones) + intensidad fisica, no posicion en campo. Delanteros "
-             "con CERROJO positivo = presion alta post-marcar; defensas = repliegue.",
-             ha="left", va="bottom", color="#b8a040", fontsize=8, style="italic",
-             bbox=dict(boxstyle="round,pad=0.4", facecolor=BG,
-                       edgecolor="#5a5d5c", alpha=0.95, linewidth=0.6))
-    add_logo(fig, width_frac=0.13)
+    # Nota base
+    fig.text(0.045, 0.04, "Lineas discontinuas: la mediana (percentil 50) "
+              "de cada indice — parten el campo en 4 cuadrantes.",
+              ha="left", va="bottom", color=WHITE, fontsize=8.5, style="italic")
 
     if save_path:
         save_path = Path(save_path)

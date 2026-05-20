@@ -31,10 +31,21 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import BG, WHITE, add_logo
+from viz.common import BG, WHITE, _LOGO_PATH
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"
+_LOGOS = _SRC.parent / "outputs" / "assets" / "logos"
+
+_TEAM_TO_SLUG = {
+    "Argentina":"arg","Brazil":"bra","Ecuador":"ecu","Uruguay":"uru","Belgium":"bel",
+    "Croatia":"cro","Denmark":"den","England":"eng","France":"fra","Germany":"ger",
+    "Netherlands":"ned","Poland":"pol","Portugal":"por","Serbia":"srb","Spain":"esp",
+    "Switzerland":"sui","Wales":"wal","Cameroon":"cmr","Ghana":"gha","Morocco":"mar",
+    "Senegal":"sen","Tunisia":"tun","Japan":"jpn","South Korea":"kor","Iran":"irn",
+    "Qatar":"qat","Saudi Arabia":"ksa","Canada":"can","Mexico":"mex",
+    "United States":"usa","Costa Rica":"crc","Australia":"aus",
+}
 
 _TICKS = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 
@@ -111,7 +122,34 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
     l_med = 0.99 * (float(xs_full.median()) - xmin) / (xmax - xmin)
     r_med = 0.99 * (float(ys_full.median()) - ymin) / (ymax - ymin)
 
-    fig = plt.figure(figsize=(9.5, 10), facecolor=BG)
+    fig = plt.figure(figsize=(10, 11.5), facecolor=BG)
+
+    # ---- Header style pass-plot: escudo seleccion + titulo + logo JO ----
+    slug = _TEAM_TO_SLUG.get(team)
+    team_logo_p = _LOGOS / f"{slug}.png" if slug else None
+    fig_w = 10; fig_h = 11.5
+    if team_logo_p and team_logo_p.exists():
+        img = Image.open(team_logo_p)
+        ab = AnnotationBbox(OffsetImage(np.asarray(img.convert("RGBA")), zoom=0.70),
+                             (0.13, 0.945), frameon=False,
+                             xycoords="figure fraction", box_alignment=(0.5, 0.5))
+        ab.set_clip_on(False)
+        fig.add_artist(ab)
+    # Titulo
+    fig.text(0.50, 0.965, pair["title"], ha="center", va="center", color=WHITE,
+              fontsize=20, fontweight="bold")
+    fig.text(0.50, 0.935,
+              f"Seleccion {team}  ·  Mundial Qatar 2022  ·  "
+              f"{len(pdf_team)} jugadores  ·  vs los 511 del torneo",
+              ha="center", va="center", color=WHITE, fontsize=11)
+    # Logo JO
+    if _LOGO_PATH.exists():
+        limg = Image.open(_LOGO_PATH)
+        ab = AnnotationBbox(OffsetImage(np.asarray(limg.convert("RGBA")), zoom=0.13),
+                             (0.87, 0.945), frameon=False,
+                             xycoords="figure fraction", box_alignment=(0.5, 0.5))
+        ab.set_clip_on(False)
+        fig.add_artist(ab)
 
     # Marcas de eje con valor real (signed)
     left_dict = {i: f"{xmin + (i / 0.99) * (xmax - xmin):+.3f}" for i in _TICKS}
@@ -123,7 +161,8 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
         tick_formatter1=DictFormatter(right_dict),
         tick_formatter2=DictFormatter(left_dict))
     ax = floating_axes.FloatingSubplot(fig, 111, grid_helper=helper)
-    ax.set_position([0.10, 0.10, 0.80, 0.70], which="both")
+    # Diamond mas pegado al header (antes 0.10 -> 0.18 top space; ahora menos gap)
+    ax.set_position([0.08, 0.07, 0.84, 0.78], which="both")
     aux = ax.get_aux_axes(transform)
     ax = fig.add_axes(ax)
     aux.patch = ax.patch
@@ -165,35 +204,17 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
                              xycoords=aux.transData, zorder=5)
         aux.add_artist(ab)
 
-    # Titulo + subtitulo
-    fig.text(0.5, 0.965, pair["title"], ha="center", va="top", color=WHITE,
-              fontsize=18, fontweight="bold")
-    fig.text(0.5, 0.93,
-              f"Seleccion {team}  ·  Mundial Qatar 2022  ·  "
-              f"{len(pdf_team)} jugadores  ·  lineas = mediana del torneo (511 jug)",
-              ha="center", va="top", color="#c8c8c8", fontsize=10.5)
-
-    # Carteles laterales en lenguaje futbolero (idem scatter.py original)
-    fig.text(0.205, 0.70, f"Por este lado\n{pair['side_left']}",
-              ha="center", va="center", color="#e8e8e8", fontsize=10,
-              linespacing=1.5)
-    fig.text(0.795, 0.70, f"Por este lado\n{pair['side_right']}",
-              ha="center", va="center", color="#e8e8e8", fontsize=10,
-              linespacing=1.5)
-    fig.text(0.5, 0.795, pair["top"], ha="center", va="center", color="yellow",
+    # Carteles laterales y top (todo blanco, posiciones ajustadas al nuevo layout)
+    fig.text(0.20, 0.62, f"Por este lado\n{pair['side_left']}",
+              ha="center", va="center", color=WHITE, fontsize=10, linespacing=1.5)
+    fig.text(0.80, 0.62, f"Por este lado\n{pair['side_right']}",
+              ha="center", va="center", color=WHITE, fontsize=10, linespacing=1.5)
+    fig.text(0.50, 0.72, pair["top"], ha="center", va="center", color=WHITE,
               fontsize=10, fontweight="bold", style="italic")
 
-    fig.text(0.045, 0.085, "Lineas discontinuas: mediana del torneo "
+    fig.text(0.045, 0.04, "Lineas discontinuas: mediana del torneo "
               "(percentil 50 de los 511 jug) — parten el campo en 4 cuadrantes.",
-              ha="left", va="bottom", color="#9a9c9b", fontsize=8.5,
-              style="italic")
-    # Matiz tecnico al pie — honestidad sobre que mide cada canal
-    fig.text(0.045, 0.045, f"Matiz: {pair['matiz']}",
-              ha="left", va="bottom", color="#b8a040", fontsize=8,
-              style="italic", wrap=True,
-              bbox=dict(boxstyle="round,pad=0.4", facecolor=BG,
-                         edgecolor="#5a5d5c", alpha=0.95, linewidth=0.6))
-    add_logo(fig, width_frac=0.13)
+              ha="left", va="bottom", color=WHITE, fontsize=8.5, style="italic")
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)

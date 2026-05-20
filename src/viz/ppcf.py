@@ -2,15 +2,12 @@
 
 Layout pitch-aligned (header + pitch + footer en el MISMO ancho horizontal)
 portado de jaime-oriol/Diagonality_3D (viz/passes_plot.py): header con
-escudo de la seleccion atacante + titulo + logo JO; footer con 3 bloques
-(leyenda colormap PPCF, direccion de ataque, stats del frame).
-
-Z02_pitch_control (auditado) computa el PPCF; este modulo monta la malla
-del campo, el adapter del frame de tracking PFF 25/30 Hz al schema de Z02,
-y el render con la identidad Diagonality.
+escudo de la seleccion atacante + titulo auto + logo JO; footer con 3
+bloques (leyenda colormap PPCF, direccion de ataque, stats del frame).
 
 Uso:
-    python -m src.viz.ppcf            # render del gol de Messi (ARG-MEX)
+    python -m src.viz.ppcf <match_id> <period> <minute>
+    python -m src.viz.ppcf                          # default Messi ARG-MEX
 """
 from __future__ import annotations
 
@@ -69,6 +66,9 @@ def _load_frame_z02(match_id: int, frame_num: int,
     home_id, away_id = int(md["home_team_id"]), int(md["away_team_id"])
     home_name = str(md.get("home_team_name") or "")
     away_name = str(md.get("away_team_name") or "")
+    date_iso = str(md.get("date") or "")[:10]   # YYYY-MM-DD
+    comp = md.get("competition") or {}
+    comp_name = str(comp.get("name") if isinstance(comp, dict) else "")
     fps = float(md.get("fps") or 29.97)
     pitch_l = float(md.get("pitch_length") or PITCH_LENGTH)
     pitch_w = float(md.get("pitch_width") or PITCH_WIDTH)
@@ -131,7 +131,8 @@ def _load_frame_z02(match_id: int, frame_num: int,
     att_team_id = int(field.iloc[int(d.values.argmin())]["team_id"])
     return df, ball_pos, att_team_id, dict(pitch_l=pitch_l, pitch_w=pitch_w,
                                              home_id=home_id, away_id=away_id,
-                                             home_name=home_name, away_name=away_name)
+                                             home_name=home_name, away_name=away_name,
+                                             date_iso=date_iso, comp_name=comp_name)
 
 
 def frame_for_clock(match_id: int, period: int, clock_s: float) -> int:
@@ -217,16 +218,17 @@ def _draw_header(ax: plt.Axes, title: str, subtitle,
     for s in ax.spines.values():
         s.set_visible(False)
 
-    text_x = 0.125
+    text_x = 0.135
     if team_logo_path and Path(team_logo_path).exists():
         try:
             img = plt.imread(str(team_logo_path))
-            ab = AnnotationBbox(OffsetImage(img, zoom=0.55),
+            # zoom 0.70 escudo team — match passes_plot proporcion vs header
+            ab = AnnotationBbox(OffsetImage(img, zoom=0.70),
                                  (0.0, 0.50), frameon=False,
                                  box_alignment=(0.0, 0.5))
             ab.set_clip_on(False)
             ax.add_artist(ab)
-            text_x = 0.10
+            text_x = 0.12
         except Exception:
             pass
 
@@ -241,13 +243,15 @@ def _draw_header(ax: plt.Axes, title: str, subtitle,
     y = title_y
     for i, line in enumerate(sub_lines):
         y -= gap_title_sub if i == 0 else gap_sub_sub
+        # Subtitulos en BLANCO puro (sin alpha) — homogeneo con titulo
         ax.text(text_x, y, line, color=WHITE,
-                 fontsize=13, ha="left", va="center", alpha=0.85)
+                 fontsize=13, ha="left", va="center")
 
     if project_logo_path and Path(project_logo_path).exists():
         try:
             img = plt.imread(str(project_logo_path))
-            ab = AnnotationBbox(OffsetImage(img, zoom=0.08),
+            # zoom 0.12 logo JO (antes 0.08, muy pequeno)
+            ab = AnnotationBbox(OffsetImage(img, zoom=0.12),
                                  (1.0, 0.42), frameon=False,
                                  box_alignment=(1.0, 0.5))
             ab.set_clip_on(False)
@@ -292,13 +296,13 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
         (bar_x0, bar_y - bar_h / 2), bar_x1 - bar_x0, bar_h,
         facecolor="none", edgecolor=WHITE, lw=0.7,
         transform=ax_b1.transAxes, zorder=3))
-    # Etiquetas debajo del bar
+    # Etiquetas debajo del bar — TODAS en blanco
     ax_b1.text(bar_x0, bar_y - bar_h / 2 - 0.10, "100% defensor",
                 ha="left", va="top", fontsize=10, color=WHITE,
                 transform=ax_b1.transAxes, fontweight="bold")
     ax_b1.text(0.5, bar_y - bar_h / 2 - 0.10, "neutro 50/50",
                 ha="center", va="top", fontsize=10, color=WHITE,
-                transform=ax_b1.transAxes, alpha=0.85)
+                transform=ax_b1.transAxes)
     ax_b1.text(bar_x1, bar_y - bar_h / 2 - 0.10, "100% atacante",
                 ha="right", va="top", fontsize=10, color=WHITE,
                 transform=ax_b1.transAxes, fontweight="bold")
@@ -307,7 +311,7 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
                 transform=ax_b1.transAxes, fontweight="bold")
     ax_b1.text(0.5, bar_y + bar_h / 2 + 0.05,
                 "probabilidad de que el equipo controle ese punto del campo",
-                ha="center", va="bottom", fontsize=9, color="#c8c8c8",
+                ha="center", va="bottom", fontsize=9, color=WHITE,
                 transform=ax_b1.transAxes, style="italic")
 
     # ---- BLOCK 2: triangulos direccion ataque + nombre equipo ----
@@ -336,7 +340,7 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
                 ha="center", va="center", fontsize=11, color=WHITE,
                 transform=ax_b2.transAxes, fontweight="bold")
     ax_b2.text(0.5, 0.20, "direccion del juego",
-                ha="center", va="center", fontsize=9, color="#c8c8c8",
+                ha="center", va="center", fontsize=9, color=WHITE,
                 transform=ax_b2.transAxes, style="italic")
 
     # ---- BLOCK 3: stats — N jugadores + reloj ----
@@ -347,27 +351,32 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
     ax_b3.text(cx1, y_num, f"{n_att}", ha="center", va="center",
                 fontsize=22, fontweight="bold", color=ATT,
                 transform=ax_b3.transAxes)
-    ax_b3.text(cx1, y_lbl, f"jug {att_team_name[:14]}", ha="center", va="center",
-                fontsize=9, color="#c8c8c8", transform=ax_b3.transAxes)
+    ax_b3.text(cx1, y_lbl, f"jugadores {att_team_name[:14]}",
+                ha="center", va="center", fontsize=9, color=WHITE,
+                transform=ax_b3.transAxes)
     ax_b3.text(cx2, y_num, f"{n_def}", ha="center", va="center",
                 fontsize=22, fontweight="bold", color=DEF,
                 transform=ax_b3.transAxes)
-    ax_b3.text(cx2, y_lbl, f"jug {def_team_name[:14]}", ha="center", va="center",
-                fontsize=9, color="#c8c8c8", transform=ax_b3.transAxes)
+    ax_b3.text(cx2, y_lbl, f"jugadores {def_team_name[:14]}",
+                ha="center", va="center", fontsize=9, color=WHITE,
+                transform=ax_b3.transAxes)
     ax_b3.text(cx3, y_num, match_clock, ha="center", va="center",
                 fontsize=18, fontweight="bold", color=WHITE,
                 transform=ax_b3.transAxes)
     ax_b3.text(cx3, y_lbl, f"periodo {period}  ·  reloj",
-                ha="center", va="center", fontsize=9, color="#c8c8c8",
+                ha="center", va="center", fontsize=9, color=WHITE,
                 transform=ax_b3.transAxes)
 
 
 # ---- Render principal ----
 
-def plot_ppcf(match_id: int, frame_num: int, title: str = "",
-               subtitle="", save_path=None,
+def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
+               subtitle=None, save_path=None,
                attacking_right: Optional[bool] = None) -> plt.Figure:
-    """Render del frame: header + superficie PPCF + jugadores + footer."""
+    """Render del frame: header + superficie PPCF + jugadores + footer.
+
+    Titulo y subtitulo auto-generados desde metadata si no se especifican.
+    """
     df, ball_pos, att, meta = _load_frame_z02(match_id, frame_num)
     grid = compute_ppcf_grid(df, att, ball_pos, meta["pitch_l"], meta["pitch_w"])
 
@@ -383,7 +392,7 @@ def plot_ppcf(match_id: int, frame_num: int, title: str = "",
                             ["x_tracking"].median())
         attacking_right = att_x_med < ball_pos[0]
 
-    # Match clock formateado para el footer
+    # Match clock formateado + minuto absoluto (para titulo)
     tr_row = scan_tracking(match_id).select([
         "frameNum", "period", "periodGameClockTime"
     ]).filter(pl.col("frameNum") == frame_num).collect()
@@ -391,14 +400,26 @@ def plot_ppcf(match_id: int, frame_num: int, title: str = "",
     clock_s = float(tr_row["periodGameClockTime"][0]) if tr_row.height else 0.0
     mm, ss = int(clock_s // 60), int(clock_s % 60)
     clock_str = f"{mm:02d}:{ss:02d}"
+    # Minuto absoluto del partido (periodo 2 anade ~45 min)
+    minute_abs = mm + (45 if period >= 2 else 0)
+
+    # Titulo auto desde metadata: "Pitch Control · {home} vs {away}"
+    home_name = meta["home_name"]; away_name = meta["away_name"]
+    if title is None:
+        title = f"Pitch Control  ·  {home_name} vs {away_name}"
+    if subtitle is None:
+        comp = meta["comp_name"] or "Mundial Qatar 2022"
+        subtitle = [
+            f"{comp}  ·  min {minute_abs}  ·  reloj {clock_str} (P{period})",
+            f"frame {frame_num}  ·  {meta['date_iso']}",
+        ]
 
     # ---- Construye fig + 3 axes (header / pitch / footer) ----
     L = _layout(FIGSIZE)
     fig = plt.figure(figsize=FIGSIZE, facecolor=BG)
 
     ax_header = fig.add_axes(L["header"])
-    _draw_header(ax_header, title or "Pitch Control",
-                  subtitle or "Mundial Qatar 2022",
+    _draw_header(ax_header, title, subtitle,
                   team_logo_path=(str(team_logo) if team_logo and team_logo.exists() else None),
                   project_logo_path=str(_LOGO_PATH) if _LOGO_PATH.exists() else None)
 
@@ -412,15 +433,19 @@ def plot_ppcf(match_id: int, frame_num: int, title: str = "",
                      interpolation="spline36", zorder=1, aspect="auto")
 
     field = df[df["is_ball"] == 0]
-    # Velocidades
+    # Flechas de velocidad (estilo Diagonality_3D ppcf_plot): mas visibles —
+    # umbral bajo de 0.3 m/s (captura tambien jugadores en movimiento lento)
+    # + scale=110 (mas grandes), alpha=0.85, width=0.005. Asi se entiende
+    # quien empuja arriba y quien se cierra atras.
     for is_att, color in ((True, ATT), (False, DEF)):
         sub = field[(field["team_id"] == att) == is_att]
-        sub = sub[np.hypot(sub["vx"], sub["vy"]) > 0.6]
+        sub = sub[np.hypot(sub["vx"], sub["vy"]) > 0.3]
         if len(sub):
             ax_pitch.quiver(sub["x_tracking"], sub["y_tracking"],
-                              sub["vx"], sub["vy"], color=color, scale=130,
-                              scale_units="width", width=0.003, headwidth=3.5,
-                              headlength=4, alpha=0.6, zorder=3)
+                              sub["vx"], sub["vy"], color=color, scale=110,
+                              scale_units="width", width=0.005, headwidth=4.0,
+                              headlength=4.5, headaxislength=4.0, alpha=0.85,
+                              zorder=3)
     # Jugadores + dorsales
     for _, p in field.iterrows():
         color = (GK if p["is_goalkeeper"]
@@ -453,16 +478,19 @@ def plot_ppcf(match_id: int, frame_num: int, title: str = "",
 # ---- Sanity / hero figure ----
 
 if __name__ == "__main__":
-    # ARG-MEX (3835), gol de Messi 1-0 — periodo 2, reloj ~3812 s.
-    # Frame del buildup (~3 s antes del remate).
-    MID, GOAL_CLOCK = 3835, 3812
-    fnum = frame_for_clock(MID, period=2, clock_s=GOAL_CLOCK - 3)
-    print(f"[ppcf] match {MID}  frame buildup = {fnum}")
-    plot_ppcf(
-        MID, fnum,
-        title="Pitch Control  ·  buildup del gol de Messi vs Mexico",
-        subtitle=["Argentina 1-0 Mexico  ·  Mundial Qatar 2022",
-                   "fase grupos  ·  buildup 3 s antes del remate"],
-        save_path="outputs/viz/ppcf_messi_arg_mex.png",
-    )
-    print("OK -> outputs/viz/ppcf_messi_arg_mex.png")
+    # CLI generico: <match_id> <period> <minute_in_period>
+    # ej:  python -m src.viz.ppcf 3835 2 18    (ARG-MEX, P2 min 18 = 63' total)
+    # ej:  python -m src.viz.ppcf              (default Messi ARG-MEX)
+    if len(sys.argv) >= 4:
+        mid = int(sys.argv[1]); per = int(sys.argv[2])
+        minute = float(sys.argv[3])
+        fnum = frame_for_clock(mid, period=per, clock_s=minute * 60.0)
+        slug = f"{mid}_p{per}_m{int(minute)}"
+    else:
+        mid = 3835; per = 2; minute = 63.45
+        fnum = frame_for_clock(mid, period=per, clock_s=minute * 60.0)
+        slug = "messi_arg_mex"
+    out = f"outputs/viz/ppcf_{slug}.png"
+    print(f"[ppcf] match {mid}  P{per} min {minute}  frame = {fnum}")
+    plot_ppcf(mid, fnum, save_path=out)
+    print(f"OK -> {out}")
