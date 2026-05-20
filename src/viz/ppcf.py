@@ -392,16 +392,15 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
                             ["x_tracking"].median())
         attacking_right = att_x_med < ball_pos[0]
 
-    # Match clock formateado + minuto absoluto (para titulo)
+    # Match clock formateado: periodGameClockTime es absoluto al partido
     tr_row = scan_tracking(match_id).select([
         "frameNum", "period", "periodGameClockTime"
     ]).filter(pl.col("frameNum") == frame_num).collect()
     period = int(tr_row["period"][0]) if tr_row.height else 0
     clock_s = float(tr_row["periodGameClockTime"][0]) if tr_row.height else 0.0
-    mm, ss = int(clock_s // 60), int(clock_s % 60)
-    clock_str = f"{mm:02d}:{ss:02d}"
-    # Minuto absoluto del partido (periodo 2 anade ~45 min)
-    minute_abs = mm + (45 if period >= 2 else 0)
+    minute_abs = int(clock_s // 60)
+    second_in_min = int(clock_s % 60)
+    clock_str = f"{minute_abs:02d}:{second_in_min:02d}"
 
     # Titulo auto desde metadata: "Pitch Control · {home} vs {away}"
     home_name = meta["home_name"]; away_name = meta["away_name"]
@@ -410,8 +409,8 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
     if subtitle is None:
         comp = meta["comp_name"] or "Mundial Qatar 2022"
         subtitle = [
-            f"{comp}  ·  min {minute_abs}  ·  reloj {clock_str} (P{period})",
-            f"frame {frame_num}  ·  {meta['date_iso']}",
+            f"{comp}  ·  min {minute_abs}  (periodo {period})",
+            f"reloj {clock_str}  ·  frame {frame_num}  ·  {meta['date_iso']}",
         ]
 
     # ---- Construye fig + 3 axes (header / pitch / footer) ----
@@ -478,19 +477,21 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
 # ---- Sanity / hero figure ----
 
 if __name__ == "__main__":
-    # CLI generico: <match_id> <period> <minute_in_period>
-    # ej:  python -m src.viz.ppcf 3835 2 18    (ARG-MEX, P2 min 18 = 63' total)
-    # ej:  python -m src.viz.ppcf              (default Messi ARG-MEX)
-    if len(sys.argv) >= 4:
-        mid = int(sys.argv[1]); per = int(sys.argv[2])
-        minute = float(sys.argv[3])
-        fnum = frame_for_clock(mid, period=per, clock_s=minute * 60.0)
-        slug = f"{mid}_p{per}_m{int(minute)}"
+    # CLI generico: <match_id> <match_minute>
+    # ej:  python -m src.viz.ppcf 3835 63    (ARG-MEX, minuto 63 del partido)
+    # ej:  python -m src.viz.ppcf            (default Messi ARG-MEX min 63)
+    if len(sys.argv) >= 3:
+        mid = int(sys.argv[1]); match_min = float(sys.argv[2])
+        slug = f"{mid}_min{int(match_min)}"
     else:
-        mid = 3835; per = 2; minute = 63.45
-        fnum = frame_for_clock(mid, period=per, clock_s=minute * 60.0)
+        mid, match_min = 3835, 63
         slug = "messi_arg_mex"
+    # periodGameClockTime es ABSOLUTO al partido; periodo se infiere
+    md = load_metadata(mid).row(0, named=True)
+    end_p1 = float(md.get("endPeriod1") or 3000.0) / 60.0   # min absolutos fin P1
+    period = 1 if match_min <= end_p1 + 1 else 2
+    fnum = frame_for_clock(mid, period=period, clock_s=match_min * 60.0)
     out = f"outputs/viz/ppcf_{slug}.png"
-    print(f"[ppcf] match {mid}  P{per} min {minute}  frame = {fnum}")
+    print(f"[ppcf] match {mid}  min {match_min} (P{period})  frame = {fnum}")
     plot_ppcf(mid, fnum, save_path=out)
     print(f"OK -> {out}")
