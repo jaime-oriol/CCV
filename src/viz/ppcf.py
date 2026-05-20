@@ -484,7 +484,7 @@ if __name__ == "__main__":
         mid = int(sys.argv[1]); match_min = float(sys.argv[2])
         slug = f"{mid}_min{int(match_min)}"
     else:
-        mid, match_min = 3835, 63
+        mid, match_min = 3835, 63.5    # ARG-MEX, buildup ~3s antes gol Messi
         slug = "messi_arg_mex"
     # periodGameClockTime es ABSOLUTO al partido; periodo se infiere
     md = load_metadata(mid).row(0, named=True)
