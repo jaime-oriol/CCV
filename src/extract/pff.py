@@ -1,20 +1,17 @@
+"""extract.pff - Extrae el dataset PFF FC WC22 a parquet con tipos anidados.
+
+4 extractores:
+  extract_pff_events()    64 JSON Event Data -> 1 parquet por partido
+                          (1 fila = 1 evento; sub-dicts como Struct,
+                          listas como List(Struct))
+  extract_pff_tracking()  64 jsonl.bz2 Tracking Data -> 1 parquet por
+                          partido (streaming chunked, peak ~150-300 MB)
+  extract_pff_metadata()  64 JSON Metadata -> 1 parquet unificado
+  extract_pff_rosters()   64 JSON Rosters -> 1 parquet unificado
+
+LOSSLESS: 1 fila parquet -> dict equivalente al JSON original. Verificable
+con _common.roundtrip_check() (events) y streaming_roundtrip_tracking().
 """
-extract.pff - Extrae el dataset PFF FC WC22 a parquet con tipos anidados.
-
-Cuatro extractores:
-  - extract_pff_events()   : 64 JSON Event Data -> 1 parquet por partido.
-                             1 fila = 1 evento. Sub-dicts como struct,
-                             listas de jugadores como list[struct].
-  - extract_pff_tracking() : 64 jsonl.bz2 Tracking Data -> 1 parquet por
-                             partido. Streaming chunked (peak <500 MB/partido).
-  - extract_pff_metadata() : 64 JSON Metadata -> 1 parquet unificado.
-  - extract_pff_rosters()  : 64 JSON Rosters -> 1 parquet unificado.
-
-Diseno LOSSLESS: 1 fila parquet -> dict equivalente al JSON original.
-Verificable con _common.roundtrip_check() (events) y
-_streaming_roundtrip_tracking() (tracking, sin OOM).
-"""
-
 from __future__ import annotations
 
 import bz2
@@ -29,7 +26,7 @@ import pyarrow.parquet as pq
 
 from ._common import DATA_PFF, deep_equal, parquet_dir, write_parquet
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas raw ----
 
 _EVENTS    = DATA_PFF / "Event Data"
 _TRACKING  = DATA_PFF / "Tracking Data"
@@ -37,7 +34,7 @@ _METADATA  = DATA_PFF / "Metadata"
 _ROSTERS   = DATA_PFF / "Rosters"
 
 
-# -- Listado de partidos ----------------------------------------------------
+# ---- Listado de partidos ----
 
 def list_event_match_ids() -> list[int]:
     """IDs de los 64 partidos con event data."""
@@ -49,21 +46,15 @@ def list_tracking_match_ids() -> list[int]:
     return sorted(int(f.name.split(".")[0]) for f in _TRACKING.glob("*.jsonl.bz2"))
 
 
-# -- PFF events -------------------------------------------------------------
+# ---- Events (carga completa por partido, ~17 MB JSON) ----
 
-def extract_pff_events(
-    match_ids: list[int] | None = None,
-    overwrite: bool = False,
-) -> dict[int, Path]:
-    """Convierte los Event Data JSON a parquet con tipos anidados.
+def extract_pff_events(match_ids: list[int] | None = None,
+                        overwrite: bool = False) -> dict[int, Path]:
+    """Event Data JSON -> parquet por partido con tipos anidados.
 
     Cada evento es un dict con sub-dicts (gameEvents, initialTouch,
     possessionEvents, fouls, grades, stadiumMetadata) y listas
-    (homePlayers, awayPlayers, ball). Polars los preserva como
-    Struct y List(Struct) respectivamente.
-
-    Memoria: events son ligeros (~17 MB JSON / ~3k filas por partido).
-    Carga completa del JSON cabe sobrado en RAM.
+    (homePlayers, awayPlayers, ball). Polars los preserva nativamente.
     """
     out_dir = parquet_dir("pff/events")
     ids = match_ids or list_event_match_ids()
@@ -86,15 +77,14 @@ def extract_pff_events(
     return written
 
 
-# -- PFF tracking (streaming) -----------------------------------------------
+# ---- Tracking (streaming chunked anti-OOM) ----
 
-# Tamano del chunk: equilibrio memoria vs velocidad de write.
-# 5000 frames * ~5 KB = ~25 MB de JSON por chunk -> peak RAM ~150 MB.
+# 5000 frames * ~5 KB/frame = ~25 MB JSON / chunk -> peak ~150 MB RAM
 _TRACKING_CHUNK_FRAMES = 5000
 
 
 def _iter_tracking_frames(path: Path) -> Iterator[dict]:
-    """Streaming reader: yield un dict por linea del jsonl.bz2."""
+    """Yield 1 dict por linea del jsonl.bz2 (streaming)."""
     with bz2.open(path, "rt", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -105,7 +95,7 @@ def _iter_tracking_frames(path: Path) -> Iterator[dict]:
 def _peek_first_n(it: Iterator[dict], n: int) -> tuple[list[dict], Iterator[dict]]:
     """Saca las primeras N filas del iterador para inferir schema unificado.
 
-    Devuelve (las N peeked, iterator que vuelve a empezar por esas N + resto).
+    Devuelve (head_list, iterator_que_empieza_por_head_y_sigue_con_el_resto).
     """
     head = []
     for _ in range(n):
@@ -121,29 +111,18 @@ def _peek_first_n(it: Iterator[dict], n: int) -> tuple[list[dict], Iterator[dict
     return head, chained()
 
 
-def extract_pff_tracking(
-    match_ids: list[int] | None = None,
-    overwrite: bool = False,
-    chunk_frames: int = _TRACKING_CHUNK_FRAMES,
-) -> dict[int, Path]:
-    """Convierte los Tracking Data jsonl.bz2 a parquet via streaming chunked.
+def extract_pff_tracking(match_ids: list[int] | None = None,
+                          overwrite: bool = False,
+                          chunk_frames: int = _TRACKING_CHUNK_FRAMES,
+                          ) -> dict[int, Path]:
+    """Tracking jsonl.bz2 -> parquet con streaming chunked (peak ~150-300 MB).
 
-    Estrategia anti-OOM:
-      1. Stream del jsonl.bz2 linea a linea (bz2 + json.loads).
-      2. Peek N filas iniciales para inferir schema unificado del partido.
-      3. Acumular chunks de chunk_frames, convertir a polars, escribir como
-         row group con pyarrow.ParquetWriter.
-      4. Liberar el chunk antes del siguiente.
-
-    Peak RAM por partido: ~150-300 MB (vs ~3 GB si carga completa).
-
-    Args:
-        match_ids    : Subset a procesar. None = todos los 64.
-        overwrite    : Re-escribir si ya existe.
-        chunk_frames : Frames por row group. Default 5000.
-
-    Returns:
-        Dict {match_id: parquet_path}.
+    Estrategia:
+      1. Stream linea a linea (bz2 + json.loads)
+      2. Peek 200 filas para inferir schema unificado (claves opcionales)
+      3. Acumular chunk_frames, convertir a polars, escribir row group con
+         pyarrow.ParquetWriter
+      4. Liberar buffer entre chunks
     """
     out_dir = parquet_dir("pff/tracking")
     ids = match_ids or list_tracking_match_ids()
@@ -156,8 +135,8 @@ def extract_pff_tracking(
             continue
 
         src = _TRACKING / f"{gid}.jsonl.bz2"
-        # 1. Peek primeros frames para inferir schema (uniones de claves opcionales).
-        #    Con 200 frames cubre los game_event/possession_event que aparecen sparse.
+        # 200 frames es suficiente para cubrir game_event / possession_event
+        # opcionales (aparecen sparse en el stream).
         head, stream = _peek_first_n(_iter_tracking_frames(src), 200)
         if not head:
             continue
@@ -165,7 +144,6 @@ def extract_pff_tracking(
         arrow_schema = schema_df.to_arrow().schema
         del schema_df, head
 
-        # 2. Stream + chunked write
         writer = pq.ParquetWriter(str(out), arrow_schema, compression="snappy")
         try:
             buf: list[dict] = []
@@ -187,36 +165,24 @@ def extract_pff_tracking(
 
 
 def _flush_chunk(rows: list[dict], writer: pq.ParquetWriter, schema: pa.Schema) -> None:
-    """Convierte rows a Arrow Table conformado al schema y escribe row group."""
+    """Convierte rows a Arrow Table conforme al schema y escribe 1 row group."""
     df = pl.from_dicts(rows, infer_schema_length=None)
     table = df.to_arrow()
-    # Conformar al schema unificado (anade campos faltantes como null)
     table = table.cast(schema, safe=False) if table.schema != schema else table
     writer.write_table(table)
     del df, table
 
 
-# -- Round-trip lossless tracking (streaming, sin OOM) ----------------------
+# ---- Roundtrip lossless tracking (streaming, sin OOM) ----
 
-def streaming_roundtrip_tracking(
-    parquet_path: Path,
-    jsonl_path: Path,
-    sample_indices: list[int] | None = None,
-) -> tuple[bool, list[str]]:
+def streaming_roundtrip_tracking(parquet_path: Path,
+                                  jsonl_path: Path,
+                                  sample_indices: list[int] | None = None,
+                                  ) -> tuple[bool, list[str]]:
     """Verifica lossless en tracking sin cargar todo a memoria.
 
-    Lee el parquet con pl.scan_parquet (lazy) y el jsonl.bz2 streaming.
-    Compara por indices muestreados.
-
-    Args:
-        parquet_path   : Parquet generado.
-        jsonl_path     : Original jsonl.bz2.
-        sample_indices : Indices de filas a comparar. None = primeras 50 + ultimas 50.
-
-    Returns:
-        (ok, errores).
+    Compara filas muestreadas (default: primeras 50 + ultimas 50).
     """
-    # Cargar SOLO las filas muestreadas del parquet (con take)
     if sample_indices is None:
         n = pl.scan_parquet(parquet_path).select(pl.len()).collect().item()
         sample_indices = list(range(50)) + list(range(n - 50, n))
@@ -229,7 +195,7 @@ def streaming_roundtrip_tracking(
         parquet_rows[idx] = r
     del df
 
-    # Stream del JSONL, recoger las filas pedidas
+    # Stream del JSONL, recoge solo las filas pedidas
     json_rows: dict[int, dict] = {}
     for i, frame in enumerate(_iter_tracking_frames(jsonl_path)):
         if i in sample_set:
@@ -247,10 +213,10 @@ def streaming_roundtrip_tracking(
     return len(errs) == 0, errs
 
 
-# -- PFF metadata + rosters -------------------------------------------------
+# ---- Metadata + rosters (unificados) ----
 
 def extract_pff_metadata(overwrite: bool = False) -> Path:
-    """Junta los 64 JSON de Metadata en un parquet unificado."""
+    """Junta los 64 JSON de Metadata en 1 parquet."""
     out = parquet_dir("pff") / "metadata.parquet"
     if out.exists() and not overwrite:
         return out
@@ -263,10 +229,7 @@ def extract_pff_metadata(overwrite: bool = False) -> Path:
 
 
 def extract_pff_rosters(overwrite: bool = False) -> Path:
-    """Junta los 64 JSON de Rosters en un parquet unificado.
-
-    Cada fichero es una lista de ~50 jugadores. Anade columna match_id.
-    """
+    """Junta los 64 JSON de Rosters en 1 parquet (anade match_id por fila)."""
     out = parquet_dir("pff") / "rosters.parquet"
     if out.exists() and not overwrite:
         return out
@@ -281,7 +244,7 @@ def extract_pff_rosters(overwrite: bool = False) -> Path:
     return write_parquet(df, out, overwrite=overwrite)
 
 
-# -- All-in-one -------------------------------------------------------------
+# ---- All-in-one (orden seguro de memoria: ligeros primero) ----
 
 def extract_all(overwrite: bool = False) -> dict:
     """Ejecuta los 4 extractores PFF en orden seguro de memoria."""

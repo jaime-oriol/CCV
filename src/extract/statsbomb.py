@@ -1,21 +1,18 @@
-"""
-extract.statsbomb - Extrae el subset filtrado de StatsBomb open data a parquet.
+"""extract.statsbomb - Subset filtrado StatsBomb open data -> parquet.
 
 200 partidos: WC22 (64) + Euro20 (51) + Euro24 (51) + Bundes23/24 (34).
 
-Salida:
-  data/parquet/statsbomb/
-    competitions.parquet                 # catalogo de competiciones
-    matches.parquet                      # union de matches/{comp}/{season}.json
-    events/{match_id}.parquet            # 1 fila = 1 evento
-    lineups/{match_id}.parquet           # alineaciones por partido
-    freeze_frames/{match_id}.parquet     # 360 freeze-frames por evento
+Outputs (data/parquet/statsbomb/):
+    competitions.parquet                competiciones (catalogo)
+    matches.parquet                     union de matches/{comp}/{season}.json
+    events/{match_id}.parquet           1 fila = 1 evento
+    lineups/{match_id}.parquet          alineaciones por partido
+    freeze_frames/{match_id}.parquet    360 freeze-frames por evento
 
 LOSSLESS: cada parquet preserva todos los campos del JSON original.
-StatsBomb events tienen extras dict heterogeneo -> polars lo maneja como
-struct con union de claves de todo el partido.
+StatsBomb events tienen extras dict heterogeneo -> polars infiere Struct
+con union de claves de todo el partido.
 """
-
 from __future__ import annotations
 
 import gc
@@ -26,7 +23,7 @@ import polars as pl
 
 from ._common import DATA_PUB, parquet_dir, write_parquet
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas raw ----
 
 _SB        = DATA_PUB / "statsbomb" / "data"
 _EVENTS    = _SB / "events"
@@ -35,10 +32,8 @@ _SIXTY     = _SB / "three-sixty"
 _MATCHES   = _SB / "matches"
 
 
-# -- Listado de partidos ----------------------------------------------------
-
 def list_match_ids() -> list[int]:
-    """IDs de los 200 partidos del subset (de la carpeta events/)."""
+    """IDs de los 200 partidos del subset (carpeta events/)."""
     return sorted(int(f.stem) for f in _EVENTS.glob("*.json"))
 
 
@@ -47,10 +42,10 @@ def list_freeze_frame_ids() -> list[int]:
     return sorted(int(f.stem) for f in _SIXTY.glob("*.json"))
 
 
-# -- Competiciones + matches ------------------------------------------------
+# ---- Competitions + matches ----
 
 def extract_competitions(overwrite: bool = False) -> Path:
-    """Extrae competitions.json (catalogo)."""
+    """Catalogo de competiciones (competitions.json)."""
     out = parquet_dir("statsbomb") / "competitions.parquet"
     if out.exists() and not overwrite:
         return out
@@ -60,7 +55,7 @@ def extract_competitions(overwrite: bool = False) -> Path:
 
 
 def extract_matches(overwrite: bool = False) -> Path:
-    """Une todos los matches/{comp}/{season}.json en un parquet."""
+    """Une matches/{comp}/{season}.json en 1 parquet (lista de matches)."""
     out = parquet_dir("statsbomb") / "matches.parquet"
     if out.exists() and not overwrite:
         return out
@@ -75,25 +70,11 @@ def extract_matches(overwrite: bool = False) -> Path:
     return write_parquet(df, out, overwrite=overwrite)
 
 
-# -- Events por partido ----------------------------------------------------
+# ---- Events por partido (con nested types) ----
 
-def extract_events(
-    match_ids: list[int] | None = None,
-    overwrite: bool = False,
-) -> dict[int, Path]:
-    """Convierte events/{match_id}.json a parquet, 1 fichero por partido.
-
-    Cada evento es un dict con sub-dicts (location como list[float],
-    type/possession_team/play_pattern como struct, etc.) y tipos union.
-    Polars infiere schema con nested types.
-
-    Args:
-        match_ids : Subset. None = todos.
-        overwrite : Re-escribir si ya existe.
-
-    Returns:
-        Dict {match_id: parquet_path}.
-    """
+def extract_events(match_ids: list[int] | None = None,
+                    overwrite: bool = False) -> dict[int, Path]:
+    """events/{match_id}.json -> parquet, 1 fichero por partido."""
     out_dir = parquet_dir("statsbomb/events")
     ids = match_ids or list_match_ids()
     written = {}
@@ -115,17 +96,11 @@ def extract_events(
     return written
 
 
-# -- Lineups por partido ---------------------------------------------------
+# ---- Lineups por partido ----
 
-def extract_lineups(
-    match_ids: list[int] | None = None,
-    overwrite: bool = False,
-) -> dict[int, Path]:
-    """Convierte lineups/{match_id}.json a parquet.
-
-    Cada fichero es lista de 2 equipos con sus lineups. Polars guarda
-    el lineup como list[struct] dentro de cada fila.
-    """
+def extract_lineups(match_ids: list[int] | None = None,
+                     overwrite: bool = False) -> dict[int, Path]:
+    """lineups/{match_id}.json -> parquet (2 equipos con su lineup nested)."""
     out_dir = parquet_dir("statsbomb/lineups")
     ids = match_ids or list_match_ids()
     written = {}
@@ -144,16 +119,13 @@ def extract_lineups(
     return written
 
 
-# -- Freeze frames por partido ---------------------------------------------
+# ---- Freeze frames por partido (360 frame por evento etiquetado) ----
 
-def extract_freeze_frames(
-    match_ids: list[int] | None = None,
-    overwrite: bool = False,
-) -> dict[int, Path]:
-    """Convierte three-sixty/{match_id}.json a parquet.
+def extract_freeze_frames(match_ids: list[int] | None = None,
+                           overwrite: bool = False) -> dict[int, Path]:
+    """three-sixty/{match_id}.json -> parquet.
 
-    Cada fichero es lista de freeze-frames (1 por evento etiquetado).
-    Cada freeze-frame tiene event_uuid, visible_area (list[float]) y
+    1 fila = 1 freeze-frame con event_uuid + visible_area (list[float]) +
     freeze_frame (list[struct{teammate, actor, keeper, location}]).
     """
     out_dir = parquet_dir("statsbomb/freeze_frames")
@@ -178,10 +150,10 @@ def extract_freeze_frames(
     return written
 
 
-# -- All-in-one ------------------------------------------------------------
+# ---- All-in-one ----
 
 def extract_all(overwrite: bool = False) -> dict:
-    """Ejecuta todos los extractores StatsBomb en orden seguro de memoria."""
+    """Ejecuta los 5 extractores StatsBomb en orden seguro de memoria."""
     return {
         "competitions":  extract_competitions(overwrite=overwrite),
         "matches":       extract_matches(overwrite=overwrite),

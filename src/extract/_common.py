@@ -1,12 +1,8 @@
-"""
-_common - Helpers compartidos para los extractores a parquet.
+"""_common - Helpers compartidos por los extractores.
 
-Incluye:
-  - Rutas estandar de input/output
-  - Escritura segura de parquet con compression snappy
-  - Round-trip check lossless (JSON original <-> parquet)
+Rutas estandar (data/, data_mundial/), escritura parquet snappy + roundtrip
+check lossless (JSON crudo <-> parquet).
 """
-
 from __future__ import annotations
 
 import json
@@ -16,7 +12,7 @@ from typing import Any
 
 import polars as pl
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas ----
 
 _REPO     = Path(__file__).resolve().parents[2]
 DATA      = _REPO / "data"
@@ -35,19 +31,11 @@ def parquet_dir(source: str) -> Path:
 def scan_glob(pattern: str) -> "pl.LazyFrame":
     """Scan lazy de parquets per-partido con schemas potencialmente distintos.
 
-    Cada parquet se extrae de su JSON con su propio schema inferido,
-    asi que cols opcionales (e.g. injury_stoppage en StatsBomb) aparecen
-    en unos partidos y no en otros. polars.scan_parquet con glob falla;
-    diagonal_relaxed une schemas anadiendo nulls donde falten cols.
-
-    Args:
-        pattern : Glob relativo a data/parquet (e.g. 'pff/events/*.parquet').
-
-    Returns:
-        LazyFrame con todos los parquets unidos.
+    Cada parquet se extrae con su propio schema inferido, asi que cols
+    opcionales (e.g. injury_stoppage en StatsBomb) aparecen en unos partidos
+    y no en otros. `diagonal_relaxed` une schemas con nulls donde falten.
 
     Uso:
-        from src.extract import scan_glob
         df = scan_glob("pff/tracking/*.parquet").filter(
             pl.col("frameNum") < 1000
         ).collect()
@@ -58,19 +46,10 @@ def scan_glob(pattern: str) -> "pl.LazyFrame":
     return pl.concat([pl.scan_parquet(f) for f in files], how="diagonal_relaxed")
 
 
-# -- Escritura --------------------------------------------------------------
+# ---- Escritura parquet ----
 
 def write_parquet(df: pl.DataFrame, path: Path, overwrite: bool = False) -> Path:
-    """Escribe df a parquet snappy. Crea dir padre si no existe.
-
-    Args:
-        df        : DataFrame a escribir.
-        path      : Ruta destino (.parquet).
-        overwrite : Si False y el fichero existe, lanza FileExistsError.
-
-    Returns:
-        Path escrito.
-    """
+    """Escribe df a parquet snappy. Crea dir padre si no existe."""
     if path.exists() and not overwrite:
         raise FileExistsError(f"Ya existe: {path}. Usa overwrite=True.")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -78,18 +57,20 @@ def write_parquet(df: pl.DataFrame, path: Path, overwrite: bool = False) -> Path
     return path
 
 
-# -- Round-trip lossless check ---------------------------------------------
+# ---- Roundtrip lossless (JSON <-> parquet) ----
 
 def _normalize(obj: Any) -> Any:
     """Normaliza un valor para comparacion lossless robusta.
 
-    - dicts: ordena claves recursivamente, DROP claves con valor None
-             (polars unifica schema -> filas tienen todas las claves vistas
-             en cualquier fila, con None donde el JSON original no las tenia.
-             Semanticamente identico: null == ausente.)
-    - listas: normaliza cada elem (mantiene orden)
-    - floats NaN -> None (PFF a veces serializa NaN como null)
-    - floats con valor entero -> int (polars guarda ints nullable como float)
+    Necesario porque polars unifica el schema entre filas y nuestro JSON
+    crudo no tiene esa garantia. Sin normalizar todo daria falsos positivos:
+      - dicts: ordena claves + DROP claves con valor None (polars rellena
+               las claves vistas en otras filas; null == ausente semantico)
+      - listas: normaliza recursivo, mantiene orden
+      - float NaN -> None (PFF a veces serializa NaN como null)
+      - float entero -> int (polars guarda nullable int como float)
+      - strings que codifican enteros -> int (Wyscout mezcla int y str
+        numerico en mismas cols; polars unifica a String, value preservado)
     """
     if isinstance(obj, dict):
         return {
@@ -103,9 +84,6 @@ def _normalize(obj: Any) -> Any:
         return None
     if isinstance(obj, float) and obj.is_integer():
         return int(obj)
-    # Strings que codifican enteros se tratan como int (Wyscout mezcla
-    # int y str numerico arbitrariamente en area.id, currentTeamId, etc.;
-    # polars unifica a String y se pierde el tipo Python pero NO el valor).
     if isinstance(obj, str):
         s = obj.strip()
         if s and s.lstrip("-").isdigit():
@@ -117,11 +95,11 @@ def _normalize(obj: Any) -> Any:
 
 
 def deep_equal(a: Any, b: Any) -> bool:
-    """Compara dos estructuras JSON de forma lossless ignorando orden de claves."""
+    """Compara dos estructuras JSON lossless ignorando orden de claves."""
     return _normalize(a) == _normalize(b)
 
 
-# -- Limpieza de sentinelas Wyscout (compartido entre wyscout + audit) -------
+# ---- Limpieza de sentinelas Wyscout (compartido wyscout + audit) ----
 
 _NULL_SENTINELS = {"", "null"}
 
@@ -129,13 +107,9 @@ _NULL_SENTINELS = {"", "null"}
 def clean_empty_strings(obj: Any) -> Any:
     """Convierte sentinelas Wyscout de "ausente" a None recursivamente.
 
-    Wyscout es inconsistente y usa "", "null" (string literal) y None
-    como sinonimos para "valor ausente" en campos numericos. Si lo dejamos
-    asi, polars infiere String para columnas que son int en 99% de las
-    filas (e.g. subEventId, currentTeamId), perdiendo el tipo.
-    Convertir todos a None preserva el lossless funcional.
-
-    Vive en _common para evitar coupling cross-module (wyscout + audit).
+    Wyscout mezcla "", "null" (string literal) y None como sinonimos para
+    valor ausente. Sin limpiar, polars infiere String en cols que son int
+    en 99% de las filas (subEventId, currentTeamId, etc.) y se pierde tipo.
     """
     if isinstance(obj, dict):
         return {k: clean_empty_strings(v) for k, v in obj.items()}
@@ -146,20 +120,13 @@ def clean_empty_strings(obj: Any) -> Any:
     return obj
 
 
-def roundtrip_check(
-    original_json_path: Path,
-    parquet_path: Path,
-    n_sample: int | None = None,
-) -> tuple[bool, list[str]]:
-    """Verifica que parquet -> dicts == JSON original.
-
-    Args:
-        original_json_path : JSON crudo (lista de dicts).
-        parquet_path       : Parquet generado.
-        n_sample           : Si int, compara solo las primeras N filas (rapido).
+def roundtrip_check(original_json_path: Path,
+                     parquet_path: Path,
+                     n_sample: int | None = None) -> tuple[bool, list[str]]:
+    """Verifica que parquet -> dicts == JSON crudo. Si n_sample, compara N filas.
 
     Returns:
-        (ok, errores). ok=True si todo coincide; errores lista las diferencias.
+        (ok, errores). ok=True si todo coincide; errores lista hasta 5 diferencias.
     """
     original = json.load(open(original_json_path))
     if n_sample is not None:

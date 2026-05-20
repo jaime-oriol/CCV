@@ -1,27 +1,22 @@
-"""
-extract.wyscout - Extrae el open dataset Wyscout 2017/18 a parquet.
+"""extract.wyscout - Open dataset Wyscout 2017/18 -> parquet.
 
-5 ligas + WC 2018 + Euro 2016 (~1.941 partidos, ~3.25M eventos).
+5 ligas + WC 2018 + Euro 2016 (~1941 partidos, ~3.25M eventos).
 
-Salida:
-  data/parquet/wyscout/
-    events_{competition}.parquet   # eventos por competicion
-    matches.parquet                # union de matches_*.json (anade competition)
-    players.parquet                # players.json
-    teams.parquet                  # teams.json
-    coaches.parquet                # coaches.json
-    referees.parquet               # referees.json
-    playerank.parquet              # playerank.json (rankings ML)
+Outputs (data/parquet/wyscout/):
+    events_{competition}.parquet     eventos por competicion
+    matches.parquet                  union de matches_*.json (anade competition)
+    players.parquet / teams.parquet / coaches.parquet / referees.parquet
+    playerank.parquet                rankings ML de Wyscout
 
 LOSSLESS: cada parquet preserva todos los campos del JSON original.
+Limpieza previa: convierte sentinelas Wyscout ("", "null") a None para
+no perder tipos (subEventId, currentTeamId mezclados int/str).
 """
-
 from __future__ import annotations
 
 import gc
 import json
 from pathlib import Path
-from typing import Any
 
 import polars as pl
 
@@ -29,34 +24,25 @@ from ._common import (
     DATA_PUB, clean_empty_strings, parquet_dir, write_parquet,
 )
 
-# -- Rutas ------------------------------------------------------------------
+# ---- Rutas raw ----
 
 _WYSCOUT = DATA_PUB / "wyscout"
 
-# Las 7 competiciones del open dataset
+# 7 competiciones del open dataset
 _COMPETITIONS: list[str] = [
     "England", "France", "Germany", "Italy", "Spain",
     "European_Championship", "World_Cup",
 ]
 
 
-# -- Events por competicion -------------------------------------------------
+# ---- Events por competicion ----
 
-def extract_events(
-    competitions: list[str] | None = None,
-    overwrite: bool = False,
-) -> dict[str, Path]:
-    """Convierte cada events_{competition}.json a parquet.
+def extract_events(competitions: list[str] | None = None,
+                    overwrite: bool = False) -> dict[str, Path]:
+    """events_{competition}.json -> parquet por competicion.
 
-    Cada JSON es una lista de event dicts. Polars infiere schema con
-    nested types (positions como list[struct{x,y}], tags como list[struct{id}]).
-
-    Args:
-        competitions : Subset a procesar. None = las 7.
-        overwrite    : Re-escribir si ya existe.
-
-    Returns:
-        Dict {competition: parquet_path}.
+    Polars infiere schema con nested types (positions como list[struct{x,y}],
+    tags como list[struct{id}], etc.).
     """
     out_dir = parquet_dir("wyscout")
     comps = competitions or _COMPETITIONS
@@ -83,10 +69,10 @@ def extract_events(
     return written
 
 
-# -- Matches ---------------------------------------------------------------
+# ---- Matches ----
 
 def extract_matches(overwrite: bool = False) -> Path:
-    """Une los matches_*.json en un parquet con columna competition."""
+    """Une matches_*.json en 1 parquet, anadiendo columna competition."""
     out = parquet_dir("wyscout") / "matches.parquet"
     if out.exists() and not overwrite:
         return out
@@ -103,15 +89,10 @@ def extract_matches(overwrite: bool = False) -> Path:
     return write_parquet(df, out, overwrite=overwrite)
 
 
-# -- Catalogos -------------------------------------------------------------
+# ---- Catalogos (players, teams, coaches, referees, playerank) ----
 
 def _extract_catalog(filename: str, overwrite: bool = False) -> Path | None:
-    """Extrae un catalogo JSON (players, teams, coaches, referees, playerank).
-
-    Tolerante a JSON corrupto: si el fichero esta malformado, salta y
-    devuelve None con warning. Es conocido que algunos open datasets tienen
-    ficheros mal cerrados (e.g. wyscout referees.json).
-    """
+    """Extrae un catalogo JSON. Tolera JSON corrupto (referees.json esta mal cerrado)."""
     out = parquet_dir("wyscout") / f"{Path(filename).stem}.parquet"
     if out.exists() and not overwrite:
         return out
@@ -145,7 +126,7 @@ def extract_playerank(overwrite: bool = False) -> Path:
     return _extract_catalog("playerank.json", overwrite)
 
 
-# -- All-in-one ------------------------------------------------------------
+# ---- All-in-one ----
 
 def extract_all(overwrite: bool = False) -> dict:
     """Ejecuta todos los extractores Wyscout."""

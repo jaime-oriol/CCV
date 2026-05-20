@@ -1,9 +1,9 @@
-"""
-extract - Extractores de las tres fuentes a parquet con tipos anidados.
+"""extract - Extractores raw -> parquet con tipos anidados.
 
-Uso rapido:
+3 fuentes (PFF WC22, StatsBomb open, Wyscout open) + auditor lossless.
+
+Uso:
     from src.extract import pff, statsbomb, wyscout
-
     pff.extract_all()
     statsbomb.extract_all()
     wyscout.extract_all()
@@ -12,7 +12,6 @@ Uso rapido:
     from src.extract import extract_everything
     extract_everything()
 """
-
 from . import pff, statsbomb, wyscout
 from ._common import (
     DATA, DATA_PFF, DATA_PUB, PARQUET,
@@ -21,7 +20,7 @@ from ._common import (
 
 
 def extract_everything(overwrite: bool = False) -> dict:
-    """Ejecuta los 3 extractores en orden."""
+    """Ejecuta los 3 extractores en orden y devuelve resumen."""
     return {
         "wyscout":   wyscout.extract_all(overwrite=overwrite),
         "statsbomb": statsbomb.extract_all(overwrite=overwrite),

@@ -1,17 +1,17 @@
-"""pff_grades_extract - Agrega los grades de PFF events por jugador.
+"""pff_grades_extract - Agrega los grades PFF por jugador (priors para M14).
 
 PFF events trae un struct `grades` con ~25 campos (passerGrade, defenderGrade,
-shooterGrade, ...). Para cada evento, calculamos el promedio horizontal de
-los campos no-null como `event_grade_mean` (el grade representativo del rol
-que el jugador del evento tuvo en ese momento). Despues agregamos por
-jugador a lo largo de los 64 partidos WC22.
+shooterGrade, ...). Por evento computamos el mean horizontal de los grade
+fields no-null como `event_grade_mean` (grade del rol que el jugador tuvo
+ese momento). Luego agregamos por jugador a lo largo de los 64 partidos.
 
-Output: data/parquet/derived/preprocess/pff_grades.parquet (~710 jugadores).
-Schema: pff_player_id, pff_grade_mean, n_grades, player_name, team_name,
-        position_group.
+Output:
+    data/parquet/derived/preprocess/pff_grades.parquet (~710 jugadores)
+    cols: pff_player_id, pff_grade_mean, n_grades, player_name,
+          team_name, position_group
 
 Usado por M14_cate.attach_pff_grades para priors informativos del random
-effect mu_player (Gomes-Mendes-Neves 2025 estilo).
+effect mu_player (estilo Gomes-Mendes-Neves 2025).
 
 Uso:
     python -m src.preprocess.pff_grades_extract
@@ -24,23 +24,19 @@ from pathlib import Path
 import polars as pl
 
 _REPO = Path(__file__).resolve().parents[2]
-_SRC = _REPO / "src"
-_OUT = _REPO / "data" / "parquet" / "derived" / "preprocess" / "pff_grades.parquet"
+_SRC  = _REPO / "src"
+_OUT  = _REPO / "data" / "parquet" / "derived" / "preprocess" / "pff_grades.parquet"
 
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 
 def extract_grades_for_match(match_id: int) -> pl.DataFrame:
-    """Per evento del partido: mean horizontal de los grade fields no-null.
-
-    Devuelve (player_id, event_grade_mean) filtrando filas sin player_id
-    o sin grade no-null.
-    """
+    """Por evento del partido: mean horizontal de los grade fields no-null."""
     from M01_loader_pff import load_events
     ev = load_events(match_id)
-    # Detect grade fields del struct dinamicamente (varian entre partidos:
-    # PFF anade campos como closingDown2Grade en algunos partidos).
+    # Detect grade fields dinamicamente: PFF anade campos (e.g. closingDown2Grade)
+    # en algunos partidos, no son uniformes a lo largo del torneo.
     grades_dtype = ev.schema["grades"]
     fields = [f.name for f in grades_dtype.fields]
     if not fields:
@@ -57,7 +53,7 @@ def extract_grades_for_match(match_id: int) -> pl.DataFrame:
 
 
 def build() -> pl.DataFrame:
-    """Agrega grades de los 64 partidos WC22 + joinea con rosters."""
+    """Agrega grades de los 64 partidos WC22 + join con rosters."""
     from M01_loader_pff import list_event_match_ids, load_rosters
 
     parts = []
@@ -76,15 +72,14 @@ def build() -> pl.DataFrame:
         pl.len().cast(pl.Int64).alias("n_grades"),
     ]).rename({"player_id": "pff_player_id"})
 
-    # Joinea con rosters (player_name, team_name, position_group)
+    # Join con rosters para anadir nombre + equipo + posicion
     ro = load_rosters().select([
         pl.col("player_id").alias("pff_player_id"),
         "player_name", "team_name", "position_group",
     ]).unique(subset=["pff_player_id"])
-    out = agg.join(ro, on="pff_player_id", how="inner").sort(
+    return agg.join(ro, on="pff_player_id", how="inner").sort(
         "n_grades", descending=True
     )
-    return out
 
 
 def main(overwrite: bool = False) -> Path:
@@ -97,7 +92,7 @@ def main(overwrite: bool = False) -> Path:
     df.write_parquet(_OUT, compression="snappy")
     print(f"  pff_grades.parquet: {df.height} jugadores -> {_OUT}")
     print(f"  pff_grade_mean stats: mean={df['pff_grade_mean'].mean():+.4f}, "
-          f"std={df['pff_grade_mean'].std():.4f}")
+           f"std={df['pff_grade_mean'].std():.4f}")
     return _OUT
 
 
