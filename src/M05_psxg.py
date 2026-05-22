@@ -12,8 +12,8 @@ Features:
                    n_defenders_near_endpoint, dist_to_nearest_defender/teammate,
                    n_teammates_close_to_endpoint
 
-Modelo: LightGBM + 5-fold CV stratified POR MATCH (evita leakage entre shots
-de la misma jugada) + CalibratedClassifierCV isotonic.
+Modelo: LightGBM + Optuna (AUC CV) + 5-fold CV stratified POR MATCH (evita
+leakage entre shots de la misma jugada) + isotonic (IsotonicRegression sobre OOF).
 Baseline: statsbomb_xg (pre-shot xG nativo SB). PSxG debe superar en AUC.
 
 Cache (data/parquet/derived/psxg/):
