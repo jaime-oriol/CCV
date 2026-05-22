@@ -56,8 +56,8 @@ TFM/
 │       ├── ppcf.py                                # superficie Pitch Control (Z02 + tracking PFF)
 │       ├── radar.py                               # radar geometrico de las 8 dimensiones clutch
 │       ├── radar_report.py                        # radar + tabla de percentiles por posicion
-│       ├── scatter.py                             # diamond global Remontador x Cerrojo (511 jug)
-│       ├── scatter_team.py                        # 4 diamond scatters por seleccion con caras
+│       ├── scatter.py                             # 2 diamond global: Remontador x Cerrojo + ataque tras marcar vs presion (511 jug)
+│       ├── scatter_team.py                        # 2 diamond scatters por seleccion con caras
 │       ├── figures.py                             # event-study causal (M12)
 │       └── __main__.py                            # runner: python -m src.viz
 ├── notebooks/
@@ -135,8 +135,8 @@ Genera las figuras core del TFM a `outputs/viz/`:
 | PPCF          | `python -m src.viz.ppcf`               | Pitch Control: 2-2 de Mbappe (Final, Spearman 2018)  |
 | Radar         | `python -m src.viz radar "Messi"`      | Radar de las 8 dimensiones clutch del jugador        |
 | Radar report  | `python -m src.viz report "Messi"`     | Radar + tabla de percentiles vs su posicion          |
-| Scatter       | `python -m src.viz.scatter`            | Diamond global Remontador x Cerrojo (511 jugadores)  |
-| Scatter equipo| `python -m src.viz.scatter_team France`| 4 diamantes por seleccion con caras de jugadores     |
+| Scatter       | `python -m src.viz.scatter`            | Remontador x Cerrojo + ataque marcar vs presion      |
+| Scatter equipo| `python -m src.viz.scatter_team France`| 2 diamantes por seleccion con caras de jugadores     |
 | Event-study   | `python -m src.viz.figures`            | Efecto causal del shock minuto a minuto (M12)        |
 
 `python -m src.viz` renderiza las core de una (PPCF + scatter + event-study + radar report).

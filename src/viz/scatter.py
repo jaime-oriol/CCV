@@ -1,14 +1,18 @@
-"""scatter - Diamond scatter global Remontador x Cerrojo (511 jugadores).
+"""scatter - Diamond scatters globales del PCJ (511 jugadores del torneo).
 
-Diamante rotado 45 grados (floating_axes). Cada punto = 1 jugador del
-torneo, coloreado por percentil combinado (PCT_CMAP). Top-10 con su CARA
-(FotMob) en vez de etiqueta. Lineas mediana globales -> 4 cuadrantes.
+Diamante rotado 45 grados (floating_axes). Cada punto = 1 jugador, coloreado
+por percentil combinado (PCT_CMAP). Top-10 con su CARA (FotMob) en vez de
+etiqueta. Lineas mediana globales -> 4 cuadrantes.
 
-Misma estetica que scatter_team.py (header escudo/logo + leyenda dashed +
-carteles en los triangulos vacios); aqui el logo es el del torneo (WC22).
+2 conceptos (config-driven via SCATTERS):
+  1. remontador_cerrojo : Remontador x Cerrojo (los 2 perfiles de la propuesta).
+  2. killer_biggame     : Ataque post-GF x Ataque pre-elim (los 2 unicos ejes
+                          con spread real; donde el shock deja huella medible).
 
-Indices PCJ son CATEs con signo, asi que la normalizacion es min-max
-(v-min)/(max-min) en vez de v/max.
+Misma estetica que scatter_team.py (header logo WC22 + leyenda dashed +
+carteles en los triangulos vacios). Indices PCJ son CATEs con signo, asi que
+la normalizacion es min-max (v-min)/(max-min) en vez de v/max. Los percentiles
+para color + seleccion de top se computan al vuelo (rank), no de cols cacheadas.
 
 Uso:
     python -m src.viz.scatter
@@ -44,17 +48,45 @@ _WC22_LOGO = _LOGOS / "wc22.png"
 # 6 marcas por eje. Con 11 el diamante rotado se satura visualmente.
 _TICKS = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 
+# Configuracion de los 2 scatters. x -> eje izquierdo del diamante (esquina
+# izq), y -> eje inferior (esquina dcha). title/labels/carteles por concepto.
+SCATTERS: dict[str, dict] = {
+    # Los 2 perfiles agregados de la propuesta. Ejes apretados (la elite es
+    # homogenea en los agregados), pero es el marco conceptual del TFM.
+    "remontador_cerrojo": dict(
+        x="chasing_clutch_idx", y="protecting_clutch_idx",
+        title="Remontador  vs  Cerrojo",
+        x_label="REMONTADOR: ataque y movimiento off-ball tras encajar",
+        y_label="CERROJO: defensa e intensidad fisica tras marcar",
+        top="ARRIBA: los que hacen LAS DOS COSAS",
+        left="Por este lado\nLOS QUE TIRAN DEL EQUIPO\ncuando toca remontar",
+        right="Por este lado\nLOS QUE AGUANTAN EL RESULTADO\ncuando hay que cerrar",
+        foot=("cada punto = 1 jugador  ·  caras = top combinado  ·  ejes = "
+              "cambio post-shock relativo al resto del equipo")),
+    # Los 2 unicos ejes con estructura real: atk-GF (rango 0.87, 22 Sig) y
+    # atk-Pressure (0.59). El mapa de produccion ofensiva tras el shock.
+    "killer_biggame": dict(
+        x="cate_ataque_GOAL_FOR_mean", y="cate_ataque_PRESSURE_mean",
+        title="Ataque tras marcar  vs  ataque bajo presion",
+        x_label="Mas ataque tras poner a su equipo por delante",
+        y_label="Mas ataque cuando crece el riesgo de eliminacion",
+        top="ARRIBA: siguen atacando con ventaja y bajo presion",
+        left="Por este lado\nNO ESPECULAN CON EL RESULTADO\nsiguen atacando tras marcar",
+        right="Por este lado\nDAN UN PASO ADELANTE\ncuando el equipo roza la eliminacion",
+        foot=("cada punto = 1 jugador  ·  caras = top combinado  ·  ejes = "
+              "valor ofensivo post-shock")),
+}
 
-def diamond_scatter(df: pl.DataFrame,
-                     x_metric: str = "chasing_clutch_idx",
-                     y_metric: str = "protecting_clutch_idx",
-                     x_pct: str = "pct_chasing_global",
-                     y_pct: str = "pct_protecting_global",
+
+def diamond_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
                      save_path=None):
-    """Diamond scatter rotado 45 grados, Remontador x Cerrojo."""
+    """Diamond scatter rotado 45 grados. `config` = clave de SCATTERS o dict."""
+    cfg = SCATTERS[config] if isinstance(config, str) else config
+    x_metric, y_metric = cfg["x"], cfg["y"]
+
     pdf = df.to_pandas()
-    left = pdf[x_metric].fillna(0.0)      # Remontador (eje izquierdo del diamante)
-    right = pdf[y_metric].fillna(0.0)     # Cerrojo    (eje inferior del diamante)
+    left = pdf[x_metric].fillna(0.0)      # eje izquierdo del diamante
+    right = pdf[y_metric].fillna(0.0)     # eje inferior del diamante
 
     # Normalizacion min-max -> [0, 0.99]. Los CATEs son con signo, no v/max.
     lmin, lmax = float(left.min()), float(left.max())
@@ -62,11 +94,13 @@ def diamond_scatter(df: pl.DataFrame,
     left_n = 0.99 * (left - lmin) / (lmax - lmin)
     right_n = 0.99 * (right - rmin) / (rmax - rmin)
 
-    l_med = float(left_n.median())        # mediana P50 Remontador (global)
-    r_med = float(right_n.median())       # mediana P50 Cerrojo (global)
+    l_med = float(left_n.median())        # mediana P50 eje x (global)
+    r_med = float(right_n.median())       # mediana P50 eje y (global)
 
-    # Top jugadores a destacar con cara: P81+ en ambos ejes, fallback P75+
-    px, py = pdf[x_pct].to_numpy() * 100.0, pdf[y_pct].to_numpy() * 100.0
+    # Percentiles al vuelo (rank) -> color + seleccion de top, valido para
+    # cualquier metrica (no depende de cols pct_* cacheadas).
+    px = (pdf[x_metric].rank(pct=True) * 100.0).to_numpy()
+    py = (pdf[y_metric].rank(pct=True) * 100.0).to_numpy()
     pdf = pdf.assign(_px=px, _py=py)
     top = pdf[(pdf["_px"] >= 81) & (pdf["_py"] >= 81)]
     if len(top) < 5:
@@ -86,7 +120,7 @@ def diamond_scatter(df: pl.DataFrame,
         ab.set_clip_on(False)
         fig.add_artist(ab)
 
-    fig.text(0.50, 0.955, "Remontador  vs  Cerrojo", ha="center", va="center",
+    fig.text(0.50, 0.955, cfg["title"], ha="center", va="center",
               color=WHITE, fontsize=19, fontweight="bold")
     fig.text(0.50, 0.925, "FIFA Men's World Cup 2022",
               ha="center", va="center", color=WHITE, fontsize=14)
@@ -129,8 +163,7 @@ def diamond_scatter(df: pl.DataFrame,
     ax.axis["left"].major_ticklabels.set(rotation=0, ha="center", fontsize=10)
     ax.axis["bottom"].major_ticklabels.set(fontsize=10)
     ax.axis["bottom"].major_ticklabels.set_pad(6)
-    for side, lbl in (("left",   "REMONTADOR: ataque y movimiento off-ball tras encajar"),
-                       ("bottom", "CERROJO: defensa e intensidad fisica tras marcar")):
+    for side, lbl in (("left", cfg["x_label"]), ("bottom", cfg["y_label"])):
         ax.axis[side].set_label(lbl)
         ax.axis[side].label.set(color=WHITE, fontweight="bold", fontsize=12)
         ax.axis[side].LABELPAD += 9                                  # separa label del eje
@@ -163,13 +196,13 @@ def diamond_scatter(df: pl.DataFrame,
         aux.add_artist(ab)
 
     # ---- Carteles direccionales en los triangulos vacios del diamante ----
-    fig.text(0.50, 0.855, "ARRIBA: los que hacen LAS DOS COSAS",
+    fig.text(0.50, 0.855, cfg["top"],
               ha="center", va="center", color=WHITE, fontsize=12,
               fontweight="bold", style="italic")                          # vertice SUPERIOR
-    fig.text(0.205, 0.725, "Por este lado\nLOS QUE TIRAN DEL EQUIPO\ncuando toca remontar",
+    fig.text(0.205, 0.725, cfg["left"],
               ha="center", va="center", color=WHITE, fontsize=12,
               linespacing=1.5)                                            # esquina IZQUIERDA
-    fig.text(0.795, 0.725, "Por este lado\nLOS QUE AGUANTAN EL RESULTADO\ncuando hay que cerrar",
+    fig.text(0.795, 0.725, cfg["right"],
               ha="center", va="center", color=WHITE, fontsize=12,
               linespacing=1.5)                                            # esquina DERECHA
 
@@ -183,9 +216,7 @@ def diamond_scatter(df: pl.DataFrame,
                            transform=fig.transFigure))
     fig.text(0.365, leg_y, "mediana del torneo (P50, 511 jugadores)",
               ha="left", va="center", color=WHITE, fontsize=12)
-    fig.text(0.50, leg_y - 0.030,
-              "cada punto = 1 jugador  ·  caras = top combinado  ·  ejes = cambio "
-              "post-shock relativo al resto del equipo",
+    fig.text(0.50, leg_y - 0.030, cfg["foot"],
               ha="center", va="center", color=WHITE, fontsize=12, style="italic")
 
     if save_path:
@@ -199,6 +230,7 @@ def diamond_scatter(df: pl.DataFrame,
 
 if __name__ == "__main__":
     df = pl.read_parquet(_TABLE)
-    out = "outputs/viz/scatter_remontador_cerrojo.png"
-    diamond_scatter(df, save_path=out)
-    print(f"OK -> {out}  ({df.height} jugadores)")
+    for key in ("remontador_cerrojo", "killer_biggame"):
+        out = f"outputs/viz/scatter_{key}.png"
+        diamond_scatter(df, config=key, save_path=out)
+        print(f"OK -> {out}  ({df.height} jugadores)")

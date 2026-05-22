@@ -4,11 +4,10 @@ Misma estetica que scatter.py (diamante rotado 45 grados, mediana global,
 mensajes laterales) pero filtrado a 1 seleccion y ploteando la CARA del
 jugador (FotMob, PNG transparente) como marker en vez de un punto.
 
-4 paneles, 1 PNG cada uno:
-  1. Remontador x Cerrojo        (chasing x protecting)
-  2. Remontador x Pressure       (chasing x pressure_response)
-  3. Cerrojo x Pressure          (protecting x pressure)
-  4. Atk_GF x Def_GF             (canales con mas senal individual)
+2 paneles, 1 PNG cada uno:
+  1. Remontador x Cerrojo        (chasing x protecting) — marco de la propuesta
+  2. Ataque tras marcar x bajo presion  (atk-GF x atk-Pressure) — los 2 ejes
+                                 con spread real (donde el shock deja huella)
 
 Uso:
     python -m src.viz.scatter_team France
@@ -64,32 +63,14 @@ _PAIRS = [
         title="Remontador  vs  Cerrojo",
         slug="remontador_cerrojo"),
     dict(
-        x="chasing_clutch_idx",      y="pressure_response_idx",
-        x_label="REMONTADOR: ataque y movimiento off-ball tras encajar",
-        y_label="PRESSURE: rendimiento cuando crece el riesgo de eliminacion",
-        side_left="REACCIONAN AL ENCAJAR\nsuben ataque + off-ball",
-        side_right="RINDEN MAS BAJO PRESION\ncuando hay riesgo eliminacion",
-        top="ARRIBA: reaccionan AL ENCAJAR y bajo PRESION",
-        title="Remontador  vs  Pressure",
-        slug="remontador_pressure"),
-    dict(
-        x="protecting_clutch_idx",   y="pressure_response_idx",
-        x_label="CERROJO: defensa e intensidad fisica tras marcar",
-        y_label="PRESSURE: rendimiento cuando crece el riesgo de eliminacion",
-        side_left="SUBEN DEFENSA Y FISICO\npost-marcar gol",
-        side_right="RINDEN MAS BAJO PRESION\ncuando hay riesgo eliminacion",
-        top="ARRIBA: cierran atras Y aparecen bajo presion",
-        title="Cerrojo  vs  Pressure",
-        slug="cerrojo_pressure"),
-    dict(
-        x="cate_ataque_GOAL_FOR_mean", y="cate_defensa_GOAL_FOR_mean",
-        x_label="ATAQUE: valor ofensivo tras marcar",
-        y_label="ACCIONES DEFENSIVAS: presion y recuperacion tras marcar",
-        side_left="SIGUEN ATACANDO\nmas valor ofensivo post-marcar",
-        side_right="MAS ACCIONES DEFENSIVAS\npresion alta o repliegue, segun rol",
-        top="ARRIBA: SIGUEN ATACANDO Y DEFENDIENDO",
-        title="Tras marcar:  ataque vs defensa",
-        slug="atkGF_defGF"),
+        x="cate_ataque_GOAL_FOR_mean", y="cate_ataque_PRESSURE_mean",
+        x_label="Mas ataque tras poner a su equipo por delante",
+        y_label="Mas ataque cuando crece el riesgo de eliminacion",
+        side_left="NO ESPECULAN CON EL RESULTADO\nsiguen atacando tras marcar",
+        side_right="DAN UN PASO ADELANTE\ncuando el equipo roza la eliminacion",
+        top="ARRIBA: siguen atacando con ventaja y bajo presion",
+        title="Ataque tras marcar  vs  ataque bajo presion",
+        slug="killer_biggame"),
 ]
 
 
