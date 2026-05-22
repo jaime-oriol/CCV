@@ -30,8 +30,8 @@ Outputs (data/parquet/derived/defensa/):
     per_shock_window.parquet     ids + shock_id + v4/v3/v2/legacy pre/post +
                                  LOO + delta_relative por nivel
 
-Depende de M08 (VAEP + mapping SB->PFF), M01 (tracking + rosters),
-M03 (direction + match map), M07 (shocks).
+Depende de M08 (VAEP + mapping SB->PFF), M01 (rosters), M03 (direction +
+match map + scan_tracking_corrected: des-espeja la prorroga), M07 (shocks).
 """
 
 from __future__ import annotations
@@ -47,8 +47,7 @@ if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
 from M01_loader_pff import (
-    load_rosters, load_metadata, scan_tracking, list_event_match_ids,
-    load_events,
+    load_rosters, load_metadata, list_event_match_ids, load_events,
 )
 from M03_preprocess import (
     attacking_direction, pff_to_sb_match_id, sb_to_pff_match_id,
@@ -150,6 +149,9 @@ def _def_third_pct_match(match_id: int) -> pl.DataFrame:
         pl.when(pl.col("direction") == "R").then(1.0).otherwise(-1.0).alias("def_sign")
     ).select(["team_id", "period", "def_sign"])
 
+    # scan_tracking_corrected des-espeja P3/P4 (rot180) en los partidos donde
+    # PFF re-origina el frame de tracking en prorroga, para que las coords casen
+    # con def_sign (que vive en el frame de eventos via attacking_direction).
     frames = scan_tracking_corrected(match_id).select([
         pl.col("frameNum"),
         pl.col("period"),

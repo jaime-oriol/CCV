@@ -97,7 +97,9 @@ def build_per_event(cache: bool = True) -> pl.DataFrame:
             else:
                 jersey_to_player_away[j] = p
 
-        # Tracking del partido: videoTimeMs + ball + jugadores
+        # Tracking del partido: videoTimeMs + ball + jugadores. RAW a proposito:
+        # maejima_value es distancia balon<->defensor mas cercano, invariante al
+        # espejo de prorroga (rot180), no necesita scan_tracking_corrected.
         tr = scan_tracking(pff_mid).select([
             "videoTimeMs",
             pl.col("homePlayersSmoothed").alias("home"),

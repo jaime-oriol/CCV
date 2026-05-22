@@ -381,6 +381,9 @@ def _phys_metrics_per_minute(match_id: int) -> pl.DataFrame:
     away_map = {int(r["jersey_int"]): int(r["player_id"])
                 for r in ro.filter(pl.col("team_id") == away_id).iter_rows(named=True)}
 
+    # scan_tracking RAW a proposito: las metricas fisicas (distancia, velocidad,
+    # aceleracion) son invariantes al espejo de prorroga (rot180), no necesitan
+    # scan_tracking_corrected.
     lf = scan_tracking(match_id)
     frames = lf.select([
         pl.col("frameNum"), pl.col("period"),

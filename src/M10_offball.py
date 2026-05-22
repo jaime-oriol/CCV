@@ -13,7 +13,9 @@ Referencias:
                                       (jugador quieto en posicion previa)
 
 Adapter PFF -> Z02: Z02 espera schema (x/y, velocities, team_id, is_ball,
-is_goalkeeper). Coords PFF ya en metros centrado (0,0) -> compatible.
+is_goalkeeper). Coords PFF ya en metros centrado (0,0) -> compatible. El
+tracking se lee via M03 scan_tracking_corrected, que des-espeja la prorroga
+(P3/P4 de algunos partidos vienen rotados 180 en PFF) antes del lookup xG.
 
 Velocidades: buffer per (player_id, frame_num) via diff finita entre frames
 consecutivos sampleados. Z02 PPCF usa vel para proyectar reach (reaction_time=0.7s).
@@ -44,8 +46,7 @@ _SRC_DIR = Path(__file__).resolve().parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
-from M01_loader_pff import (load_metadata, load_rosters, scan_tracking,
-                              list_event_match_ids)
+from M01_loader_pff import (load_metadata, load_rosters, list_event_match_ids)
 from M03_preprocess import attacking_direction, scan_tracking_corrected
 from M07_shocks import build_shocks_table, attach_team_loo
 import Z02_pitch_control as pc
@@ -261,7 +262,7 @@ def compute_obso_match(match_id: int, xg_grid: np.ndarray,
     dirs = attacking_direction(match_id).to_dicts()
     dir_lookup = {(d["team_id"], d["period"]): d["direction"] for d in dirs}
 
-    lf = scan_tracking_corrected(match_id)
+    lf = scan_tracking_corrected(match_id)        # des-espeja P3/P4 (ver M03)
     frames = lf.select([
         pl.col("frameNum"),
         pl.col("period"),

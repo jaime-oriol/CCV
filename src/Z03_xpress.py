@@ -251,6 +251,9 @@ def _extract_tracking_features(match_id: int,
     dir_lookup = {(int(d["team_id"]), int(d["period"])): d["direction"]
                   for d in dirs_df.iter_rows(named=True)}
 
+    # scan_tracking_corrected des-espeja P3/P4 (rot180) para que las features
+    # con direccion (dist_ball_to_goal, ball_x_norm, def_ahead) casen con
+    # car_dir, que vive en el frame de eventos (attacking_direction).
     tr = scan_tracking_corrected(match_id).select([
         "frameNum", "period", "videoTimeMs",
         pl.col("homePlayersSmoothed").alias("home_players"),

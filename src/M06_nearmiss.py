@@ -164,6 +164,9 @@ def _detect_glt_denied(psxg: pl.DataFrame) -> pl.DataFrame:
         if shots_match.height == 0:
             continue
         try:
+            # scan_tracking RAW a proposito: la deteccion GLT (balon cruzando la
+            # boca de gol en cualquier porteria, |x|>pitch_half y |y|<goal_mouth)
+            # es simetrica e invariante al espejo de prorroga (rot180).
             tr = scan_tracking(pff_mid).select([
                 "period", "periodGameClockTime", "balls"
             ]).collect()
