@@ -15,7 +15,7 @@ Uso:
 from . import pff, statsbomb, wyscout
 from ._common import (
     DATA, DATA_PFF, DATA_PUB, PARQUET,
-    deep_equal, parquet_dir, roundtrip_check, scan_glob, write_parquet,
+    deep_equal, parquet_dir, roundtrip_check, write_parquet,
 )
 
 

@@ -26,7 +26,6 @@ import polars as pl
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage
-from PIL import Image
 
 _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:

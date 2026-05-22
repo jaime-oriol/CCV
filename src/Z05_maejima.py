@@ -32,11 +32,9 @@ Diseño:
 """
 from __future__ import annotations
 
-import pickle
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import polars as pl
 
 _REPO    = Path(__file__).resolve().parents[1]
