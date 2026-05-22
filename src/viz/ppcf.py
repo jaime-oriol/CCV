@@ -34,6 +34,7 @@ if str(_SRC) not in sys.path:
 
 import Z02_pitch_control as pc
 from M01_loader_pff import scan_tracking, load_metadata, load_rosters
+from M03_preprocess import goals_timeline
 
 from viz.common import (ATT, BALL, BG, DEF, GK, PE_S, PITCH_LENGTH,
                          PITCH_WIDTH, PPCF_CMAP, WHITE, draw_pitch, _LOGO_PATH)
@@ -229,8 +230,8 @@ def _draw_header(ax: plt.Axes, title: str, subtitle,
         try:
             img = plt.imread(str(team_logo_path))
             ab = AnnotationBbox(
-                OffsetImage(img, zoom=0.70),             # ↑ zoom -> escudo MAS GRANDE
-                (0.0, 0.50), frameon=False,              # X=0 -> pegado al borde IZQ; Y=0.5 -> centro vertical
+                OffsetImage(img, zoom=1.20),             # ↑ zoom -> escudo MAS GRANDE
+                (0.02, 0.50), frameon=False,              # X=0 -> pegado al borde IZQ; Y=0.5 -> centro vertical
                 box_alignment=(0.0, 0.5))                # ancla LEFT-edge en X
             ab.set_clip_on(False)                        # permite render fuera del axes
             ax.add_artist(ab)
@@ -258,8 +259,8 @@ def _draw_header(ax: plt.Axes, title: str, subtitle,
         try:
             img = plt.imread(str(project_logo_path))
             ab = AnnotationBbox(
-                OffsetImage(img, zoom=0.12),             # ↑ zoom -> logo JO MAS GRANDE
-                (1.0, 0.42), frameon=False,              # X=1 -> pegado al borde DCHA; ↓ Y -> logo BAJA
+                OffsetImage(img, zoom=0.15),             # ↑ zoom -> logo JO MAS GRANDE
+                (0.95, 0.42), frameon=False,              # X=1 -> pegado al borde DCHA; ↓ Y -> logo BAJA
                 box_alignment=(1.0, 0.5))                # ancla RIGHT-edge en X
             ab.set_clip_on(False)
             ax.add_artist(ab)
@@ -270,13 +271,11 @@ def _draw_header(ax: plt.Axes, title: str, subtitle,
 # ---- Footer (3 bloques: leyenda + direccion + stats) ----
 
 def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
-                  def_team_name: str, n_att: int, n_def: int,
-                  match_clock: str, period: int,
-                  attacking_right: bool = True) -> None:
+                  def_team_name: str, attacking_right: bool = True) -> None:
     """Footer 3 bloques 40/20/40 del ancho del pitch:
       block 1 (40%) — barra gradiente PPCF + etiquetas de control
-      block 2 (20%) — triangulos direccion ataque + nombre del atacante
-      block 3 (40%) — N jugadores att/def + match clock
+      block 2 (20%) — triangulos direccion del juego
+      block 3 (40%) — leyenda de nodos por equipo (azul atacante / rojo defensor)
     """
     fl = L["left"]; fw = L["width"]
     fb = L["footer"][1]; fh = L["footer"][3]
@@ -286,8 +285,8 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
     ax_b3 = _make_block_axes(fig, fl + b1_w + b2_w, fb, b3_w, fh)
 
     # ---- BLOCK 1: barra gradiente horizontal del PPCF + etiquetas ----
-    bar_y  = 0.65                                         # ↑ barra SUBE / ↓ BAJA dentro del block
-    bar_h  = 0.18                                         # ↑ barra MAS ALTA
+    bar_y  = 0.75                                      # ↑ barra SUBE / ↓ BAJA dentro del block
+    bar_h  = 0.20                                         # ↑ barra MAS ALTA
     bar_x0 = 0.10                                         # ↑ extremo izq MAS a la DERECHA
     bar_x1 = 0.90                                         # ↑ extremo dcha MAS a la DERECHA
     n_steps = 200                                          # mas pasos = gradiente mas suave
@@ -302,33 +301,27 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
         (bar_x0, bar_y - bar_h / 2), bar_x1 - bar_x0, bar_h,
         facecolor="none", edgecolor=WHITE, lw=0.7,
         transform=ax_b1.transAxes, zorder=3))
-    # Etiquetas debajo de la barra (todas blancas)
-    ax_b1.text(bar_x0, bar_y - bar_h / 2 - 0.10, "100% defensor",
-                ha="left", va="top", fontsize=10, color=WHITE,
+    # Etiquetas extremos debajo de la barra (sin "neutro 50/50")
+    ax_b1.text(bar_x0, bar_y - bar_h / 2 - 0.1, "100% defensor",
+                ha="left", va="top", fontsize=12, color=WHITE,
                 transform=ax_b1.transAxes, fontweight="bold")
-    ax_b1.text(0.5, bar_y - bar_h / 2 - 0.10, "neutro 50/50",
-                ha="center", va="top", fontsize=10, color=WHITE,
-                transform=ax_b1.transAxes)
-    ax_b1.text(bar_x1, bar_y - bar_h / 2 - 0.10, "100% atacante",
-                ha="right", va="top", fontsize=10, color=WHITE,
+    ax_b1.text(bar_x1, bar_y - bar_h / 2 - 0.1, "100% atacante",
+                ha="right", va="top", fontsize=12, color=WHITE,
                 transform=ax_b1.transAxes, fontweight="bold")
-    # Titulo + descripcion sobre la barra
-    ax_b1.text(0.5, bar_y + bar_h / 2 + 0.18, "Pitch Control (PPCF)",
-                ha="center", va="bottom", fontsize=11, color=WHITE,
-                transform=ax_b1.transAxes, fontweight="bold")
-    ax_b1.text(0.5, bar_y + bar_h / 2 + 0.05,
+    # Descripcion arriba (normal: ni bold ni cursiva), a la altura del antiguo titulo
+    ax_b1.text(0.5, bar_y + bar_h / 2 + 0.1,
                 "probabilidad de que el equipo controle ese punto del campo",
-                ha="center", va="bottom", fontsize=9, color=WHITE,
-                transform=ax_b1.transAxes, style="italic")
+                ha="center", va="bottom", fontsize=10, color=WHITE,
+                transform=ax_b1.transAxes)
 
-    # ---- BLOCK 2: triangulos direccion ataque + nombre del equipo atacante ----
+    # ---- BLOCK 2: triangulos direccion del juego ----
     n_tri   = 4                                           # ↑ MAS triangulos / ↓ menos
     tri_w   = 0.10                                        # ↑ triangulo MAS ANCHO
     tri_h   = 0.16                                        # ↑ triangulo MAS ALTO
     spacing = 0.06                                        # ↑ MAS hueco entre triangulos
     total_w = n_tri * tri_w + (n_tri - 1) * spacing
     start_x = (1.0 - total_w) / 2.0                       # centra los triangulos en el bloque
-    y_tri   = 0.62                                        # ↑ triangulos SUBEN
+    y_tri   = 0.76                                        # ↑ triangulos SUBEN
     for i in range(n_tri):
         cx = start_x + i * (tri_w + spacing)
         if attacking_right:                               # triangulos apuntando a la DERECHA
@@ -343,36 +336,21 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
         ax_b2.add_patch(mpatches.Polygon(
             verts, closed=True, facecolor=ATT, edgecolor="none",
             alpha=alpha, transform=ax_b2.transAxes, zorder=10))
-    # Etiquetas debajo de los triangulos
-    ax_b2.text(0.5, 0.36, f"{att_team_name} ataca",
-                ha="center", va="center", fontsize=11, color=WHITE,
+    # Etiqueta unica (bold, sin cursiva)
+    ax_b2.text(0.5, 0.5, "direccion del juego",
+                ha="center", va="center", fontsize=12, color=WHITE,
                 transform=ax_b2.transAxes, fontweight="bold")
-    ax_b2.text(0.5, 0.20, "direccion del juego",
-                ha="center", va="center", fontsize=9, color=WHITE,
-                transform=ax_b2.transAxes, style="italic")
 
-    # ---- BLOCK 3: stats — N jug ATT (azul) | N jug DEF (rojo) | reloj ----
-    cx1, cx2, cx3 = 0.18, 0.52, 0.85                      # X de cada cell (↑ -> mas a la DERECHA)
-    y_num = 0.66                                          # ↑ numero SUBE
-    y_lbl = 0.34                                          # ↑ etiqueta SUBE (cerca del numero)
-    ax_b3.text(cx1, y_num, f"{n_att}", ha="center", va="center",
-                fontsize=22, fontweight="bold", color=ATT,
-                transform=ax_b3.transAxes)
-    ax_b3.text(cx1, y_lbl, f"jugadores {att_team_name[:14]}",
-                ha="center", va="center", fontsize=9, color=WHITE,
-                transform=ax_b3.transAxes)
-    ax_b3.text(cx2, y_num, f"{n_def}", ha="center", va="center",
-                fontsize=22, fontweight="bold", color=DEF,
-                transform=ax_b3.transAxes)
-    ax_b3.text(cx2, y_lbl, f"jugadores {def_team_name[:14]}",
-                ha="center", va="center", fontsize=9, color=WHITE,
-                transform=ax_b3.transAxes)
-    ax_b3.text(cx3, y_num, match_clock, ha="center", va="center",
-                fontsize=18, fontweight="bold", color=WHITE,
-                transform=ax_b3.transAxes)
-    ax_b3.text(cx3, y_lbl, f"periodo {period}  ·  reloj",
-                ha="center", va="center", fontsize=9, color=WHITE,
-                transform=ax_b3.transAxes)
+    # ---- BLOCK 3: leyenda de nodos por equipo (2 celdas horizontales, misma altura) ----
+    y_node = 0.75                                         # ↑ leyenda SUBE (misma altura ambos)
+    for x_node, x_txt, color, name in (
+            (0.1, 0.175, ATT, att_team_name),             # mitad IZQUIERDA: azul atacante
+            (0.6, 0.675, DEF, def_team_name)):            # mitad DERECHA: rojo defensor
+        ax_b3.plot(x_node, y_node, "o", ms=25, color=color, markeredgecolor=WHITE,
+                    markeredgewidth=1.3, alpha=0.93, transform=ax_b3.transAxes,
+                    clip_on=False, zorder=5)
+        ax_b3.text(x_txt, y_node, name, ha="left", va="center", fontsize=12,
+                    color=WHITE, fontweight="bold", transform=ax_b3.transAxes)
 
 
 # ---- Render principal ----
@@ -399,25 +377,21 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
                             ["x_tracking"].median())
         attacking_right = att_x_med < ball_pos[0]
 
-    # Reloj y minuto. periodGameClockTime es absoluto al partido (no period-relative).
-    tr_row = scan_tracking(match_id).select([
-        "frameNum", "period", "periodGameClockTime"
-    ]).filter(pl.col("frameNum") == frame_num).collect()
-    period = int(tr_row["period"][0]) if tr_row.height else 0
-    clock_s = float(tr_row["periodGameClockTime"][0]) if tr_row.height else 0.0
-    minute_abs = int(clock_s // 60)
-    second_in_min = int(clock_s % 60)
-    clock_str = f"{minute_abs:02d}:{second_in_min:02d}"
+    # Marcador final del partido (subsubtitulo del header)
+    g = goals_timeline(match_id)
+    score_home = int(g["cum_home"].max() or 0) if g.height else 0
+    score_away = int(g["cum_away"].max() or 0) if g.height else 0
 
-    # Titulo y subtitulo auto-generados desde metadata
+    # Titulo + subtitulos auto-generados desde metadata
     home_name = meta["home_name"]; away_name = meta["away_name"]
     if title is None:
-        title = f"Pitch Control  ·  {home_name} vs {away_name}"
+        title = f"Pitch Control: {home_name} vs {away_name}"
     if subtitle is None:
         comp = meta["comp_name"] or "Mundial Qatar 2022"
+        date_slash = meta["date_iso"].replace("-", "/")           # YYYY/MM/DD
         subtitle = [
-            f"{comp}  ·  min {minute_abs}  (periodo {period})",
-            f"reloj {clock_str}  ·  frame {frame_num}  ·  {meta['date_iso']}",
+            f"{comp}  ·  {date_slash}",
+            f"{home_name} {score_home} - {score_away} {away_name}",
         ]
 
     # ---- Construye fig + 3 axes (header / pitch / footer) ----
@@ -472,12 +446,8 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
     ax_pitch.plot(ball_pos[0], ball_pos[1], "o", ms=11, color=BALL,
                     markeredgecolor="black", markeredgewidth=0.9, zorder=10)
 
-    n_att = int((field["team_id"] == att).sum())
-    n_def = int((field["team_id"] != att).sum())
     _draw_footer(fig, L,
                   att_team_name=att_team_name, def_team_name=def_team_name,
-                  n_att=n_att, n_def=n_def,
-                  match_clock=clock_str, period=period,
                   attacking_right=attacking_right)
 
     if save_path:
