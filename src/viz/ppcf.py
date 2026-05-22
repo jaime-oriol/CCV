@@ -521,14 +521,14 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
 
 if __name__ == "__main__":
     # python -m src.viz.ppcf <match_id> <match_minute>
-    # ej:  python -m src.viz.ppcf 3835 63    (ARG-MEX, minuto 63 del partido)
-    # ej:  python -m src.viz.ppcf            (default Messi ARG-MEX, min 63.5)
+    # ej:  python -m src.viz.ppcf 10517 81   (final, minuto 81 = 2-2 de Mbappe)
+    # ej:  python -m src.viz.ppcf            (default 2-2 de Mbappe, final, min 81)
     if len(sys.argv) >= 3:
         mid = int(sys.argv[1]); match_min = float(sys.argv[2])
         slug = f"{mid}_min{int(match_min)}"
     else:
-        mid, match_min = 3835, 63.5           # ARG-MEX, buildup ~3s antes gol Messi
-        slug = "messi_arg_mex"
+        mid, match_min = 10517, 80.97         # final ARG-FRA, 2-2 de Mbappe (volea, P2)
+        slug = "mbappe_2_2_final"
     # Periodo se infiere desde endPeriod1: si el minuto pedido entra en P1, P1; si no, P2.
     md = load_metadata(mid).row(0, named=True)
     end_p1 = float(md.get("endPeriod1") or 3000.0) / 60.0

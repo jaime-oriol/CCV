@@ -100,7 +100,7 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 | M12    | did/{panel,ate_population,event_study,honest,diag}          | DiD within player + Sun Abraham + BJS; FE~BJS (max 4.2% SE)    |
 | M12B   | did_validation/{placebo,power,window,baseline_naive,stage}  | placebo 1000 perm + BH FDR (null); window fisico-GA ~8x w3-w10 |
 | M13    | aipw/{panel_master,att_aipw,att_dml_plr,att_dr_learner}     | 163 shots con jug en campo; 12,416 filas panel; AIPW+DML+DR    |
-| M14    | cate/{panel_delta,posterior_player,indices,rankings,diag}   | NUTS 4x1000+1000 GPU; 0 div; 109/144 R-hat<1.05; PPC 8/8       |
+| M14    | cate/{panel_delta,posterior_player,indices,rankings,diag}   | NUTS 4x1000+1000 GPU; 0 div; 108/144 R-hat<1.05; PPC 8/8       |
 | M15    | outputs/pcj_table.parquet + pcj_aux/                        | 511 jug x 299 cols + 4 buckets posicionales (GK/DEF/MED/ATA)   |
 
 ## Validaciones empiricas
@@ -115,11 +115,11 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 * **Window sensitivity ±3/5/7/10/15**: efecto AGUDO en fisico-GA, ATE w3=-0.30
   decae a -0.035 en w10 (~8x), el shock es de respuesta inmediata
 * **Placebo test 1000 perm + BH FDR**: sobre los ATE poblacionales relativos
-  (leave-one-out) ningun canal sale del null placebo (z<0.4, p_FDR=0.98); el
+  (leave-one-out) ningun canal sale del null placebo (z<0.85, p_FDR=0.98); el
   efecto MEDIO poblacional es ~0 y la senal clutch vive en la heterogeneidad
   individual (M14 CATE + flags por canal de M15), no en la media
 * **M14 NUTS HMC**: 4 chains x 1000+1000 (15,152 obs) GPU; 0 divergencias;
-  accept_prob 0.953; 109/144 hyperparams con R-hat<1.05 (los 2 bloques
+  accept_prob 0.951; 108/144 hyperparams con R-hat<1.05 (los 2 bloques
   eta_x_td quedan infra-identificados por diseño con N=172 shocks);
   PPC 8/8 channels calibrados (KS p>0.05)
 
@@ -132,7 +132,7 @@ Genera las figuras core del TFM a `outputs/viz/`:
 
 | Figura        | Comando                                | Que muestra                                          |
 |---------------|----------------------------------------|------------------------------------------------------|
-| PPCF          | `python -m src.viz.ppcf`               | Superficie Pitch Control en un shock (Spearman 2018) |
+| PPCF          | `python -m src.viz.ppcf`               | Pitch Control: 2-2 de Mbappe (Final, Spearman 2018)  |
 | Radar         | `python -m src.viz radar "Messi"`      | Radar de las 8 dimensiones clutch del jugador        |
 | Radar report  | `python -m src.viz report "Messi"`     | Radar + tabla de percentiles vs su posicion          |
 | Scatter       | `python -m src.viz.scatter`            | Diamond global Remontador x Cerrojo (511 jugadores)  |

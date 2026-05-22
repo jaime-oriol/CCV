@@ -38,10 +38,10 @@ def _render_radar(df: pl.DataFrame, query: str) -> Path:
 
 def make_all() -> None:
     """Renderiza las 4 figuras core para la portada del repo / TFM."""
-    print("[viz] PPCF — gol de Messi (ARG-MEX, min 63.5)...")
-    # 3812-3 = ~3 s antes del remate del gol de Messi (frame del buildup)
-    fnum = ppcf.frame_for_clock(3835, period=2, clock_s=3812 - 3)
-    ppcf.plot_ppcf(3835, fnum, save_path=_OUT / "ppcf_messi_arg_mex.png")
+    print("[viz] PPCF — 2-2 de Mbappe (Final ARG-FRA, min 81, instante de la volea)...")
+    # frame 164933 = instante EXACTO del remate (game_event OTB de Mbappe, sync via
+    # start_frame del evento del disparo; P2 regulacion = tracking limpio, sin espejo).
+    ppcf.plot_ppcf(10517, 164933, save_path=_OUT / "ppcf_mbappe_2_2_final.png")
 
     print("[viz] Scatter Remontador x Cerrojo (511 jug)...")
     scatter.diamond_scatter(pl.read_parquet(_TABLE),
