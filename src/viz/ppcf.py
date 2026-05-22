@@ -129,16 +129,27 @@ def _load_frame_z02(match_id: int, frame_num: int,
                           vx=0.0, vy=0.0, team_id=-1, is_ball=1,
                           is_goalkeeper=0, jersey=-1))
     df = pd.DataFrame(rows)
-
-    # Equipo atacante = el del jugador mas cercano al balon (heuristica simple)
     ball_pos = pc.get_ball_pos(df)
-    field = df[df["is_ball"] == 0]
-    d = np.hypot(field["x_tracking"] - ball_pos[0], field["y_tracking"] - ball_pos[1])
-    att_team_id = int(field.iloc[int(d.values.argmin())]["team_id"])
+
+    # Equipo atacante = POSESION REAL (game_event.home_ball), no heuristica de
+    # posiciones. En frames de tracking home_ball viene null entre eventos, asi
+    # que tomamos el valor no-null mas cercano (la posesion vigente del balon).
+    poss = scan_tracking(match_id).select([
+        "frameNum", "period",
+        pl.col("game_event").struct.field("home_ball").alias("hb"),
+    ]).filter(pl.col("frameNum").is_between(frame_num - 250, frame_num + 250)).collect()
+    period = int(poss.filter(pl.col("frameNum") == frame_num)["period"][0])
+    nn = (poss.filter(pl.col("hb").is_not_null())
+               .with_columns((pl.col("frameNum") - frame_num).abs().alias("d"))
+               .sort("d"))
+    if nn.height == 0:
+        raise ValueError(f"sin posesion (home_ball) cerca del frame {frame_num}")
+    att_team_id = home_id if bool(nn["hb"][0]) else away_id
     return df, ball_pos, att_team_id, dict(pitch_l=pitch_l, pitch_w=pitch_w,
                                              home_id=home_id, away_id=away_id,
                                              home_name=home_name, away_name=away_name,
-                                             date_iso=date_iso, comp_name=comp_name)
+                                             date_iso=date_iso, comp_name=comp_name,
+                                             period=period)
 
 
 def frame_for_clock(match_id: int, period: int, clock_s: float) -> int:
@@ -371,11 +382,13 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
     att_slug = _TEAM_TO_SLUG.get(att_team_name)
     team_logo = (_LOGOS / f"{att_slug}.png") if att_slug else None
 
-    # Direccion de ataque: si mediana x del equipo atacante < ball.x -> ataca a la dcha
+    # Direccion de ataque: dato REAL de M03 (attacking_direction por team+period),
+    # no heuristica de posiciones. 'R' -> ataca a la derecha (+x).
     if attacking_right is None:
-        att_x_med = float(df[(df["is_ball"] == 0) & (df["team_id"] == att)]
-                            ["x_tracking"].median())
-        attacking_right = att_x_med < ball_pos[0]
+        dirs = attacking_direction(match_id)
+        rowd = dirs.filter((pl.col("team_id") == att) &
+                            (pl.col("period") == meta["period"]))
+        attacking_right = (str(rowd["direction"][0]) == "R") if rowd.height else True
 
     # Marcador final del partido (subsubtitulo del header)
     g = goals_timeline(match_id)

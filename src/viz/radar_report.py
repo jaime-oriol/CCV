@@ -27,7 +27,8 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from viz.common import BG, PCT_CMAP, WHITE
-from viz.radar import PCJ_METRICS, PCJ_TITLES, _find, player_radar
+from viz.radar import PCJ_METRICS_12, PCJ_TITLES_12, TEAM_COLORS, _find, player_radar
+from viz.common import ATT, DEF
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"
@@ -45,17 +46,19 @@ _TEAM_TO_SLUG = {
     "United States":"usa","Costa Rica":"crc","Australia":"aus",
 }
 
-# 8 dimensiones de la tabla: bloque post-GA primero, bloque post-GF despues.
+# 12 dimensiones: 4 canales x 3 contextos (post-GA, post-GF, pre-elim),
+# agrupadas POR CANAL (los 3 contextos de cada canal consecutivos).
 TABLE_METRICS = [
-    "cate_ataque_GOAL_AGAINST_mean",  "cate_defensa_GOAL_AGAINST_mean",
-    "cate_offball_GOAL_AGAINST_mean", "cate_fisico_GOAL_AGAINST_mean",
-    "cate_ataque_GOAL_FOR_mean",      "cate_defensa_GOAL_FOR_mean",
-    "cate_offball_GOAL_FOR_mean",     "cate_fisico_GOAL_FOR_mean",
+    "cate_ataque_GOAL_AGAINST_mean",  "cate_ataque_GOAL_FOR_mean",  "cate_ataque_PRESSURE_mean",
+    "cate_defensa_GOAL_AGAINST_mean", "cate_defensa_GOAL_FOR_mean", "cate_defensa_PRESSURE_mean",
+    "cate_offball_GOAL_AGAINST_mean", "cate_offball_GOAL_FOR_mean", "cate_offball_PRESSURE_mean",
+    "cate_fisico_GOAL_AGAINST_mean",  "cate_fisico_GOAL_FOR_mean",  "cate_fisico_PRESSURE_mean",
 ]
 TABLE_TITLES = [
-    "Ataque · post-GA", "Defensa · post-GA", "Off-ball · post-GA",
-    "Fisico · post-GA", "Ataque · post-GF", "Defensa · post-GF",
-    "Off-ball · post-GF", "Fisico · post-GF",
+    "Ataque · post-GA", "Ataque · post-GF", "Ataque · pre-elim",
+    "Defensa · post-GA", "Defensa · post-GF", "Defensa · pre-elim",
+    "Off-ball · post-GA", "Off-ball · post-GF", "Off-ball · pre-elim",
+    "Fisico · post-GA", "Fisico · post-GF", "Fisico · pre-elim",
 ]
 
 _NAME_COLOR = WHITE       # nombre del jugador (en blanco, identidad PCJ)
@@ -112,7 +115,7 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     figW, figH = fig.get_size_inches()
     logo_w = 0.2                                             # ↑ logo JO MAS GRANDE
     right_edge = 0.755                                       # ↑ logo MAS a la DERECHA
-    top_edge = 0.235                                         # ↑ logo MAS ABAJO (ojo: este es bottom-edge tras restar h)
+    top_edge = 0.265                                         # ↑ logo MAS ABAJO (ojo: este es bottom-edge tras restar h)
     try:
         from viz.common import _LOGO_PATH
         if _LOGO_PATH.exists():
@@ -180,11 +183,14 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
 
     # ---- Filas de metricas (8 dimensiones) ----
     y_metrics = y_context - 0.7                              # ↑ primera fila SUBE
-    row_height = 1.0                                          # ↑ filas MAS SEPARADAS / ↓ pegadas
+    # 8 dims -> filas anchas; 12 dims -> filas mas juntas para que quepan
+    grp = 2 if len(metrics) <= 8 else 3                      # zebra: 2 (pareja) u 3 (canal)
+    row_height = 1.0 if len(metrics) <= 8 else 0.62
+    half = row_height * 0.45                                  # alto de la banda zebra
     for idx, (metric, title) in enumerate(zip(metrics, metric_titles)):
         y_pos = y_metrics - idx * row_height
-        if idx % 2 == 0:                                     # sombreado alterno (rayas zebra)
-            ax.add_patch(Rectangle((0.5, y_pos - 0.4), 8.0, 0.8,
+        if (idx // grp) % 2 == 0:                            # zebra por bloque de canal
+            ax.add_patch(Rectangle((0.5, y_pos - half), 8.0, 2 * half,
                                     facecolor="white", alpha=0.05))
         ax.text(0.7, y_pos, title, fontsize=10, color=WHITE, fontweight="bold",
                  va="center", family="DejaVu Sans")
@@ -252,9 +258,13 @@ def player_radar_report(df: pl.DataFrame, player_id: int, save_path=None) -> Pat
     tmp = Path(tempfile.gettempdir())
     radar_p, table_p = tmp / f"_rad_{player_id}.png", tmp / f"_tab_{player_id}.png"
 
-    # Radar sin titulo ni logo: la identidad (nombre + escudo + JO) vive en la tabla.
-    player_radar(df, player_id, PCJ_METRICS, PCJ_TITLES,
-                  title="", subtitle="", logo=False, save_path=radar_p)
+    # Radar 12 ejes (reorder=False -> wedges por canal, mismo orden que la tabla).
+    # Colores de la seleccion del jugador (brillan sobre el fondo oscuro).
+    team = str(df.filter(pl.col("pff_player_id") == player_id)["team_name"][0])
+    team_colors = TEAM_COLORS.get(team, (ATT, DEF))
+    # Sin titulo ni logo: la identidad (nombre + escudo + JO) vive en la tabla.
+    player_radar(df, player_id, PCJ_METRICS_12, PCJ_TITLES_12, colors=team_colors,
+                  title="", subtitle="", logo=False, reorder=False, save_path=radar_p)
     create_stats_table(df, player_id, save_path=table_p)
 
     if save_path is None:

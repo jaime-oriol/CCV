@@ -26,19 +26,74 @@ from viz.common import ATT, BG, DEF, WHITE, add_logo
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
 
-# Orden canonico de los 8 ejes: bloque post-GA arriba, bloque post-GF abajo.
-# El reordenado interno (primer eje fijo, resto invertido) replica la rotacion
-# habitual del radar tipo footballdecoded.
+# Orden de los 8 ejes: bloque post-GA (4 canales) seguido del bloque post-GF
+# (mismos 4 canales). Con la rotacion interna (primer eje fijo + resto
+# invertido) el eje i queda enfrentado al i+4 -> cada canal sale con su GA y
+# su GF a 180 grados (Ataque-GA arriba <-> Ataque-GF abajo, etc).
 PCJ_METRICS = [
-    "cate_ataque_GOAL_AGAINST_mean",  "cate_offball_GOAL_AGAINST_mean",
-    "cate_defensa_GOAL_AGAINST_mean", "cate_fisico_GOAL_AGAINST_mean",
-    "cate_fisico_GOAL_FOR_mean",      "cate_defensa_GOAL_FOR_mean",
-    "cate_offball_GOAL_FOR_mean",     "cate_ataque_GOAL_FOR_mean",
+    "cate_ataque_GOAL_AGAINST_mean",  "cate_defensa_GOAL_AGAINST_mean",
+    "cate_offball_GOAL_AGAINST_mean", "cate_fisico_GOAL_AGAINST_mean",
+    "cate_ataque_GOAL_FOR_mean",      "cate_defensa_GOAL_FOR_mean",
+    "cate_offball_GOAL_FOR_mean",     "cate_fisico_GOAL_FOR_mean",
 ]
 PCJ_TITLES = [
-    "Ataque\npost-GA", "Off-ball\npost-GA", "Defensa\npost-GA", "Fisico\npost-GA",
-    "Fisico\npost-GF", "Defensa\npost-GF", "Off-ball\npost-GF", "Ataque\npost-GF",
+    "Ataque\npost-GA", "Defensa\npost-GA", "Off-ball\npost-GA", "Fisico\npost-GA",
+    "Ataque\npost-GF", "Defensa\npost-GF", "Off-ball\npost-GF", "Fisico\npost-GF",
 ]
+
+# Variante 12 ejes: 4 canales x 3 contextos (post-GA, post-GF, pre-elim).
+# Agrupados POR CANAL (los 3 contextos de cada canal juntos), MISMO orden que la
+# tabla del report -> se usa con reorder=False (horario desde arriba): wedge
+# Ataque, wedge Defensa, wedge Off-ball, wedge Fisico.
+PCJ_METRICS_12 = [
+    "cate_ataque_GOAL_AGAINST_mean",  "cate_ataque_GOAL_FOR_mean",  "cate_ataque_PRESSURE_mean",
+    "cate_defensa_GOAL_AGAINST_mean", "cate_defensa_GOAL_FOR_mean", "cate_defensa_PRESSURE_mean",
+    "cate_offball_GOAL_AGAINST_mean", "cate_offball_GOAL_FOR_mean", "cate_offball_PRESSURE_mean",
+    "cate_fisico_GOAL_AGAINST_mean",  "cate_fisico_GOAL_FOR_mean",  "cate_fisico_PRESSURE_mean",
+]
+PCJ_TITLES_12 = [
+    "Ataque\npost-GA", "Ataque\npost-GF", "Ataque\npre-elim",
+    "Defensa\npost-GA", "Defensa\npost-GF", "Defensa\npre-elim",
+    "Off-ball\npost-GA", "Off-ball\npost-GF", "Off-ball\npre-elim",
+    "Fisico\npost-GA", "Fisico\npost-GF", "Fisico\npre-elim",
+]
+
+# Colores de seleccion (primario, secundario) para el radar: pares vivos que
+# contrastan entre si y brillan sobre el fondo oscuro. Fallback a (ATT, DEF).
+TEAM_COLORS: dict[str, tuple[str, str]] = {
+    "Argentina":   ("#6CACE4", "#FFFFFF"),   # celeste + blanco
+    "France":      ("#3B7DD8", "#E1314A"),   # azul + rojo
+    "Croatia":     ("#F1414F", "#FFFFFF"),   # rojo + blanco (damero)
+    "Morocco":     ("#E63946", "#19A35A"),   # rojo + verde
+    "Brazil":      ("#FFDF00", "#1CA64C"),   # amarillo + verde
+    "England":     ("#FFFFFF", "#E8344E"),   # blanco + rojo
+    "Spain":       ("#E0314B", "#FFC83D"),   # rojo + amarillo
+    "Portugal":    ("#E8344E", "#1CA64C"),   # rojo + verde
+    "Netherlands": ("#FF7A1A", "#FFFFFF"),   # naranja + blanco
+    "Germany":     ("#F2F2F2", "#FFD23B"),   # blanco + dorado
+    "Belgium":     ("#E83B4E", "#FFD23B"),   # rojo + dorado
+    "Japan":       ("#3A6FE0", "#FFFFFF"),   # azul + blanco
+    "Mexico":      ("#1CA64C", "#E8344E"),   # verde + rojo
+    "Uruguay":     ("#5CBFEB", "#FFFFFF"),   # celeste + blanco
+    "Senegal":     ("#1CA64C", "#E8344E"),   # verde + rojo
+    "USA":         ("#3A6FE0", "#E8344E"),   # azul + rojo
+    "Switzerland": ("#F1414F", "#FFFFFF"),   # rojo + blanco
+    "Poland":      ("#FFFFFF", "#E8344E"),   # blanco + rojo
+    "Denmark":     ("#F1414F", "#FFFFFF"),   # rojo + blanco
+    "Australia":   ("#FFD23B", "#1CA64C"),   # oro + verde
+    "Ecuador":     ("#FFD23B", "#3A6FE0"),   # amarillo + azul
+    "Qatar":       ("#9E2B4E", "#FFFFFF"),   # granate + blanco
+    "Saudi Arabia":("#1CA64C", "#FFFFFF"),   # verde + blanco
+    "Iran":        ("#1CA64C", "#E8344E"),   # verde + rojo
+    "Wales":       ("#E8344E", "#1CA64C"),   # rojo + verde
+    "Canada":      ("#F1414F", "#FFFFFF"),   # rojo + blanco
+    "Costa Rica":  ("#E8344E", "#3A6FE0"),   # rojo + azul
+    "Serbia":      ("#E0314B", "#3A6FE0"),   # rojo + azul
+    "Cameroon":    ("#1CA64C", "#E8344E"),   # verde + rojo
+    "Ghana":       ("#E8344E", "#FFD23B"),   # rojo + dorado
+    "South Korea": ("#E8344E", "#3A6FE0"),   # rojo + azul
+    "Tunisia":     ("#E8344E", "#FFFFFF"),   # rojo + blanco
+}
 
 
 def player_radar(df: pl.DataFrame, player_id: int,
@@ -46,18 +101,24 @@ def player_radar(df: pl.DataFrame, player_id: int,
                   metric_titles: list[str] = PCJ_TITLES,
                   colors: tuple[str, str] = (ATT, DEF),
                   title: str = "", subtitle: str = "",
-                  logo: bool = True, save_path=None):
+                  logo: bool = True, reorder: bool = True, save_path=None):
     """Radar geometrico de 1 jugador.
 
     Rangos por percentil P1-P99 del `df` completo (no del propio jugador).
     Anillos de color alternos (ATT/DEF) clipeados al poligono.
+
+    reorder=True (8 ejes): primer eje fijo arriba + resto invertido (rotacion
+    footballdecoded; cada canal GA queda enfrentado a su GF). reorder=False
+    (12 ejes): se respeta el orden dado, horario desde arriba (arcos por contexto).
     """
     pdf = df.to_pandas()
     row = pdf[pdf["pff_player_id"] == player_id].iloc[0]
 
-    # Primer eje fijo arriba, resto invertido (sentido horario)
-    reordered = [metrics[0]] + list(reversed(metrics[1:]))
-    reordered_titles = [metric_titles[0]] + list(reversed(metric_titles[1:]))
+    if reorder:
+        reordered = [metrics[0]] + list(reversed(metrics[1:]))
+        reordered_titles = [metric_titles[0]] + list(reversed(metric_titles[1:]))
+    else:
+        reordered, reordered_titles = list(metrics), list(metric_titles)
 
     # Rangos del dataset por eje (P1-P99 evita outliers extremos)
     ranges = []
@@ -89,13 +150,14 @@ def player_radar(df: pl.DataFrame, player_id: int,
     angles = np.linspace(0, 2 * np.pi, n, endpoint=False)        # 8 ejes equiespaciados
 
     # ---- Etiquetas de eje (Ataque post-GA, Off-ball post-GA, ...) ----
+    lbl_fs = 10 if n <= 8 else 8                                  # 12 ejes -> fuente menor (no se pisan)
     for angle, t in zip(angles, reordered_titles):
         x, y = 21.5 * np.sin(angle), 21.5 * np.cos(angle)        # 21.5 = radio etiqueta (>20.5 borde)
         rot = -np.rad2deg(angle)
         if y < 0:
             rot += 180                                           # mantiene texto legible abajo
         ax.text(x, y, t, rotation=rot, ha="center", va="center",
-                fontsize=10, fontweight="bold", color=WHITE, family="DejaVu Sans")
+                fontsize=lbl_fs, fontweight="bold", color=WHITE, family="DejaVu Sans")
 
     # Lineas radiales (separadores entre ejes)
     for angle in angles:
