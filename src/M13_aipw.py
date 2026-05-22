@@ -5,8 +5,8 @@ shock sobre los 4 canales explotando que, dado pre-shot xG comparable, el
 gol vs no-gol es practicamente azar (variacion exogena del outcome).
 
 Identificacion:
-    Universe       127 goles SB con xg_baseline in [0.15, 0.85] + 66 near-miss
-                   M06 (12 palo + 38 save psxg>=0.6 + 5 offside + 2 GLC + 9 GLT)
+    Universe       127 goles SB con xg_baseline in [0.15, 0.85] + 70 near-miss
+                   M06 (12 palo + 42 save psxg>=0.6 + 5 offside + 2 GLC + 9 GLT)
     Cluster        cada shot = 1 cluster (Hudgens-Halloran 2008)
     Unit           player-in-field at shot moment (~22 jug por cluster)
     Treatment      1 si is_goal else 0

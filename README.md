@@ -29,7 +29,7 @@ TFM/
 │   ├── M04_wp.py                                  # Win Probability bayesiana (numpyro SVI ordered logistic)
 │   │                                              #   + leverage + ET Poisson + tanda parametrica + MC group elim_prox
 │   ├── M05_psxg.py                                # Post shot xG (LightGBM + Optuna 60 + isotonic + freeze 360)
-│   │                                              #   AUC OOF 0.974, holdout WC22 0.976 (vs SB 0.827)
+│   │                                              #   AUC OOF 0.974, holdout WC22 0.976 (vs SB 0.844)
 │   ├── M05B_calibration.py                        # PSxG calibration (curve, ECE/MCE, Brier Murphy 1973)
 │   ├── M06_nearmiss.py                            # Near miss 5 tipos (palo, offside 360, PSxG save, GLC, GLT)
 │   ├── M07_shocks.py                              # 172 shocks gol + ventanas ±10min + LOO team_members
@@ -55,14 +55,17 @@ TFM/
 │       ├── common.py                              # estilo, colores, draw_pitch, logo, helpers
 │       ├── ppcf.py                                # superficie Pitch Control (Z02 + tracking PFF)
 │       ├── radar.py                               # radar geometrico de las 8 dimensiones clutch
-│       ├── scatter.py                             # diamond scatter Remontador x Cerrojo
-│       ├── ficha.py                               # ficha jugador = radar + tabla percentil
-│       └── figures.py                             # event-study causal (M12)
+│       ├── radar_report.py                        # radar + tabla de percentiles por posicion
+│       ├── scatter.py                             # diamond global Remontador x Cerrojo (511 jug)
+│       ├── scatter_team.py                        # 4 diamond scatters por seleccion con caras
+│       ├── figures.py                             # event-study causal (M12)
+│       └── __main__.py                            # runner: python -m src.viz
 ├── notebooks/
-│   └── regen_all.ipynb                            # regen E2E completa M03-M15 + Z03-Z06 en orden DAG
+│   ├── regen_all.ipynb                            # regen E2E completa M03-M15 + Z03-Z06 en orden DAG
+│   └── regen_m14_kaggle.ipynb                     # regen M14 NUTS HMC en Kaggle GPU
 └── outputs/
-    ├── pcj_table.parquet                          # tabla scout final (234 jug x 277 cols)
-    ├── viz/                                       # figuras PNG (PPCF, radar, ficha, scatter, event-study)
+    ├── pcj_table.parquet                          # tabla scout final (511 jug x 299 cols)
+    ├── viz/                                       # figuras PNG (PPCF, radar, radar_report, scatter, scatter_team, event-study)
     └── pcj_aux/
         ├── top10_chasing_per_position.parquet     # 16 position_group granulares
         ├── top10_protecting_per_position.parquet
@@ -81,12 +84,12 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 | Modulo | Output principal                                            | Sanity verificado                                              |
 |--------|-------------------------------------------------------------|----------------------------------------------------------------|
 | M03    | preprocess/events_enriched/{match_id}.parquet × 64          | 144,541 filas, 172 goles SB ground truth                       |
-| M04    | wp/per_minute.parquet                                       | 5,910 filas (60 min reglamentarios x 99 partidos efectivos)    |
-| M05    | psxg/{shots,model/psxg_lgb.pkl}                             | AUC OOF 0.974, holdout WC22 0.976 (vs SB 0.827)                |
+| M04    | wp/per_minute.parquet                                       | 5,910 filas (64 partidos, minuto 1-120 con ET)                 |
+| M05    | psxg/{shots,model/psxg_lgb.pkl}                             | AUC OOF 0.974, holdout WC22 0.976 (vs SB 0.844)                |
 | M05B   | psxg/calibration/{curve,brier,metrics,iso}.parquet          | ECE 0.011, Brier 0.037 (vs SB 0.083)                           |
-| M06    | nearmiss/nearmiss_table.parquet                             | 70 near miss (12 woodw + 5 offs + 38 save + 2 GLC + 9 GLT)     |
+| M06    | nearmiss/nearmiss_table.parquet                             | 70 near miss (12 woodw + 5 offs + 42 save + 2 GLC + 9 GLT)     |
 | M07    | shocks/{shocks_table,shocks_team_members}.parquet           | 172 shocks x ~22 jug = 3,788 filas                             |
-| M08    | ataque/{per_minute,per_shock_window,model}                  | atomic VAEP + un xPass; 57,520 filas; 234 jug clutch           |
+| M08    | ataque/{per_minute,per_shock_window,model}                  | atomic VAEP + un xPass; per_minute 57,520 filas                |
 | Z03    | defensa/xpress/per_minute.parquet                           | exPress Lee 2025; AUC 0.6178 (+24% baseline)                   |
 | Z04    | defensa/vdep_strict/per_minute.parquet                      | VDEP Toda 2022; AUC rec 0.7950 / att 0.8308                    |
 | Z05    | defensa/maejima/per_minute.parquet                          | Maejima nearest defender; 38,005 filas                         |
@@ -94,27 +97,30 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 | M09    | defensa/{per_minute,per_shock_window,press_value,ctx}       | score_def_v4 = vdep + xpress + maejima; 57,466 filas           |
 | M10    | offball/{per_minute,per_shock_window,xg_grid}               | OBSO + C OBSO; 105,214 filas; 64 partidos a 25 Hz full         |
 | M11    | fisico/{raw_per_minute,per_minute,per_shock_window,model}   | Bradley 2024 + SVI multivariate; 145,351 filas                 |
-| M12    | did/{panel,ate_population,event_study,honest,diag}          | DiD within player + Sun Abraham + BJS; FE≈BJS (6.5% SE)        |
-| M12B   | did_validation/{placebo,power,window,baseline_naive,stage}  | placebo 1000 perm + BH FDR; window decay 7x w3 a w10           |
-| M13    | aipw/{panel_master,att_aipw,att_dml_plr,att_dr_learner}     | 193 shots; AIPW + DML + DR learner; same_sign vs M12           |
-| M14    | cate/{panel_delta,posterior_player,indices,rankings,diag}   | NUTS 4x1000+1000 GPU; 0 div; 141/144 R-hat<1.05; PPC 8/8       |
-| M15    | outputs/pcj_table.parquet + pcj_aux/                        | 234 jug x 277 cols + 4 buckets posicionales (GK/DEF/MED/ATA)   |
+| M12    | did/{panel,ate_population,event_study,honest,diag}          | DiD within player + Sun Abraham + BJS; FE~BJS (max 4.2% SE)    |
+| M12B   | did_validation/{placebo,power,window,baseline_naive,stage}  | placebo 1000 perm + BH FDR (null); window fisico-GA ~8x w3-w10 |
+| M13    | aipw/{panel_master,att_aipw,att_dml_plr,att_dr_learner}     | 163 shots con jug en campo; 12,416 filas panel; AIPW+DML+DR    |
+| M14    | cate/{panel_delta,posterior_player,indices,rankings,diag}   | NUTS 4x1000+1000 GPU; 0 div; 109/144 R-hat<1.05; PPC 8/8       |
+| M15    | outputs/pcj_table.parquet + pcj_aux/                        | 511 jug x 299 cols + 4 buckets posicionales (GK/DEF/MED/ATA)   |
 
 ## Validaciones empiricas
 
-* **M09 (defensa) vs PFF defensive grades**: Spearman rho=+0.27 (n=264, p<0.001)
-* **M10 c_obso vs PFF offensive grades**: Pearson r=+0.30 (n=610, p<10^-13);
-  raw OBSO r=-0.21 confirma que el counterfactual es la metrica correcta
-* **Placebo test 1000 perm + BH FDR**: ataque-GF, offball-GF/GA, fisico-GA
-  significativamente fuera del placebo null (z>2.4, p_FDR<0.025)
-* **Window sensitivity ±3/5/7/10/15**: efectos AGUDOS (decay 7x de w3 a w10
-  en fisico-GA y offball-GA), el shock es de respuesta inmediata
-* **Stage stratification**: fisico-GA en KO 4x magnitude vs groups
-  (heterogeneidad oculta en pooled estimates)
+* **M10 c_obso vs PFF grade global**: Pearson r=+0.29 (n=673, p<10^-14);
+  raw OBSO r=-0.37 confirma que el counterfactual (C-OBSO) es la metrica
+  correcta (el OBSO crudo correlaciona al reves con la calidad del jugador)
 * **PSxG WC22 holdout**: AUC 0.976 vs SB xG 0.844 (+13pp), Brier 0.037 vs
   0.083 (-55%), ECE 0.011 (calibracion casi perfecta)
-* **M14 NUTS HMC**: 4 chains x 1000+1000 secuencial T4 GPU (6.9 min);
-  0 divergencias; 141/144 hyperparams convergidos (R-hat<1.05);
+* **DiD FE vs BJS**: max |ATE_FE - ATE_BJS| / SE = 4.2% (estimadores
+  convergentes para tratamiento pulsado instantaneo)
+* **Window sensitivity ±3/5/7/10/15**: efecto AGUDO en fisico-GA, ATE w3=-0.30
+  decae a -0.035 en w10 (~8x), el shock es de respuesta inmediata
+* **Placebo test 1000 perm + BH FDR**: sobre los ATE poblacionales relativos
+  (leave-one-out) ningun canal sale del null placebo (z<0.4, p_FDR=0.98); el
+  efecto MEDIO poblacional es ~0 y la senal clutch vive en la heterogeneidad
+  individual (M14 CATE + flags por canal de M15), no en la media
+* **M14 NUTS HMC**: 4 chains x 1000+1000 (15,152 obs) GPU; 0 divergencias;
+  accept_prob 0.953; 109/144 hyperparams con R-hat<1.05 (los 2 bloques
+  eta_x_td quedan infra-identificados por diseño con N=172 shocks);
   PPC 8/8 channels calibrados (KS p>0.05)
 
 Datos raw originales (PFF tracking 5 GB, StatsBomb, Wyscout) y documentacion interna del proyecto estan fuera del repo (`.gitignore`).
@@ -124,15 +130,16 @@ Datos raw originales (PFF tracking 5 GB, StatsBomb, Wyscout) y documentacion int
 Paquete `src/viz/` con identidad visual propia (fondo oscuro, paleta, logo).
 Genera las figuras core del TFM a `outputs/viz/`:
 
-| Figura      | Comando                           | Que muestra                                          |
-|-------------|-----------------------------------|------------------------------------------------------|
-| PPCF        | `python -m src.viz.ppcf`          | Superficie Pitch Control en un shock (Spearman 2018) |
-| Radar       | `python -m src.viz radar "Messi"` | Radar de las 8 dimensiones clutch del jugador        |
-| Ficha       | `python -m src.viz ficha "Messi"` | Radar + tabla de percentiles vs su posicion          |
-| Scatter     | `python -m src.viz.scatter`       | Diamond Remontador x Cerrojo (234 jugadores)         |
-| Event-study | `python -m src.viz.figures`       | Efecto causal del shock minuto a minuto (M12)        |
+| Figura        | Comando                                | Que muestra                                          |
+|---------------|----------------------------------------|------------------------------------------------------|
+| PPCF          | `python -m src.viz.ppcf`               | Superficie Pitch Control en un shock (Spearman 2018) |
+| Radar         | `python -m src.viz radar "Messi"`      | Radar de las 8 dimensiones clutch del jugador        |
+| Radar report  | `python -m src.viz report "Messi"`     | Radar + tabla de percentiles vs su posicion          |
+| Scatter       | `python -m src.viz.scatter`            | Diamond global Remontador x Cerrojo (511 jugadores)  |
+| Scatter equipo| `python -m src.viz.scatter_team France`| 4 diamantes por seleccion con caras de jugadores     |
+| Event-study   | `python -m src.viz.figures`            | Efecto causal del shock minuto a minuto (M12)        |
 
-`python -m src.viz` renderiza todas de una.
+`python -m src.viz` renderiza las core de una (PPCF + scatter + event-study + radar report).
 
 ## Reproducibilidad
 
