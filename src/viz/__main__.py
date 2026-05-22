@@ -43,7 +43,7 @@ def make_all() -> None:
     # start_frame del evento del disparo; P2 regulacion = tracking limpio, sin espejo).
     ppcf.plot_ppcf(10517, 164933, save_path=_OUT / "ppcf_mbappe_2_2_final.png")
 
-    print("[viz] Scatters globales (Remontador x Cerrojo + Killer x Big-game, 511 jug)...")
+    print("[viz] Scatters globales (Remontador x Cerrojo + ataque marcar vs presion, 511 jug)...")
     _tbl = pl.read_parquet(_TABLE)
     for _key in ("remontador_cerrojo", "ataque_marcar_presion"):
         scatter.diamond_scatter(_tbl, config=_key,

@@ -1,4 +1,4 @@
-"""scatter_team - 4 diamond scatters por seleccion con CARAS de jugadores.
+"""scatter_team - 2 diamond scatters por seleccion con CARAS de jugadores.
 
 Misma estetica que scatter.py (diamante rotado 45 grados, mediana global,
 mensajes laterales) pero filtrado a 1 seleccion y ploteando la CARA del
@@ -50,17 +50,19 @@ _TEAM_TO_SLUG = {
 
 _TICKS = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]      # 6 marcas por eje del diamante
 
-# Configuracion de los 4 paneles. side_left/right/top = textos en cada esquina
-# del diamante. La interpretacion fina de cada canal va en el TFM, no en la viz.
+# Configuracion de los 2 paneles. side_left/right/top = textos en cada esquina
+# del diamante; foot_ejes = glosa del pie (que miden los ejes). Mismos textos
+# que el scatter global por concepto (coherencia entre global y team).
 _PAIRS = [
     dict(
         x="chasing_clutch_idx",      y="protecting_clutch_idx",
         x_label="REMONTADOR: ataque y movimiento off-ball tras encajar",
         y_label="CERROJO: defensa e intensidad fisica tras marcar",
-        side_left="SUBEN ATAQUE Y MOVIMIENTO\noff-ball post-encajar gol",
-        side_right="MAS ACCIONES DEFENSIVAS\nE INTENSIDAD post-marcar gol",
-        top="ARRIBA: hacen LAS DOS COSAS",
+        side_left="LOS QUE TIRAN DEL EQUIPO\ncuando toca remontar",
+        side_right="LOS QUE AGUANTAN EL RESULTADO\ncuando hay que cerrar",
+        top="ARRIBA: los que hacen LAS DOS COSAS",
         title="Remontador  vs  Cerrojo",
+        foot_ejes="ejes = cambio post-shock relativo al resto del equipo",
         slug="remontador_cerrojo"),
     dict(
         x="cate_ataque_GOAL_FOR_mean", y="cate_ataque_PRESSURE_mean",
@@ -70,6 +72,7 @@ _PAIRS = [
         side_right="DAN UN PASO ADELANTE\ncuando el equipo roza la eliminacion",
         top="ARRIBA: los que hacen LAS DOS COSAS",
         title="Ataque tras marcar  vs  bajo presion",
+        foot_ejes="ejes = valor ofensivo post-shock",
         slug="ataque_marcar_presion"),
 ]
 
@@ -206,8 +209,7 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
     fig.text(0.365, leg_y, "mediana del torneo (P50, 511 jugadores)",
               ha="left", va="center", color=WHITE, fontsize=12)
     fig.text(0.50, leg_y - 0.030,
-              "cada cara = 1 jugador de la seleccion  ·  ejes = cambio post-shock "
-              "relativo al resto del equipo",
+              f"cada cara = 1 jugador de la seleccion  ·  {pair['foot_ejes']}",
               ha="center", va="center", color=WHITE, fontsize=12, style="italic")
 
     save_path = Path(save_path)
@@ -219,7 +221,7 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
 
 
 def scatter_team_all(df: pl.DataFrame, team: str, out_dir: Path) -> list[Path]:
-    """Genera los 4 diamond scatters individuales del equipo."""
+    """Genera los 2 diamond scatters individuales del equipo."""
     out_dir = Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
     team_slug = team.lower().replace(" ", "_")
     paths = []

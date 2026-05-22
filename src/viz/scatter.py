@@ -1,13 +1,13 @@
 """scatter - Diamond scatters globales del PCJ (511 jugadores del torneo).
 
 Diamante rotado 45 grados (floating_axes). Cada punto = 1 jugador, coloreado
-por percentil combinado (PCT_CMAP). Top combinado + destacados por eje con su CARA
-(FotMob) en vez de etiqueta. Lineas mediana globales -> 4 cuadrantes.
+por percentil combinado (PCT_CMAP). Top combinado + destacados por eje, cada
+uno con su CARA (FotMob). Lineas mediana globales -> 4 cuadrantes.
 
 2 conceptos (config-driven via SCATTERS):
-  1. remontador_cerrojo : Remontador x Cerrojo (los 2 perfiles de la propuesta).
-  2. killer_biggame     : Ataque post-GF x Ataque pre-elim (los 2 unicos ejes
-                          con spread real; donde el shock deja huella medible).
+  1. remontador_cerrojo    : Remontador x Cerrojo (los 2 perfiles de la propuesta).
+  2. ataque_marcar_presion : Ataque post-GF x Ataque pre-elim (los 2 unicos ejes
+                             con spread real; donde el shock deja huella medible).
 
 Misma estetica que scatter_team.py (header logo WC22 + leyenda dashed +
 carteles en los triangulos vacios). Indices PCJ son CATEs con signo, asi que
@@ -108,8 +108,8 @@ def diamond_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
         combo = pdf[(pdf["_px"] >= 75) & (pdf["_py"] >= 75)]
     combo = combo.assign(_tot=combo["_px"] + combo["_py"]).nlargest(10, "_tot")
     # ... + (b) los 2 mejores de CADA eje individual que NO esten ya en el
-    # top-10 combinado (p.ej. un atacante top en big-game pero medio en
-    # ataque-tras-marcar igual merece su cara). Max 2 por eje.
+    # top-10 combinado (p.ej. un atacante top en ataque-bajo-presion pero
+    # medio en ataque-tras-marcar igual merece su cara). Max 2 por eje.
     rest = pdf.loc[pdf.index.difference(combo.index)]
     spec_x = rest.nlargest(2, "_px").index
     spec_y = rest.nlargest(2, "_py").index
