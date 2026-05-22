@@ -52,6 +52,7 @@ from M01_loader_pff import (
 )
 from M03_preprocess import (
     attacking_direction, pff_to_sb_match_id, sb_to_pff_match_id,
+    scan_tracking_corrected,
 )
 from M07_shocks import build_shocks_table, attach_team_loo
 import M08_ataque as atk
@@ -149,7 +150,7 @@ def _def_third_pct_match(match_id: int) -> pl.DataFrame:
         pl.when(pl.col("direction") == "R").then(1.0).otherwise(-1.0).alias("def_sign")
     ).select(["team_id", "period", "def_sign"])
 
-    frames = scan_tracking(match_id).select([
+    frames = scan_tracking_corrected(match_id).select([
         pl.col("frameNum"),
         pl.col("period"),
         pl.col("game_event").struct.field("home_ball").alias("home_has_ball"),

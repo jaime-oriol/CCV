@@ -22,6 +22,7 @@ import sys
 import warnings
 from pathlib import Path
 
+import numpy as np
 import polars as pl
 
 # Permite tanto `python src/M03_preprocess.py` como `from src.M03_preprocess import ...`
@@ -31,7 +32,7 @@ if str(_SRC_DIR) not in sys.path:
 
 from M01_loader_pff import (
     load_metadata, load_rosters, load_events, list_goals, list_subs,
-    list_event_match_ids,
+    list_event_match_ids, scan_tracking,
 )
 from M02_loader_public import load_statsbomb_matches, load_statsbomb_events
 
@@ -106,6 +107,102 @@ def attacking_direction(match_id: int) -> pl.DataFrame:
         rows.append((match_id, away_id, period, "L" if home_right else "R"))
     return pl.DataFrame(rows, schema=["match_id", "team_id", "period", "direction"],
                         orient="row")
+
+
+# ---- Espejo de prorroga en el tracking PFF ----
+
+_ET_MIRROR_CACHE: dict[int, set] = {}
+
+
+def et_mirrored_periods(match_id: int) -> set:
+    """Periodos de prorroga (3/4) cuyo frame de tracking PFF esta ROTADO 180
+    (x,y -> -x,-y) respecto al frame de eventos.
+
+    PFF re-origina el sistema de coordenadas del tracking al entrar en prorroga
+    en algunos partidos: el balon y los jugadores quedan girados 180 frente al
+    frame de eventos (donde vive attacking_direction, verificado contra disparos
+    y goles = verdad fisica). Se detecta comparando la direccion de ataque de
+    eventos con la implicada por la posicion del portero en el tracking (sync-free).
+    Verificado WC22: {3,4} en 10517 (ARG-FRA) y 10506 (JPN-CRO); vacio en el resto
+    (regulacion siempre coherente, Morocco-Spain no espejado).
+    """
+    if match_id in _ET_MIRROR_CACHE:
+        return _ET_MIRROR_CACHE[match_id]
+    md = load_metadata(match_id).row(0, named=True)
+    home_id = int(md["home_team_id"])
+    gk_jn = {str(int(r["shirt_number"]))
+             for r in load_rosters(match_id).iter_rows(named=True)
+             if r["position_group"] == "GK" and int(r["team_id"]) == home_id
+             and r["shirt_number"] is not None}
+    ad = attacking_direction(match_id)
+    mirrored: set = set()
+    try:
+        tr = scan_tracking(match_id).select(
+            ["period", pl.col("homePlayersSmoothed").alias("p")]
+        ).filter(pl.col("period") >= 3).collect()
+    except Exception:
+        tr = None
+    if tr is not None and tr.height:
+        for per in (3, 4):
+            sub = tr.filter(pl.col("period") == per)
+            if sub.height == 0:
+                continue
+            xs_by_j: dict = {}
+            for r in sub[::15].iter_rows(named=True):
+                for pp in (r["p"] or []):
+                    if pp and str(pp.get("jerseyNum")) in gk_jn and pp.get("x") is not None:
+                        xs_by_j.setdefault(str(pp["jerseyNum"]), []).append(float(pp["x"]))
+            if not xs_by_j:
+                continue
+            # portero titular = jersey con |mediana x| mayor (pegado a una porteria)
+            gk_x = float(np.median(max(xs_by_j.values(), key=lambda v: abs(np.median(v)))))
+            tr_right = gk_x < 0                    # GK en -x defiende izq -> ataca derecha
+            ev = ad.filter((pl.col("team_id") == home_id) & (pl.col("period") == per))
+            ev_right = (str(ev["direction"][0]) == "R") if ev.height else True
+            if ev_right != tr_right:
+                mirrored.add(per)
+    _ET_MIRROR_CACHE[match_id] = mirrored
+    return mirrored
+
+
+def scan_tracking_corrected(match_id: int):
+    """scan_tracking con el espejo de prorroga corregido.
+
+    En los periodos detectados por `et_mirrored_periods`, niega x,y de jugadores
+    (smoothed y raw) y del balon para alinear el tracking con el frame de eventos
+    (rotacion 180). El resto de partidos/periodos pasa intacto. Usar en modulos
+    que MEZCLAN coords de tracking con direccion de ataque (M09, M10, Z03). Las
+    velocidades derivadas por diferencia heredan el giro automaticamente; metricas
+    puramente de distancia (M11, Z05) son invariantes y no necesitan esto.
+    """
+    lf = scan_tracking(match_id)
+    mirrored = et_mirrored_periods(match_id)
+    if not mirrored:
+        return lf
+    mir = list(mirrored)
+    cols = lf.collect_schema().names()
+
+    def _neg_players(c):
+        return pl.when(pl.col("period").is_in(mir)).then(
+            pl.col(c).list.eval(pl.element().struct.with_fields(
+                x=-pl.element().struct.field("x"),
+                y=-pl.element().struct.field("y")))
+        ).otherwise(pl.col(c)).alias(c)
+
+    def _neg_ball(c):
+        return pl.when(pl.col("period").is_in(mir)).then(
+            pl.col(c).struct.with_fields(
+                x=-pl.col(c).struct.field("x"),
+                y=-pl.col(c).struct.field("y"))
+        ).otherwise(pl.col(c)).alias(c)
+
+    # *Players* y balls(raw) son List(Struct); ballsSmoothed es Struct simple.
+    exprs = [_neg_players(c) for c in
+             ("homePlayersSmoothed", "awayPlayersSmoothed",
+              "homePlayers", "awayPlayers", "balls")
+             if c in cols]
+    exprs += [_neg_ball(c) for c in ("ballsSmoothed",) if c in cols]
+    return lf.with_columns(exprs)
 
 
 # ---- Score state ----

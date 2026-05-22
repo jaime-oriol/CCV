@@ -231,8 +231,8 @@ def _extract_tracking_features(match_id: int,
     if press_df.height == 0:
         return press_df
 
-    from M01_loader_pff import scan_tracking, load_metadata, load_rosters
-    from M03_preprocess import attacking_direction
+    from M01_loader_pff import load_metadata, load_rosters
+    from M03_preprocess import attacking_direction, scan_tracking_corrected
 
     md = load_metadata(match_id).row(0, named=True)
     home_id = int(md["home_team_id"])
@@ -251,7 +251,7 @@ def _extract_tracking_features(match_id: int,
     dir_lookup = {(int(d["team_id"]), int(d["period"])): d["direction"]
                   for d in dirs_df.iter_rows(named=True)}
 
-    tr = scan_tracking(match_id).select([
+    tr = scan_tracking_corrected(match_id).select([
         "frameNum", "period", "videoTimeMs",
         pl.col("homePlayersSmoothed").alias("home_players"),
         pl.col("awayPlayersSmoothed").alias("away_players"),

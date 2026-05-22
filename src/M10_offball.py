@@ -46,7 +46,7 @@ if str(_SRC_DIR) not in sys.path:
 
 from M01_loader_pff import (load_metadata, load_rosters, scan_tracking,
                               list_event_match_ids)
-from M03_preprocess import attacking_direction
+from M03_preprocess import attacking_direction, scan_tracking_corrected
 from M07_shocks import build_shocks_table, attach_team_loo
 import Z02_pitch_control as pc
 
@@ -261,7 +261,7 @@ def compute_obso_match(match_id: int, xg_grid: np.ndarray,
     dirs = attacking_direction(match_id).to_dicts()
     dir_lookup = {(d["team_id"], d["period"]): d["direction"] for d in dirs}
 
-    lf = scan_tracking(match_id)
+    lf = scan_tracking_corrected(match_id)
     frames = lf.select([
         pl.col("frameNum"),
         pl.col("period"),

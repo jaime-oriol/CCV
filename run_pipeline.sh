@@ -53,6 +53,25 @@ if [[ "${FORCE_CLEAN:-0}" == "1" ]]; then
     rm -rf cache/vaep
 fi
 
+# Regen acotado al fix del espejo de prorroga: borra SOLO las caches que
+# dependen de scan_tracking_corrected (Z03/M09/M10) y todo lo aguas abajo
+# (M12->M15). El upstream (M01-M08, Z04, Z05, M11) es byte-identico y se
+# reusa por cache-hit. Necesita el tracking PFF presente (Z03/M09/M10).
+if [[ "${REGEN_MIRROR:-0}" == "1" ]]; then
+    echo "[regen-mirror] borrando caches afectadas por el espejo ET (Z03,M09,M10 -> M12-M15)..."
+    rm -rf "$DERIVED"/defensa/xpress                          # Z03
+    rm -f  "$DERIVED"/defensa/per_minute.parquet \
+           "$DERIVED"/defensa/per_shock_window.parquet \
+           "$DERIVED"/defensa/press_value.parquet \
+           "$DERIVED"/defensa/def_third_context.parquet        # M09 (conserva vdep_strict, maejima)
+    rm -f  "$DERIVED"/offball/per_minute.parquet \
+           "$DERIVED"/offball/per_shock_window.parquet          # M10 (conserva xg_grid.npy)
+    rm -rf "$DERIVED"/did "$DERIVED"/did_validation \
+           "$DERIVED"/aipw "$DERIVED"/cate                      # M12, M12B, M13, M14
+    rm -f  outputs/pcj_table.parquet outputs/pcj_aux/*.parquet  # M15
+    echo "[regen-mirror] upstream (M01-M08, Z04, Z05, M11) intacto (cache-hit)"
+fi
+
 # Auto-deteccion de recursos: si user no setea N_WORKERS_*, usa nproc.
 # Si nvidia-smi disponible, activa GPU para CatBoost + JAX.
 N_CORES=$(nproc 2>/dev/null || echo 1)

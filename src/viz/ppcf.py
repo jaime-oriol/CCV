@@ -34,7 +34,7 @@ if str(_SRC) not in sys.path:
 
 import Z02_pitch_control as pc
 from M01_loader_pff import scan_tracking, load_metadata, load_rosters
-from M03_preprocess import goals_timeline
+from M03_preprocess import attacking_direction, goals_timeline
 
 from viz.common import (ATT, BALL, BG, DEF, GK, PE_S, PITCH_LENGTH,
                          PITCH_WIDTH, PPCF_CMAP, WHITE, draw_pitch, _LOGO_PATH)
@@ -129,7 +129,6 @@ def _load_frame_z02(match_id: int, frame_num: int,
                           vx=0.0, vy=0.0, team_id=-1, is_ball=1,
                           is_goalkeeper=0, jersey=-1))
     df = pd.DataFrame(rows)
-    ball_pos = pc.get_ball_pos(df)
 
     # Equipo atacante = POSESION REAL (game_event.home_ball), no heuristica de
     # posiciones. En frames de tracking home_ball viene null entre eventos, asi
@@ -145,11 +144,58 @@ def _load_frame_z02(match_id: int, frame_num: int,
     if nn.height == 0:
         raise ValueError(f"sin posesion (home_ball) cerca del frame {frame_num}")
     att_team_id = home_id if bool(nn["hb"][0]) else away_id
+
+    # ---- Correccion del espejo eventos<->tracking en prorroga ----
+    # PFF entrega, en algunos partidos de prorroga (P3/P4), las coordenadas de
+    # tracking en un frame ROTADO 180 respecto al de los eventos. attacking_direction
+    # vive en el frame de eventos (verdad fisica: casa con disparos y goles). Si la
+    # posicion del portero en el tracking implica la direccion CONTRARIA a la de
+    # eventos, el frame de tracking esta rotado -> lo des-roto (x,y -> -x,-y) para
+    # que todo viva en el frame de eventos. Auto-detectado por partido/periodo.
+    ev_dir = attacking_direction(match_id).filter(
+        (pl.col("team_id") == att_team_id) & (pl.col("period") == period))
+    ev_right = (str(ev_dir["direction"][0]) == "R") if ev_dir.height else True
+    tr_right = _attacking_right_tracking(match_id, att_team_id, period, home_id)
+    if ev_right != tr_right:
+        # PFF re-origina el frame de tracking en prorroga: rotacion 180 (x,y -> -x,-y)
+        # respecto al frame de eventos. Verificado por jugador (corr_X y corr_Y < 0 en ET).
+        df[["x_tracking", "y_tracking", "vx", "vy"]] *= -1.0
+
+    ball_pos = pc.get_ball_pos(df)
     return df, ball_pos, att_team_id, dict(pitch_l=pitch_l, pitch_w=pitch_w,
                                              home_id=home_id, away_id=away_id,
                                              home_name=home_name, away_name=away_name,
                                              date_iso=date_iso, comp_name=comp_name,
                                              period=period)
+
+
+def _attacking_right_tracking(match_id: int, att_team_id: int, period: int,
+                               home_id: int) -> bool:
+    """Direccion de ataque del equipo en posesion, derivada del TRACKING.
+
+    El portero del equipo atacante defiende su porteria: si su x mediana en el
+    periodo < 0 (porteria izquierda) el equipo ataca hacia la derecha (+x).
+    Robusto al espejo eventos/tracking que PFF mete en prorroga en algunos
+    partidos, porque mide sobre el mismo frame que se pinta.
+    """
+    side = "home" if att_team_id == home_id else "away"
+    gk_jn = {str(int(r["shirt_number"]))
+             for r in load_rosters(match_id).iter_rows(named=True)
+             if r["position_group"] == "GK" and int(r["team_id"]) == att_team_id
+             and r["shirt_number"] is not None}
+    tr = scan_tracking(match_id).select([
+        "period", pl.col(f"{side}PlayersSmoothed").alias("p"),
+    ]).filter(pl.col("period") == period).collect()
+    by_jersey: dict[str, list[float]] = {}
+    for r in tr.iter_rows(named=True):
+        for pp in (r["p"] or []):
+            if pp and str(pp.get("jerseyNum")) in gk_jn and pp.get("x") is not None:
+                by_jersey.setdefault(str(pp["jerseyNum"]), []).append(float(pp["x"]))
+    if not by_jersey:
+        return True
+    # Portero titular = jersey con |mediana x| mayor (el pegado a una porteria)
+    starter = max(by_jersey.values(), key=lambda v: abs(np.median(v)))
+    return float(np.median(starter)) < 0
 
 
 def frame_for_clock(match_id: int, period: int, clock_s: float) -> int:
@@ -382,13 +428,13 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
     att_slug = _TEAM_TO_SLUG.get(att_team_name)
     team_logo = (_LOGOS / f"{att_slug}.png") if att_slug else None
 
-    # Direccion de ataque: dato REAL de M03 (attacking_direction por team+period),
-    # no heuristica de posiciones. 'R' -> ataca a la derecha (+x).
+    # Direccion de ataque desde attacking_direction (frame de eventos = verdad
+    # fisica). El tracking ya se des-espeja en _load_frame_z02 para vivir en este
+    # mismo frame, asi que flecha y posiciones casan. 'R' -> ataca a la derecha.
     if attacking_right is None:
-        dirs = attacking_direction(match_id)
-        rowd = dirs.filter((pl.col("team_id") == att) &
-                            (pl.col("period") == meta["period"]))
-        attacking_right = (str(rowd["direction"][0]) == "R") if rowd.height else True
+        d = attacking_direction(match_id).filter(
+            (pl.col("team_id") == att) & (pl.col("period") == meta["period"]))
+        attacking_right = (str(d["direction"][0]) == "R") if d.height else True
 
     # Marcador final del partido (subsubtitulo del header)
     g = goals_timeline(match_id)
