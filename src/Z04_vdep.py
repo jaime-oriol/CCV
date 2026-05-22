@@ -35,8 +35,7 @@ Diseno:
 Outputs:
   data/parquet/derived/defensa/vdep_strict/
     training.parquet     # features + (y_recovery, y_attacked)
-    model_rec.pkl        # LightGBM + cal
-    model_att.pkl        # LightGBM + cal
+    model.pkl            # 2 cabezas LightGBM (rec + att) + calibradores + C
     per_event.parquet    # WC22 actions con vdep_strict_value
     per_minute.parquet   # sum vdep_strict per (player, period, minute_in_period)
 """
