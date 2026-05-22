@@ -407,7 +407,7 @@ def stage_stratified_ate() -> pl.DataFrame:
 # ---- Entry point ----
 
 def main(overwrite: bool = False):
-    print("[M12] sanity check")
+    print("[M12B] sanity check")
     naive = baseline_naive()
     print(naive.select(["channel", "shock_type", "naive_within_ate", "m12_ate",
                         "ratio_did_naive", "z_diff_did_vs_naive"]))
