@@ -123,7 +123,7 @@ def diamond_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
         wimg = Image.open(_WC22_LOGO)
         ab = AnnotationBbox(
             OffsetImage(np.asarray(wimg.convert("RGBA")), zoom=0.17),  # ↑ zoom -> logo MAS GRANDE
-            (0.15, 0.75), frameon=False,                              # ↑ X -> a la DERECHA; ↑ Y -> SUBE
+            (0.15, 0.88), frameon=False,                              # ↑ X -> a la DERECHA; ↑ Y -> SUBE
             xycoords="figure fraction", box_alignment=(0.5, 0.5))
         ab.set_clip_on(False)
         fig.add_artist(ab)
@@ -139,7 +139,7 @@ def diamond_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
         limg = Image.open(_LOGO_PATH)
         ab = AnnotationBbox(
             OffsetImage(np.asarray(limg.convert("RGBA")), zoom=0.14),  # ↑ zoom -> logo MAS GRANDE
-            (0.89, 0.77), frameon=False,                               # X -> borde DCHO del logo aqui
+            (0.89, 0.90), frameon=False,                               # X -> borde DCHO del logo aqui
             xycoords="figure fraction", box_alignment=(1.0, 0.5))      # ancla RIGHT-edge (no se corta)
         ab.set_clip_on(False)
         fig.add_artist(ab)

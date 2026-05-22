@@ -103,7 +103,7 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
         img = Image.open(team_logo_p)
         ab = AnnotationBbox(
             OffsetImage(np.asarray(img.convert("RGBA")), zoom=1.15),  # ↑ zoom -> escudo MAS GRANDE
-            (0.125, 0.77), frameon=False,                            # ↑ X -> escudo a la DERECHA; ↑ Y -> SUBE
+            (0.125, 0.90), frameon=False,                            # ↑ X -> escudo a la DERECHA; ↑ Y -> SUBE
             xycoords="figure fraction", box_alignment=(0.5, 0.5))     # ancla CENTRO en (X,Y)
         ab.set_clip_on(False)
         fig.add_artist(ab)
@@ -122,7 +122,7 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
         limg = Image.open(_LOGO_PATH)
         ab = AnnotationBbox(
             OffsetImage(np.asarray(limg.convert("RGBA")), zoom=0.14),  # ↑ zoom -> logo MAS GRANDE
-            (0.89, 0.77), frameon=False,                              # X -> borde DCHO del logo aqui
+            (0.89, 0.90), frameon=False,                              # X -> borde DCHO del logo aqui
             xycoords="figure fraction", box_alignment=(1.0, 0.5))      # ancla RIGHT-edge (no se corta)
         ab.set_clip_on(False)
         fig.add_artist(ab)
