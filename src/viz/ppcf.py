@@ -3,7 +3,7 @@
 Layout pitch-aligned: header + pitch + footer comparten el MISMO ancho
 horizontal (el del campo). Header con escudo de la seleccion atacante,
 titulo auto-generado desde metadata, logo JO. Footer 3 bloques: gradiente
-PPCF + direccion de ataque + N jugadores + reloj.
+PPCF + direccion del juego + leyenda de nodos por equipo.
 
 Z02_pitch_control hace el computo del PPCF; este modulo arma la malla del
 campo, el adapter del frame de tracking PFF 25/30 Hz al schema Z02, y el

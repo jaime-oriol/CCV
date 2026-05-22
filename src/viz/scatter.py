@@ -1,8 +1,11 @@
 """scatter - Diamond scatter global Remontador x Cerrojo (511 jugadores).
 
 Diamante rotado 45 grados (floating_axes). Cada punto = 1 jugador del
-torneo, coloreado por percentil combinado (PCT_CMAP). Top-10 etiquetado
-con adjustText. Lineas mediana globales -> 4 cuadrantes.
+torneo, coloreado por percentil combinado (PCT_CMAP). Top-10 con su CARA
+(FotMob) en vez de etiqueta. Lineas mediana globales -> 4 cuadrantes.
+
+Misma estetica que scatter_team.py (header escudo/logo + leyenda dashed +
+carteles en los triangulos vacios); aqui el logo es el del torneo (WC22).
 
 Indices PCJ son CATEs con signo, asi que la normalizacion es min-max
 (v-min)/(max-min) en vez de v/max.
@@ -19,6 +22,7 @@ import numpy as np
 import polars as pl
 import matplotlib.pyplot as plt
 import mpl_toolkits.axisartist.floating_axes as floating_axes
+from matplotlib.lines import Line2D
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 from matplotlib.transforms import Affine2D
 from mpl_toolkits.axisartist.grid_finder import DictFormatter, FixedLocator
@@ -31,12 +35,11 @@ if str(_SRC) not in sys.path:
 from viz.common import BG, PCT_CMAP, WHITE, _LOGO_PATH
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
-
-try:
-    import adjustText
-    _HAS_ADJUST = True
-except ImportError:
-    _HAS_ADJUST = False
+_LOGOS = _SRC.parent / "outputs" / "assets" / "logos"
+_FACES = _SRC.parent / "outputs" / "assets" / "faces"
+# Logo del torneo (viz genericas, sin seleccion concreta): va arriba-izq
+# igual que el escudo de la seleccion en las viz por equipo.
+_WC22_LOGO = _LOGOS / "wc22.png"
 
 # 6 marcas por eje. Con 11 el diamante rotado se satura visualmente.
 _TICKS = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
@@ -62,7 +65,7 @@ def diamond_scatter(df: pl.DataFrame,
     l_med = float(left_n.median())        # mediana P50 Remontador (global)
     r_med = float(right_n.median())       # mediana P50 Cerrojo (global)
 
-    # Top jugadores a etiquetar: P81+ en ambos ejes, fallback P75+
+    # Top jugadores a destacar con cara: P81+ en ambos ejes, fallback P75+
     px, py = pdf[x_pct].to_numpy() * 100.0, pdf[y_pct].to_numpy() * 100.0
     pdf = pdf.assign(_px=px, _py=py)
     top = pdf[(pdf["_px"] >= 81) & (pdf["_py"] >= 81)]
@@ -72,19 +75,30 @@ def diamond_scatter(df: pl.DataFrame,
 
     fig = plt.figure(figsize=(10, 11.5), facecolor=BG)            # ↑ figsize -> figura MAS GRANDE
 
-    # ---- Header style pass-plot: titulo + subtitulo + logo JO ----
-    fig.text(0.50, 0.965, "Quien tira y quien sostiene",
-              ha="center", va="center", color=WHITE, fontsize=20, fontweight="bold")
-    fig.text(0.50, 0.935,
-              "Mundial Qatar 2022  ·  511 jugadores  ·  cambio post-shock aislando "
-              "lo que aporta el resto del equipo",
-              ha="center", va="center", color=WHITE, fontsize=11)
+    # ---- Header: logo torneo (izq) + titulo + subtitulos + logo JO (dcha) ----
+    # Viz generica -> logo WC22 arriba-izq (en vez de escudo de seleccion).
+    if _WC22_LOGO.exists():
+        wimg = Image.open(_WC22_LOGO)
+        ab = AnnotationBbox(
+            OffsetImage(np.asarray(wimg.convert("RGBA")), zoom=0.17),  # ↑ zoom -> logo MAS GRANDE
+            (0.15, 0.9), frameon=False,                               # ↑ X -> a la DERECHA; ↑ Y -> SUBE
+            xycoords="figure fraction", box_alignment=(0.5, 0.5))
+        ab.set_clip_on(False)
+        fig.add_artist(ab)
+
+    fig.text(0.50, 0.955, "Remontador  vs  Cerrojo", ha="center", va="center",
+              color=WHITE, fontsize=19, fontweight="bold")
+    fig.text(0.50, 0.925, "FIFA Men's World Cup 2022",
+              ha="center", va="center", color=WHITE, fontsize=14)
+    fig.text(0.50, 0.905, "Los 511 jugadores del torneo",
+              ha="center", va="center", color=WHITE, fontsize=12)
+
     if _LOGO_PATH.exists():
         limg = Image.open(_LOGO_PATH)
         ab = AnnotationBbox(
-            OffsetImage(np.asarray(limg.convert("RGBA")), zoom=0.13),  # ↑ zoom -> logo MAS GRANDE
-            (0.87, 0.945), frameon=False,                              # ↑ X -> logo MAS a la DERECHA
-            xycoords="figure fraction", box_alignment=(0.5, 0.5))      # ancla CENTRO del logo en (X,Y)
+            OffsetImage(np.asarray(limg.convert("RGBA")), zoom=0.14),  # ↑ zoom -> logo MAS GRANDE
+            (0.89, 0.92), frameon=False,                               # X -> borde DCHO del logo aqui
+            xycoords="figure fraction", box_alignment=(1.0, 0.5))      # ancla RIGHT-edge (no se corta)
         ab.set_clip_on(False)
         fig.add_artist(ab)
 
@@ -100,9 +114,9 @@ def diamond_scatter(df: pl.DataFrame,
         tick_formatter1=DictFormatter(right_dict),
         tick_formatter2=DictFormatter(left_dict))
     ax = floating_axes.FloatingSubplot(fig, 111, grid_helper=helper)
-    # Posicion del diamante dentro de la figura.
-    # [left, bottom, width, height] en fracciones de fig.
-    ax.set_position([0.08, 0.07, 0.84, 0.78], which="both")        # ↑ width/height -> diamante MAS GRANDE
+    # Posicion del diamante. ↑ width/height -> diamante MAS GRANDE.
+    # ↑ bottom -> diamante SUBE. Top en ~0.84 (cerca del subtitulo).
+    ax.set_position([0.07, 0.12, 0.86, 0.72], which="both")
     aux = ax.get_aux_axes(transform)
     ax = fig.add_axes(ax)
     aux.patch = ax.patch
@@ -112,13 +126,13 @@ def diamond_scatter(df: pl.DataFrame,
     ax.axis["bottom"].line.set_color(WHITE)
     ax.axis["right"].set_visible(False)
     ax.axis["top"].set_visible(False)
-    ax.axis["left"].major_ticklabels.set(rotation=0, ha="center", fontsize=8.5)
-    ax.axis["bottom"].major_ticklabels.set(fontsize=8.5)
+    ax.axis["left"].major_ticklabels.set(rotation=0, ha="center", fontsize=10)
+    ax.axis["bottom"].major_ticklabels.set(fontsize=10)
     ax.axis["bottom"].major_ticklabels.set_pad(6)
-    for side, lbl in (("left",   "REMONTADOR  ·  reaccion tras encajar un gol"),
-                       ("bottom", "CERROJO  ·  aguante tras marcar un gol")):
+    for side, lbl in (("left",   "REMONTADOR: ataque y movimiento off-ball tras encajar"),
+                       ("bottom", "CERROJO: defensa e intensidad fisica tras marcar")):
         ax.axis[side].set_label(lbl)
-        ax.axis[side].label.set(color=WHITE, fontweight="bold", fontsize=11)
+        ax.axis[side].label.set(color=WHITE, fontweight="bold", fontsize=12)
         ax.axis[side].LABELPAD += 9                                  # separa label del eje
     ax.axis["left"].label.set_rotation(0)
     ax.grid(alpha=0.18, color=WHITE)
@@ -133,41 +147,52 @@ def diamond_scatter(df: pl.DataFrame,
     aux.plot([0.0, 1.001], [l_med, l_med], color=WHITE, lw=2.4, alpha=0.9,
               ls=(0, (7, 4)), zorder=6, solid_capstyle="round")
 
-    # ---- Top jugadores etiquetados (adjustText evita overlap) ----
-    texts = []
+    # ---- Top jugadores: CARA (FotMob) en vez de etiqueta de texto ----
+    # RGBA explicito (los PNG FotMob vienen en modo Palette; sin convertir
+    # OffsetImage aplica colormap default y se ven verdes). La cara tapa el
+    # punto de debajo.
     for i, p in top.iterrows():
-        parts = str(p.get("player_name", i)).split()
-        short = f"{parts[0][0]}. {parts[-1]}" if len(parts) > 1 else parts[0]
-        texts.append(aux.annotate(
-            short, xy=(right_n.loc[i], left_n.loc[i]), color="yellow",
-            fontsize=8.5, fontweight="bold", ha="center", va="center", zorder=4,
-            bbox=dict(boxstyle="round,pad=0.22", facecolor=BG, edgecolor="yellow",
-                       alpha=0.95, linewidth=1)))
-    if _HAS_ADJUST and texts:
-        adjustText.adjust_text(texts, ax=aux, force_text=1.6,
-                                expand_text=(2.1, 2.1),
-                                arrowprops=dict(arrowstyle="-", color="yellow",
-                                                 alpha=0.9, linewidth=1.2))
+        pid = int(p["pff_player_id"])
+        face_p = _FACES / f"{pid}.png"
+        if not face_p.exists():
+            continue
+        img_arr = np.asarray(Image.open(face_p).convert("RGBA"))
+        ab = AnnotationBbox(OffsetImage(img_arr, zoom=0.20),       # ↑ zoom -> cara MAS GRANDE
+                             (right_n.loc[i], left_n.loc[i]), frameon=False,
+                             pad=0.0, xycoords=aux.transData, zorder=5)
+        aux.add_artist(ab)
 
-    # ---- Carteles laterales (lenguaje futbol) ----
-    fig.text(0.20, 0.62, "Por este lado\nLOS QUE TIRAN DEL EQUIPO\ncuando toca remontar",
-              ha="center", va="center", color=WHITE, fontsize=10, linespacing=1.5)
-    # ↑ X (0.20) -> cartel a la DERECHA; ↑ Y -> cartel SUBE
-    fig.text(0.80, 0.62, "Por este lado\nLOS QUE AGUANTAN EL RESULTADO\ncuando hay que cerrar",
-              ha="center", va="center", color=WHITE, fontsize=10, linespacing=1.5)
-    fig.text(0.50, 0.72, "ARRIBA: los que hacen LAS DOS COSAS",
-              ha="center", va="center", color=WHITE, fontsize=10,
-              fontweight="bold", style="italic")
+    # ---- Carteles direccionales en los triangulos vacios del diamante ----
+    fig.text(0.50, 0.855, "ARRIBA: los que hacen LAS DOS COSAS",
+              ha="center", va="center", color=WHITE, fontsize=12,
+              fontweight="bold", style="italic")                          # vertice SUPERIOR
+    fig.text(0.205, 0.725, "Por este lado\nLOS QUE TIRAN DEL EQUIPO\ncuando toca remontar",
+              ha="center", va="center", color=WHITE, fontsize=12,
+              linespacing=1.5)                                            # esquina IZQUIERDA
+    fig.text(0.795, 0.725, "Por este lado\nLOS QUE AGUANTAN EL RESULTADO\ncuando hay que cerrar",
+              ha="center", va="center", color=WHITE, fontsize=12,
+              linespacing=1.5)                                            # esquina DERECHA
 
-    # Nota al pie (esquina inferior izquierda)
-    fig.text(0.045, 0.04, "Lineas discontinuas: la mediana (percentil 50) "
-              "de cada indice — parten el campo en 4 cuadrantes.",
-              ha="left", va="bottom", color=WHITE, fontsize=8.5, style="italic")
+    # ---- Leyenda real al pie: linea dashed = mediana + glosa ----
+    leg_y = 0.058
+    # Misma linea dashed EXACTA que las medianas del plot (lw, ls, caps, alpha):
+    # matplotlib escala el dash por lw -> on=7*2.4, off=4*2.4 (~26pt/periodo).
+    # Largo ~0.10 de figura para que salgan justo 3 dashes.
+    fig.add_artist(Line2D([0.255, 0.355], [leg_y, leg_y], color=WHITE, lw=2.4,
+                           alpha=0.9, ls=(0, (7, 4)), solid_capstyle="round",
+                           transform=fig.transFigure))
+    fig.text(0.365, leg_y, "mediana del torneo (P50, 511 jugadores)",
+              ha="left", va="center", color=WHITE, fontsize=12)
+    fig.text(0.50, leg_y - 0.030,
+              "cada punto = 1 jugador  ·  caras = top combinado  ·  ejes = cambio "
+              "post-shock relativo al resto del equipo",
+              ha="center", va="center", color=WHITE, fontsize=12, style="italic")
 
     if save_path:
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(save_path, dpi=300, facecolor=BG, bbox_inches="tight")
+        # bbox_inches=None (NO 'tight') para que logos no se corten
+        fig.savefig(save_path, dpi=200, facecolor=BG, bbox_inches=None)
         plt.close(fig)
     return fig
 

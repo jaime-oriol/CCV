@@ -23,6 +23,7 @@ import numpy as np
 import polars as pl
 import matplotlib.pyplot as plt
 import mpl_toolkits.axisartist.floating_axes as floating_axes
+from matplotlib.lines import Line2D
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 from matplotlib.transforms import Affine2D
 from mpl_toolkits.axisartist.grid_finder import DictFormatter, FixedLocator
@@ -55,49 +56,41 @@ _TICKS = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]      # 6 marcas por eje del diamante
 _PAIRS = [
     dict(
         x="chasing_clutch_idx",      y="protecting_clutch_idx",
-        x_label="REMONTADOR  ·  empuje ofensivo + off-ball post-encajar",
-        y_label="CERROJO  ·  acciones defensivas + intensidad fisica post-marcar",
-        side_left="SUBEN EMPUJE Y MOVIMIENTO\noff-ball post-encajar gol",
+        x_label="REMONTADOR: ataque y movimiento off-ball tras encajar",
+        y_label="CERROJO: defensa e intensidad fisica tras marcar",
+        side_left="SUBEN ATAQUE Y MOVIMIENTO\noff-ball post-encajar gol",
         side_right="MAS ACCIONES DEFENSIVAS\nE INTENSIDAD post-marcar gol",
         top="ARRIBA: hacen LAS DOS COSAS",
-        title="Reaccion post-encajar vs aguante post-marcar",
+        title="Remontador  vs  Cerrojo",
         slug="remontador_cerrojo"),
     dict(
         x="chasing_clutch_idx",      y="pressure_response_idx",
-        x_label="REMONTADOR  ·  empuje ofensivo + off-ball post-encajar",
-        y_label="PRESSURE  ·  pendiente individual respecto a elim_prox",
-        side_left="REACCIONAN AL ENCAJAR\nsuben empuje + off-ball",
+        x_label="REMONTADOR: ataque y movimiento off-ball tras encajar",
+        y_label="PRESSURE: rendimiento cuando crece el riesgo de eliminacion",
+        side_left="REACCIONAN AL ENCAJAR\nsuben ataque + off-ball",
         side_right="RINDEN MAS BAJO PRESION\ncuando hay riesgo eliminacion",
         top="ARRIBA: reaccionan AL ENCAJAR y bajo PRESION",
-        title="Reaccion al gol vs pulso bajo presion",
+        title="Remontador  vs  Pressure",
         slug="remontador_pressure"),
     dict(
         x="protecting_clutch_idx",   y="pressure_response_idx",
-        x_label="CERROJO  ·  acciones defensivas + intensidad fisica post-marcar",
-        y_label="PRESSURE  ·  pendiente individual respecto a elim_prox",
+        x_label="CERROJO: defensa e intensidad fisica tras marcar",
+        y_label="PRESSURE: rendimiento cuando crece el riesgo de eliminacion",
         side_left="SUBEN DEFENSA Y FISICO\npost-marcar gol",
         side_right="RINDEN MAS BAJO PRESION\ncuando hay riesgo eliminacion",
         top="ARRIBA: cierran atras Y aparecen bajo presion",
-        title="Aguante tras marcar vs pulso bajo presion",
+        title="Cerrojo  vs  Pressure",
         slug="cerrojo_pressure"),
     dict(
         x="cate_ataque_GOAL_FOR_mean", y="cate_defensa_GOAL_FOR_mean",
-        x_label="EMPUJE OFENSIVO post-GF (cambio en atomic-VAEP)",
-        y_label="ACCIONES DEFENSIVAS post-GF (vdep + xpress + maejima)",
-        side_left="SIGUEN EMPUJANDO\nmas valor ofensivo post-marcar",
+        x_label="ATAQUE: valor ofensivo tras marcar",
+        y_label="ACCIONES DEFENSIVAS: presion y recuperacion tras marcar",
+        side_left="SIGUEN ATACANDO\nmas valor ofensivo post-marcar",
         side_right="MAS ACCIONES DEFENSIVAS\npresion alta o repliegue, segun rol",
-        top="ARRIBA: SIGUEN ATACANDO Y DEFENDIENDO (raro)",
-        title="Tras marcar gol  ·  atacar o defender",
+        top="ARRIBA: SIGUEN ATACANDO Y DEFENDIENDO",
+        title="Tras marcar:  ataque vs defensa",
         slug="atkGF_defGF"),
 ]
-
-
-def _short_name(name: str) -> str:
-    """Acorta nombre para etiquetas: 'Kylian Mbappe' -> 'K. Mbappe'."""
-    parts = name.split()
-    if len(parts) >= 2:
-        return f"{parts[0][0]}. {parts[-1]}"
-    return name
 
 
 def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
@@ -120,33 +113,36 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
 
     fig = plt.figure(figsize=(10, 11.5), facecolor=BG)            # ↑ figsize -> figura MAS GRANDE
 
-    # ---- Header style pass-plot: escudo seleccion (izq) + titulo + logo JO (dcha) ----
+    # ---- Header: escudo seleccion (izq) + titulo + subtitulos + logo JO (dcha) ----
+    # Mismo patron que PPCF/radar. bbox_inches=None al guardar para que los
+    # logos pegados al borde NO se corten.
     slug = _TEAM_TO_SLUG.get(team)
     team_logo_p = _LOGOS / f"{slug}.png" if slug else None
     if team_logo_p and team_logo_p.exists():
         img = Image.open(team_logo_p)
         ab = AnnotationBbox(
-            OffsetImage(np.asarray(img.convert("RGBA")), zoom=0.70),  # ↑ zoom -> escudo MAS GRANDE
-            (0.13, 0.945), frameon=False,                              # ↑ X -> escudo a la DERECHA; ↑ Y -> SUBE
-            xycoords="figure fraction", box_alignment=(0.5, 0.5))      # ancla CENTRO en (X,Y)
+            OffsetImage(np.asarray(img.convert("RGBA")), zoom=1.15),  # ↑ zoom -> escudo MAS GRANDE
+            (0.125, 0.92), frameon=False,                            # ↑ X -> escudo a la DERECHA; ↑ Y -> SUBE
+            xycoords="figure fraction", box_alignment=(0.5, 0.5))     # ancla CENTRO en (X,Y)
         ab.set_clip_on(False)
         fig.add_artist(ab)
 
-    # Titulo + subtitulo (centrados)
-    fig.text(0.50, 0.965, pair["title"], ha="center", va="center", color=WHITE,
-              fontsize=20, fontweight="bold")                          # ↑ Y -> titulo SUBE
-    fig.text(0.50, 0.935,
-              f"Seleccion {team}  ·  Mundial Qatar 2022  ·  "
-              f"{len(pdf_team)} jugadores  ·  vs los 511 del torneo",
-              ha="center", va="center", color=WHITE, fontsize=11)
+    # Titulo + subtitulos (centrados)
+    fig.text(0.50, 0.955, pair["title"], ha="center", va="center", color=WHITE,
+              fontsize=19, fontweight="bold")                          # ↑ Y -> titulo SUBE
+    fig.text(0.50, 0.925, "FIFA Men's World Cup 2022",
+              ha="center", va="center", color=WHITE, fontsize=14)
+    fig.text(0.50, 0.905,
+              f"Seleccion de {team} vs los 511 jugadores del torneo",
+              ha="center", va="center", color=WHITE, fontsize=12)
 
     # Logo JO (esquina superior derecha)
     if _LOGO_PATH.exists():
         limg = Image.open(_LOGO_PATH)
         ab = AnnotationBbox(
-            OffsetImage(np.asarray(limg.convert("RGBA")), zoom=0.13),  # ↑ zoom -> logo MAS GRANDE
-            (0.87, 0.945), frameon=False,                              # ↑ X -> logo MAS a la DERECHA
-            xycoords="figure fraction", box_alignment=(0.5, 0.5))
+            OffsetImage(np.asarray(limg.convert("RGBA")), zoom=0.14),  # ↑ zoom -> logo MAS GRANDE
+            (0.89, 0.92), frameon=False,                              # X -> borde DCHO del logo aqui
+            xycoords="figure fraction", box_alignment=(1.0, 0.5))      # ancla RIGHT-edge (no se corta)
         ab.set_clip_on(False)
         fig.add_artist(ab)
 
@@ -163,8 +159,8 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
         tick_formatter2=DictFormatter(left_dict))
     ax = floating_axes.FloatingSubplot(fig, 111, grid_helper=helper)
     # Posicion del diamante. ↑ width/height -> diamante MAS GRANDE.
-    # ↑ bottom (0.07) -> diamante SUBE; ↓ -> baja.
-    ax.set_position([0.08, 0.07, 0.84, 0.78], which="both")
+    # ↑ bottom -> diamante SUBE; ↓ -> baja. Top en ~0.84 (cerca del subtitulo).
+    ax.set_position([0.07, 0.12, 0.86, 0.72], which="both")
     aux = ax.get_aux_axes(transform)
     ax = fig.add_axes(ax)
     aux.patch = ax.patch
@@ -173,12 +169,12 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
     ax.axis["bottom"].line.set_color(WHITE)
     ax.axis["right"].set_visible(False)
     ax.axis["top"].set_visible(False)
-    ax.axis["left"].major_ticklabels.set(rotation=0, ha="center", fontsize=8.5)
-    ax.axis["bottom"].major_ticklabels.set(fontsize=8.5)
+    ax.axis["left"].major_ticklabels.set(rotation=0, ha="center", fontsize=10)
+    ax.axis["bottom"].major_ticklabels.set(fontsize=10)
     ax.axis["bottom"].major_ticklabels.set_pad(6)
     for side, lbl in (("left", pair["x_label"]), ("bottom", pair["y_label"])):
         ax.axis[side].set_label(lbl)
-        ax.axis[side].label.set(color=WHITE, fontweight="bold", fontsize=11)
+        ax.axis[side].label.set(color=WHITE, fontweight="bold", fontsize=12)
         ax.axis[side].LABELPAD += 9
     ax.axis["left"].label.set_rotation(0)
     ax.grid(alpha=0.18, color=WHITE)
@@ -201,28 +197,42 @@ def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
         if not face_p.exists():
             continue
         img_arr = np.asarray(Image.open(face_p).convert("RGBA"))
-        img = OffsetImage(img_arr, zoom=0.17)            # ↑ zoom -> cara MAS GRANDE
+        img = OffsetImage(img_arr, zoom=0.20)            # ↑ zoom -> cara MAS GRANDE
         ab = AnnotationBbox(img, (x, y), frameon=False, pad=0.0,
                              xycoords=aux.transData, zorder=5)
         aux.add_artist(ab)
 
-    # ---- Carteles laterales (lenguaje futbol) ----
-    fig.text(0.20, 0.62, f"Por este lado\n{pair['side_left']}",
-              ha="center", va="center", color=WHITE, fontsize=10, linespacing=1.5)
-    # ↑ X (0.20) -> cartel izq a la DERECHA; ↑ Y -> cartel SUBE
-    fig.text(0.80, 0.62, f"Por este lado\n{pair['side_right']}",
-              ha="center", va="center", color=WHITE, fontsize=10, linespacing=1.5)
-    fig.text(0.50, 0.72, pair["top"], ha="center", va="center", color=WHITE,
-              fontsize=10, fontweight="bold", style="italic")
+    # ---- Carteles direccionales en los triangulos vacios del diamante ----
+    # El diamante rotado deja huecos en vertice superior + esquinas izq/dcha;
+    # ahi van los textos para NO pisar las caras.
+    fig.text(0.50, 0.855, pair["top"], ha="center", va="center", color=WHITE,
+              fontsize=12, fontweight="bold", style="italic")               # vertice SUPERIOR
+    fig.text(0.205, 0.725, f"Por este lado\n{pair['side_left']}",
+              ha="center", va="center", color=WHITE, fontsize=12,
+              linespacing=1.5)                                              # esquina IZQUIERDA
+    fig.text(0.795, 0.725, f"Por este lado\n{pair['side_right']}",
+              ha="center", va="center", color=WHITE, fontsize=12,
+              linespacing=1.5)                                              # esquina DERECHA
 
-    # Nota al pie (esquina inferior izquierda)
-    fig.text(0.045, 0.04, "Lineas discontinuas: mediana del torneo "
-              "(percentil 50 de los 511 jug) — parten el campo en 4 cuadrantes.",
-              ha="left", va="bottom", color=WHITE, fontsize=8.5, style="italic")
+    # ---- Leyenda real al pie: linea dashed = mediana + glosa de que es cada cara ----
+    leg_y = 0.058
+    # Misma linea dashed EXACTA que las medianas del plot (lw, ls, caps, alpha):
+    # matplotlib escala el dash por lw -> on=7*2.4, off=4*2.4 (~26pt/periodo).
+    # Largo ~0.10 de figura para que salgan justo 3 dashes.
+    fig.add_artist(Line2D([0.255, 0.355], [leg_y, leg_y], color=WHITE, lw=2.4,
+                           alpha=0.9, ls=(0, (7, 4)), solid_capstyle="round",
+                           transform=fig.transFigure))
+    fig.text(0.365, leg_y, "mediana del torneo (P50, 511 jugadores)",
+              ha="left", va="center", color=WHITE, fontsize=12)
+    fig.text(0.50, leg_y - 0.030,
+              "cada cara = 1 jugador de la seleccion  ·  ejes = cambio post-shock "
+              "relativo al resto del equipo",
+              ha="center", va="center", color=WHITE, fontsize=12, style="italic")
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(save_path, dpi=200, facecolor=BG, bbox_inches="tight")
+    # bbox_inches=None (NO 'tight') para que escudo + logo JO no se corten
+    fig.savefig(save_path, dpi=200, facecolor=BG, bbox_inches=None)
     plt.close(fig)
     return save_path
 
