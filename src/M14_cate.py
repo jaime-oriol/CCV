@@ -1037,7 +1037,7 @@ def compute_all(cache: bool = True, overwrite: bool = False,
     return out_paths
 
 
-# ---- SECCION 7.5 — Smoke test (2 chains x 100 iter, 5 partidos, ~2-3 min) ----
+# ---- SECCION 7.5 — Smoke test (2 chains x 200+200 iter, 10 partidos, ~3-5 min) ----
 
 def run_smoke_test(seed: int = 0, n_matches: int = 10,
                     num_warmup: int = 200, num_samples: int = 200) -> bool:
