@@ -11,8 +11,8 @@ render con identidad visual propia.
 
 Uso:
     python -m src.viz.ppcf <match_id> <match_minute>
-    python -m src.viz.ppcf 3835 63                # ARG-MEX, min 63
-    python -m src.viz.ppcf                        # default: ARG-MEX min 63.5
+    python -m src.viz.ppcf 10517 81              # final ARG-FRA, 2-2 de Mbappe
+    python -m src.viz.ppcf                       # default: 2-2 de Mbappe (final)
 """
 from __future__ import annotations
 
