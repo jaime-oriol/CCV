@@ -90,7 +90,7 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 | M06    | nearmiss/nearmiss_table.parquet                             | 70 near miss (12 woodw + 5 offs + 42 save + 2 GLC + 9 GLT)     |
 | M07    | shocks/{shocks_table,shocks_team_members}.parquet           | 172 shocks x ~22 jug = 3,788 filas                             |
 | M08    | ataque/{per_minute,per_shock_window,model}                  | atomic VAEP + un xPass; per_minute 57,520 filas                |
-| Z03    | defensa/xpress/per_minute.parquet                           | exPress Lee 2025; AUC 0.6178 (+24% baseline)                   |
+| Z03    | defensa/xpress/per_minute.parquet                           | exPress Lee 2025; AUC 0.6174 (+24% baseline)                   |
 | Z04    | defensa/vdep_strict/per_minute.parquet                      | VDEP Toda 2022; AUC rec 0.7950 / att 0.8308                    |
 | Z05    | defensa/maejima/per_minute.parquet                          | Maejima nearest defender; 38,005 filas                         |
 | Z06    | ataque/unxpass/per_minute.parquet                           | un xPass Robberechts 2023; AUC 0.8309                          |
