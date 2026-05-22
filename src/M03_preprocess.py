@@ -2,6 +2,7 @@
 
 Funciones nucleares:
     attacking_direction(match_id)   (team_id, period) -> 'L' o 'R'
+    scan_tracking_corrected(mid)    tracking con el espejo de prorroga des-rotado
     goals_timeline(match_id)        goles validos + cum_home/cum_away
     player_minutes(match_id)        minutos jugados por jugador-partido
     enrich_events(match_id)         events enriquecidos (acceptance M03)
@@ -661,8 +662,7 @@ def enrich_events(match_id: int, cache: bool = True,
 def cache_all_enriched(overwrite: bool = False) -> dict:
     """Precomputa enrich_events de los 64 partidos y cachea a parquet.
 
-    overwrite=True propaga a enrich_events para que regenere el contenido
-    incluso si el parquet existe (antes el flag era no-op por bug interno).
+    overwrite=True propaga a enrich_events para regenerar el parquet aunque exista.
     """
     out = {}
     for mid in list_event_match_ids():
