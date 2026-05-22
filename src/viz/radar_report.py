@@ -1,7 +1,8 @@
 """radar_report - Ficha scout: radar geometrico + tabla de percentiles.
 
 La tabla muestra valor + percentil coloreado (PCT_CMAP frio->calido) por
-las 8 dimensiones del CATE, con sombreado alterno y leyenda de 5 tramos.
+las 12 dimensiones del CATE (4 canales x 3 contextos: post-GA, post-GF,
+pre-elim), con sombreado alterno y leyenda de 5 tramos.
 Cabecera con escudo de la seleccion (izq), cara del jugador (centro-izq) y
 logo JO (top derecha).
 
@@ -181,7 +182,7 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     y_line = y_context - 0.3
     ax.plot([0.5, 8.5], [y_line, y_line], color="grey", linewidth=0.5, alpha=0.6)
 
-    # ---- Filas de metricas (8 dimensiones) ----
+    # ---- Filas de metricas (12 dimensiones) ----
     y_metrics = y_context - 0.7                              # ↑ primera fila SUBE
     # 8 dims -> filas anchas; 12 dims -> filas mas juntas para que quepan
     grp = 2 if len(metrics) <= 8 else 3                      # zebra: 2 (pareja) u 3 (canal)
