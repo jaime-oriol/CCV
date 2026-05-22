@@ -1,8 +1,8 @@
 """scatter - Diamond scatters globales del PCJ (511 jugadores del torneo).
 
 Diamante rotado 45 grados (floating_axes). Cada punto = 1 jugador, coloreado
-por percentil combinado (PCT_CMAP). Top-10 con su CARA (FotMob) en vez de
-etiqueta. Lineas mediana globales -> 4 cuadrantes.
+por percentil combinado (PCT_CMAP). Top combinado + destacados por eje con su CARA
+(FotMob) en vez de etiqueta. Lineas mediana globales -> 4 cuadrantes.
 
 2 conceptos (config-driven via SCATTERS):
   1. remontador_cerrojo : Remontador x Cerrojo (los 2 perfiles de la propuesta).
@@ -61,7 +61,7 @@ SCATTERS: dict[str, dict] = {
         top="ARRIBA: los que hacen LAS DOS COSAS",
         left="Por este lado\nLOS QUE TIRAN DEL EQUIPO\ncuando toca remontar",
         right="Por este lado\nLOS QUE AGUANTAN EL RESULTADO\ncuando hay que cerrar",
-        foot=("cada punto = 1 jugador  ·  caras = top combinado  ·  ejes = "
+        foot=("cada punto = 1 jugador  ·  caras = top + destacados por eje  ·  ejes = "
               "cambio post-shock relativo al resto del equipo")),
     # Los 2 unicos ejes con estructura real: atk-GF (rango 0.87, 22 Sig) y
     # atk-Pressure (0.59). El mapa de produccion ofensiva tras el shock.
@@ -73,7 +73,7 @@ SCATTERS: dict[str, dict] = {
         top="ARRIBA: los que hacen LAS DOS COSAS",
         left="Por este lado\nNO ESPECULAN CON EL RESULTADO\nsiguen atacando tras marcar",
         right="Por este lado\nDAN UN PASO ADELANTE\ncuando el equipo roza la eliminacion",
-        foot=("cada punto = 1 jugador  ·  caras = top combinado  ·  ejes = "
+        foot=("cada punto = 1 jugador  ·  caras = top + destacados por eje  ·  ejes = "
               "valor ofensivo post-shock")),
 }
 
@@ -102,10 +102,18 @@ def diamond_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
     px = (pdf[x_metric].rank(pct=True) * 100.0).to_numpy()
     py = (pdf[y_metric].rank(pct=True) * 100.0).to_numpy()
     pdf = pdf.assign(_px=px, _py=py)
-    top = pdf[(pdf["_px"] >= 81) & (pdf["_py"] >= 81)]
-    if len(top) < 5:
-        top = pdf[(pdf["_px"] >= 75) & (pdf["_py"] >= 75)]
-    top = top.assign(_tot=top["_px"] + top["_py"]).nlargest(10, "_tot")
+    # Caras = (a) top-10 combinado: extremos en AMBOS ejes a la vez ...
+    combo = pdf[(pdf["_px"] >= 81) & (pdf["_py"] >= 81)]
+    if len(combo) < 5:
+        combo = pdf[(pdf["_px"] >= 75) & (pdf["_py"] >= 75)]
+    combo = combo.assign(_tot=combo["_px"] + combo["_py"]).nlargest(10, "_tot")
+    # ... + (b) los 2 mejores de CADA eje individual que NO esten ya en el
+    # top-10 combinado (p.ej. un atacante top en big-game pero medio en
+    # ataque-tras-marcar igual merece su cara). Max 2 por eje.
+    rest = pdf.loc[pdf.index.difference(combo.index)]
+    spec_x = rest.nlargest(2, "_px").index
+    spec_y = rest.nlargest(2, "_py").index
+    top = pdf.loc[combo.index.union(spec_x).union(spec_y)]
 
     fig = plt.figure(figsize=(10, 11.5), facecolor=BG)            # ↑ figsize -> figura MAS GRANDE
 
@@ -115,7 +123,7 @@ def diamond_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
         wimg = Image.open(_WC22_LOGO)
         ab = AnnotationBbox(
             OffsetImage(np.asarray(wimg.convert("RGBA")), zoom=0.17),  # ↑ zoom -> logo MAS GRANDE
-            (0.15, 0.9), frameon=False,                               # ↑ X -> a la DERECHA; ↑ Y -> SUBE
+            (0.15, 0.75), frameon=False,                              # ↑ X -> a la DERECHA; ↑ Y -> SUBE
             xycoords="figure fraction", box_alignment=(0.5, 0.5))
         ab.set_clip_on(False)
         fig.add_artist(ab)
@@ -131,7 +139,7 @@ def diamond_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
         limg = Image.open(_LOGO_PATH)
         ab = AnnotationBbox(
             OffsetImage(np.asarray(limg.convert("RGBA")), zoom=0.14),  # ↑ zoom -> logo MAS GRANDE
-            (0.89, 0.92), frameon=False,                               # X -> borde DCHO del logo aqui
+            (0.89, 0.77), frameon=False,                               # X -> borde DCHO del logo aqui
             xycoords="figure fraction", box_alignment=(1.0, 0.5))      # ancla RIGHT-edge (no se corta)
         ab.set_clip_on(False)
         fig.add_artist(ab)
