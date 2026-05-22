@@ -45,7 +45,7 @@ def make_all() -> None:
 
     print("[viz] Scatters globales (Remontador x Cerrojo + Killer x Big-game, 511 jug)...")
     _tbl = pl.read_parquet(_TABLE)
-    for _key in ("remontador_cerrojo", "killer_biggame"):
+    for _key in ("remontador_cerrojo", "ataque_marcar_presion"):
         scatter.diamond_scatter(_tbl, config=_key,
                                  save_path=_OUT / f"scatter_{_key}.png")
 

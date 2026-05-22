@@ -65,12 +65,12 @@ SCATTERS: dict[str, dict] = {
               "cambio post-shock relativo al resto del equipo")),
     # Los 2 unicos ejes con estructura real: atk-GF (rango 0.87, 22 Sig) y
     # atk-Pressure (0.59). El mapa de produccion ofensiva tras el shock.
-    "killer_biggame": dict(
+    "ataque_marcar_presion": dict(
         x="cate_ataque_GOAL_FOR_mean", y="cate_ataque_PRESSURE_mean",
-        title="Ataque tras marcar  vs  ataque bajo presion",
+        title="Ataque tras marcar  vs  bajo presion",
         x_label="Mas ataque tras poner a su equipo por delante",
         y_label="Mas ataque cuando crece el riesgo de eliminacion",
-        top="ARRIBA: siguen atacando con ventaja y bajo presion",
+        top="ARRIBA: los que hacen LAS DOS COSAS",
         left="Por este lado\nNO ESPECULAN CON EL RESULTADO\nsiguen atacando tras marcar",
         right="Por este lado\nDAN UN PASO ADELANTE\ncuando el equipo roza la eliminacion",
         foot=("cada punto = 1 jugador  ·  caras = top combinado  ·  ejes = "
@@ -230,7 +230,7 @@ def diamond_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
 
 if __name__ == "__main__":
     df = pl.read_parquet(_TABLE)
-    for key in ("remontador_cerrojo", "killer_biggame"):
+    for key in ("remontador_cerrojo", "ataque_marcar_presion"):
         out = f"outputs/viz/scatter_{key}.png"
         diamond_scatter(df, config=key, save_path=out)
         print(f"OK -> {out}  ({df.height} jugadores)")

@@ -68,9 +68,9 @@ _PAIRS = [
         y_label="Mas ataque cuando crece el riesgo de eliminacion",
         side_left="NO ESPECULAN CON EL RESULTADO\nsiguen atacando tras marcar",
         side_right="DAN UN PASO ADELANTE\ncuando el equipo roza la eliminacion",
-        top="ARRIBA: siguen atacando con ventaja y bajo presion",
-        title="Ataque tras marcar  vs  ataque bajo presion",
-        slug="killer_biggame"),
+        top="ARRIBA: los que hacen LAS DOS COSAS",
+        title="Ataque tras marcar  vs  bajo presion",
+        slug="ataque_marcar_presion"),
 ]
 
 
