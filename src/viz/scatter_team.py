@@ -1,13 +1,13 @@
-"""scatter_team - 2 diamond scatters por seleccion con CARAS de jugadores.
+"""scatter_team - 2 scatters Opta-style por seleccion (landscape, paper-grade).
 
-Misma estetica que scatter.py (diamante rotado 45 grados, mediana global,
-mensajes laterales) pero filtrado a 1 seleccion y ploteando la CARA del
-jugador (FotMob, PNG transparente) como marker en vez de un punto.
+Misma estetica light Opta que scatter.py (X-Y nativo, landscape 14x8, header
+PPCF-style, mediana inline, footer gris). Filtrado al equipo: jugadores del
+torneo en grey low-alpha (la "nube" del torneo) + jugadores del equipo en
+TEAM_ACCENT con su CARA. Aesthetic + identitario.
 
 2 paneles, 1 PNG cada uno:
-  1. Remontador x Cerrojo        (chasing x protecting) — marco de la propuesta
-  2. Ataque tras marcar x bajo presion  (atk-GF x atk-Pressure) — los 2 ejes
-                                 con spread real (donde el shock deja huella)
+  1. Remontador y Cerrojo               (chasing x protecting) — marco de la propuesta
+  2. Atacantes clutch                   (atk-GF x atk-Pressure) — donde el shock deja huella
 
 Uso:
     python -m src.viz.scatter_team France
@@ -21,23 +21,20 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 import matplotlib.pyplot as plt
-import mpl_toolkits.axisartist.floating_axes as floating_axes
-from matplotlib.lines import Line2D
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage
-from matplotlib.transforms import Affine2D
-from mpl_toolkits.axisartist.grid_finder import DictFormatter, FixedLocator
 from PIL import Image
 
 _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import BG, WHITE, _LOGO_PATH
+from viz.common import BG, GRID, LEGEND, TEXT, draw_header
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"
 
+# pff team_name -> iso3 slug
 _TEAM_TO_SLUG = {
     "Argentina":"arg","Brazil":"bra","Ecuador":"ecu","Uruguay":"uru","Belgium":"bel",
     "Croatia":"cro","Denmark":"den","England":"eng","France":"fra","Germany":"ger",
@@ -48,186 +45,179 @@ _TEAM_TO_SLUG = {
     "United States":"usa","Costa Rica":"crc","Australia":"aus",
 }
 
-_TICKS = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]      # 6 marcas por eje del diamante
+# Color accent primario por seleccion (bright + paper-friendly, alto contraste).
+TEAM_ACCENT: dict[str, str] = {
+    "Argentina":   "#5eb3e4",   # celeste
+    "France":      "#1d4ed8",   # azul rey
+    "Croatia":     "#ef4444",   # rojo
+    "Morocco":     "#16a34a",   # verde
+    "Brazil":      "#fbbf24",   # amarillo
+    "England":     "#dc2626",   # rojo
+    "Spain":       "#dc2626",   # rojo
+    "Portugal":    "#16a34a",   # verde
+    "Netherlands": "#f97316",   # oranje
+    "Germany":     "#000000",   # negro
+    "Belgium":     "#dc2626",   # rojo
+    "Japan":       "#1e40af",   # azul samurai
+    "Mexico":      "#16a34a",   # verde
+    "Uruguay":     "#5eb3e4",   # celeste
+    "Senegal":     "#16a34a",   # verde
+    "United States":"#1d4ed8",
+    "Switzerland": "#dc2626",
+    "Poland":      "#dc2626",
+    "Denmark":     "#dc2626",
+    "Australia":   "#16a34a",
+    "Ecuador":     "#fbbf24",
+    "Qatar":       "#7c2d12",   # granate
+    "Saudi Arabia":"#16a34a",
+    "Iran":        "#16a34a",
+    "Wales":       "#dc2626",
+    "Canada":      "#dc2626",
+    "Costa Rica":  "#dc2626",
+    "Serbia":      "#dc2626",
+    "Cameroon":    "#16a34a",
+    "Ghana":       "#dc2626",
+    "South Korea": "#dc2626",
+    "Tunisia":     "#dc2626",
+}
 
-# Configuracion de los 2 paneles. side_left/right/top = textos en cada esquina
-# del diamante; foot_ejes = glosa del pie (que miden los ejes). Mismos textos
-# que el scatter global por concepto (coherencia entre global y team).
+# Configuracion de los 2 paneles. Mismos textos que scatter global por
+# concepto -> coherencia global<->team.
 _PAIRS = [
     dict(
-        x="chasing_clutch_idx",      y="protecting_clutch_idx",
-        x_label="REMONTADOR: ataque y movimiento off-ball tras encajar",
-        y_label="CERROJO: defensa e intensidad fisica tras marcar",
-        side_left="LOS QUE TIRAN DEL EQUIPO\ncuando toca remontar",
-        side_right="LOS QUE AGUANTAN EL RESULTADO\ncuando hay que cerrar",
-        top="ARRIBA: los que hacen LAS DOS COSAS",
-        title="Remontador  vs  Cerrojo",
-        foot_ejes="ejes = cambio post-shock relativo al resto del equipo",
+        x="chasing_clutch_idx", y="protecting_clutch_idx",
+        title_concept="Remontador y Cerrojo",
+        subtitle_concept="Comparando los dos perfiles del shock emocional",
+        x_label="Índice Remontador",
+        y_label="Índice Cerrojo",
+        foot="*Cambio en el rendimiento individual tras el shock emocional, ajustado por el resto del equipo",
         slug="remontador_cerrojo"),
     dict(
         x="cate_ataque_GOAL_FOR_mean", y="cate_ataque_PRESSURE_mean",
-        x_label="Mas ataque tras poner a su equipo por delante",
-        y_label="Mas ataque cuando crece el riesgo de eliminacion",
-        side_left="NO ESPECULAN CON EL RESULTADO\nsiguen atacando tras marcar",
-        side_right="DAN UN PASO ADELANTE\ncuando el equipo roza la eliminacion",
-        top="ARRIBA: los que hacen LAS DOS COSAS",
-        title="Ataque tras marcar  vs  bajo presion",
-        foot_ejes="ejes = valor ofensivo post-shock",
+        title_concept="Atacantes clutch",
+        subtitle_concept="Comparando ataque tras marcar y ataque bajo presión",
+        x_label="Producción ofensiva tras marcar",
+        y_label="Producción ofensiva bajo presión",
+        foot="*Cambio en la producción ofensiva tras el shock emocional",
         slug="ataque_marcar_presion"),
 ]
 
+# ---- Estetica de puntos ----
+_DOT_BG_SIZE     = 22                  # nube del torneo (rest)
+_DOT_BG_COLOR    = "#d4d4d4"           # grey low-alpha
+_DOT_BG_ALPHA    = 0.45
+_DOT_TEAM_SIZE   = 110                 # puntos del equipo (team accent)
+_FACE_ZOOM       = 0.14                # caras del equipo
+_MED_LINE_COLOR  = "#888888"
+_MED_LINE_LW     = 1.0
 
-def diamond_team(df_full: pl.DataFrame, team: str, pair: dict,
-                  save_path: Path) -> Path:
-    """1 diamante con CARAS del equipo + mediana del global (511 jug WC22)."""
-    pdf_full = df_full.to_pandas()
-    pdf_team = pdf_full[pdf_full["team_name"] == team].reset_index(drop=True)
 
+def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
+                       save_path: Path) -> Path:
+    """1 scatter Opta-style con caras del equipo + fondo de torneo en grey.
+
+    El equipo se ve EN CONTEXTO del torneo: nube grey de los 511, equipo
+    coloreado en TEAM_ACCENT + cara. Mediana del torneo dashed inline.
+    """
+    accent = TEAM_ACCENT.get(team, "#ec4899")    # fallback pink bright
     x_metric, y_metric = pair["x"], pair["y"]
-    xs_full = pdf_full[x_metric].fillna(0.0)
-    ys_full = pdf_full[y_metric].fillna(0.0)
-    xmin, xmax = float(xs_full.min()), float(xs_full.max())
-    ymin, ymax = float(ys_full.min()), float(ys_full.max())
-    # Normalizacion min-max sobre el GLOBAL: los jugadores del equipo se ven
-    # en contexto del torneo, no escalados solo entre ellos.
-    left_n = (0.99 * (pdf_team[x_metric].fillna(0.0) - xmin) / (xmax - xmin)).to_numpy()
-    right_n = (0.99 * (pdf_team[y_metric].fillna(0.0) - ymin) / (ymax - ymin)).to_numpy()
-    l_med = 0.99 * (float(xs_full.median()) - xmin) / (xmax - xmin)
-    r_med = 0.99 * (float(ys_full.median()) - ymin) / (ymax - ymin)
 
-    fig = plt.figure(figsize=(10, 11.5), facecolor=BG)            # ↑ figsize -> figura MAS GRANDE
+    pdf_full = df_full.to_pandas().reset_index(drop=True)
+    xs_full = pdf_full[x_metric].fillna(0.0).to_numpy()
+    ys_full = pdf_full[y_metric].fillna(0.0).to_numpy()
+    team_mask = (pdf_full["team_name"] == team).to_numpy()
 
-    # ---- Header: escudo seleccion (izq) + titulo + subtitulos + logo JO (dcha) ----
-    # Mismo patron que PPCF/radar. bbox_inches=None al guardar para que los
-    # logos pegados al borde NO se corten.
+    x_med, y_med = float(np.median(xs_full)), float(np.median(ys_full))
+
+    # ---- Figura landscape MASTER ----
+    from viz.common import MASTER_FIGSIZE
+    fig = plt.figure(figsize=MASTER_FIGSIZE, facecolor=BG)
+
+    # Header PPCF-style: escudo del EQUIPO (izq) + title + sub + sub2 + JO dcha
     slug = _TEAM_TO_SLUG.get(team)
-    team_logo_p = _LOGOS / f"{slug}.png" if slug else None
-    if team_logo_p and team_logo_p.exists():
-        img = Image.open(team_logo_p)
-        ab = AnnotationBbox(
-            OffsetImage(np.asarray(img.convert("RGBA")), zoom=1.15),  # ↑ zoom -> escudo MAS GRANDE
-            (0.125, 0.90), frameon=False,                            # ↑ X -> escudo a la DERECHA; ↑ Y -> SUBE
-            xycoords="figure fraction", box_alignment=(0.5, 0.5))     # ancla CENTRO en (X,Y)
-        ab.set_clip_on(False)
-        fig.add_artist(ab)
+    team_logo = (_LOGOS / f"{slug}.png") if slug else None
+    title = f"{team}  ·  {pair['title_concept']}"
+    subtitle = pair["subtitle_concept"]
+    subtitle2 = f"Selección de {team}  |  contexto: 511 jugadores del Mundial Qatar 2022"
+    draw_header(fig, title=title, subtitle=subtitle, subtitle2=subtitle2,
+                escudo_path=team_logo)
 
-    # Titulo + subtitulos (centrados)
-    fig.text(0.50, 0.955, pair["title"], ha="center", va="center", color=WHITE,
-              fontsize=19, fontweight="bold")                          # ↑ Y -> titulo SUBE
-    fig.text(0.50, 0.925, "FIFA Men's World Cup 2022",
-              ha="center", va="center", color=WHITE, fontsize=14)
-    fig.text(0.50, 0.905,
-              f"Seleccion de {team} vs los 511 jugadores del torneo",
-              ha="center", va="center", color=WHITE, fontsize=12)
+    # Plot area
+    ax = fig.add_axes([0.07, 0.13, 0.88, 0.72])
+    ax.set_facecolor(BG)
 
-    # Logo JO (esquina superior derecha)
-    if _LOGO_PATH.exists():
-        limg = Image.open(_LOGO_PATH)
-        ab = AnnotationBbox(
-            OffsetImage(np.asarray(limg.convert("RGBA")), zoom=0.14),  # ↑ zoom -> logo MAS GRANDE
-            (0.89, 0.90), frameon=False,                              # X -> borde DCHO del logo aqui
-            xycoords="figure fraction", box_alignment=(1.0, 0.5))      # ancla RIGHT-edge (no se corta)
-        ab.set_clip_on(False)
-        fig.add_artist(ab)
+    # ---- Lineas mediana del torneo (dashed grey) ----
+    ax.axvline(x_med, color=_MED_LINE_COLOR, lw=_MED_LINE_LW, ls="--",
+                alpha=0.75, zorder=2)
+    ax.axhline(y_med, color=_MED_LINE_COLOR, lw=_MED_LINE_LW, ls="--",
+                alpha=0.75, zorder=2)
 
-    # ---- Marcas de eje con valor REAL (con signo) ----
-    left_dict  = {i: f"{xmin + (i / 0.99) * (xmax - xmin):+.3f}" for i in _TICKS}
-    right_dict = {i: f"{ymin + (i / 0.99) * (ymax - ymin):+.3f}" for i in _TICKS}
+    # ---- Nube del torneo (jugadores que NO son del equipo) ----
+    ax.scatter(xs_full[~team_mask], ys_full[~team_mask], s=_DOT_BG_SIZE,
+                c=_DOT_BG_COLOR, alpha=_DOT_BG_ALPHA, edgecolor="none",
+                zorder=3)
 
-    # ---- floating_axes rotado 45 deg (diamante) ----
-    transform = Affine2D().rotate_deg(45)
-    helper = floating_axes.GridHelperCurveLinear(
-        transform, (0, 1.001, 0, 1.001),
-        grid_locator1=FixedLocator(_TICKS), grid_locator2=FixedLocator(_TICKS),
-        tick_formatter1=DictFormatter(right_dict),
-        tick_formatter2=DictFormatter(left_dict))
-    ax = floating_axes.FloatingSubplot(fig, 111, grid_helper=helper)
-    # Posicion del diamante. ↑ width/height -> diamante MAS GRANDE.
-    # ↑ bottom -> diamante SUBE; ↓ -> baja. Top en ~0.84 (cerca del subtitulo).
-    ax.set_position([0.07, 0.12, 0.86, 0.72], which="both")
-    aux = ax.get_aux_axes(transform)
-    ax = fig.add_axes(ax)
-    aux.patch = ax.patch
-
-    ax.axis["left"].line.set_color(WHITE)
-    ax.axis["bottom"].line.set_color(WHITE)
-    ax.axis["right"].set_visible(False)
-    ax.axis["top"].set_visible(False)
-    ax.axis["left"].major_ticklabels.set(rotation=0, ha="center", fontsize=10)
-    ax.axis["bottom"].major_ticklabels.set(fontsize=10)
-    ax.axis["bottom"].major_ticklabels.set_pad(6)
-    for side, lbl in (("left", pair["x_label"]), ("bottom", pair["y_label"])):
-        ax.axis[side].set_label(lbl)
-        ax.axis[side].label.set(color=WHITE, fontweight="bold", fontsize=12)
-        ax.axis[side].LABELPAD += 9
-    ax.axis["left"].label.set_rotation(0)
-    ax.grid(alpha=0.18, color=WHITE)
-
-    # Lineas mediana del GLOBAL (parten el diamante en 4 cuadrantes)
-    aux.plot([r_med, r_med], [0.0, 1.001], color=WHITE, lw=2.4, alpha=0.9,
-              ls=(0, (7, 4)), zorder=6, solid_capstyle="round")
-    aux.plot([0.0, 1.001], [l_med, l_med], color=WHITE, lw=2.4, alpha=0.9,
-              ls=(0, (7, 4)), zorder=6, solid_capstyle="round")
-
-    # ---- Caras del equipo como markers ----
-    # RGBA explicito porque los PNG FotMob vienen en modo Palette (P);
-    # sin convertir, OffsetImage aplica colormap default y se ven verdes.
-    for i in range(len(pdf_team)):
-        pid = int(pdf_team["pff_player_id"].iloc[i])
-        x, y = float(right_n[i]), float(left_n[i])
-        if np.isnan(x) or np.isnan(y):
-            continue
+    # ---- Jugadores del equipo: dot accent + face ----
+    team_pdf = pdf_full[team_mask]
+    ax.scatter(team_pdf[x_metric].to_numpy(), team_pdf[y_metric].to_numpy(),
+                s=_DOT_TEAM_SIZE, c=accent, edgecolor=TEXT, lw=0.6,
+                alpha=0.95, zorder=5)
+    for _, r in team_pdf.iterrows():
+        x, y = float(r[x_metric]), float(r[y_metric])
+        pid = int(r["pff_player_id"])
         face_p = _FACES / f"{pid}.png"
         if not face_p.exists():
             continue
         img_arr = np.asarray(Image.open(face_p).convert("RGBA"))
-        img = OffsetImage(img_arr, zoom=0.20)            # ↑ zoom -> cara MAS GRANDE
-        ab = AnnotationBbox(img, (x, y), frameon=False, pad=0.0,
-                             xycoords=aux.transData, zorder=5)
-        aux.add_artist(ab)
+        ab = AnnotationBbox(OffsetImage(img_arr, zoom=_FACE_ZOOM),
+                             (x, y), frameon=False, pad=0, zorder=6)
+        ax.add_artist(ab)
 
-    # ---- Carteles direccionales en los triangulos vacios del diamante ----
-    # El diamante rotado deja huecos en vertice superior + esquinas izq/dcha;
-    # ahi van los textos para NO pisar las caras.
-    fig.text(0.50, 0.855, pair["top"], ha="center", va="center", color=WHITE,
-              fontsize=12, fontweight="bold", style="italic")               # vertice SUPERIOR
-    fig.text(0.205, 0.725, f"Por este lado\n{pair['side_left']}",
-              ha="center", va="center", color=WHITE, fontsize=12,
-              linespacing=1.5)                                              # esquina IZQUIERDA
-    fig.text(0.795, 0.725, f"Por este lado\n{pair['side_right']}",
-              ha="center", va="center", color=WHITE, fontsize=12,
-              linespacing=1.5)                                              # esquina DERECHA
+    # ---- Labels mediana INLINE (Opta-style) ----
+    xlim = ax.get_xlim(); ylim = ax.get_ylim()
+    ax.text(x_med, ylim[1], "  mediana del torneo", color=LEGEND, fontsize=9,
+            ha="left", va="top", style="italic", zorder=4,
+            bbox=dict(facecolor=BG, edgecolor="none", pad=1, alpha=0.85))
+    ax.text(xlim[1], y_med, "mediana del torneo  ", color=LEGEND, fontsize=9,
+            ha="right", va="bottom", style="italic", zorder=4,
+            bbox=dict(facecolor=BG, edgecolor="none", pad=1, alpha=0.85))
 
-    # ---- Leyenda real al pie: linea dashed = mediana + glosa de que es cada cara ----
-    leg_y = 0.058
-    # Misma linea dashed EXACTA que las medianas del plot (lw, ls, caps, alpha):
-    # matplotlib escala el dash por lw -> on=7*2.4, off=4*2.4 (~26pt/periodo).
-    # Largo ~0.10 de figura para que salgan justo 3 dashes.
-    fig.add_artist(Line2D([0.255, 0.355], [leg_y, leg_y], color=WHITE, lw=2.4,
-                           alpha=0.9, ls=(0, (7, 4)), solid_capstyle="round",
-                           transform=fig.transFigure))
-    fig.text(0.365, leg_y, "mediana del torneo (P50, 511 jugadores)",
-              ha="left", va="center", color=WHITE, fontsize=12)
-    fig.text(0.50, leg_y - 0.030,
-              f"cada cara = 1 jugador de la seleccion  ·  {pair['foot_ejes']}",
-              ha="center", va="center", color=WHITE, fontsize=12, style="italic")
+    # ---- Ejes (Opta-style) ----
+    ax.set_xlabel(pair["x_label"], fontsize=12, fontweight="bold",
+                   color=TEXT, labelpad=8)
+    ax.set_ylabel(pair["y_label"], fontsize=12, fontweight="bold",
+                   color=TEXT, labelpad=8)
+    ax.tick_params(colors=TEXT, labelsize=10, length=3, width=0.7)
+    for s in ("top", "right"):
+        ax.spines[s].set_visible(False)
+    for s in ("left", "bottom"):
+        ax.spines[s].set_color(GRID); ax.spines[s].set_linewidth(0.9)
+    ax.grid(True, alpha=0.55, color=GRID, lw=0.5, axis="both")
+    ax.set_axisbelow(True)
+
+    # ---- Footer Opta-style: gris pequeño abajo-DCHA al nivel del eje X ----
+    fig.text(0.95, 0.06, pair["foot"], color=LEGEND, fontsize=9,
+             ha="right", style="italic")
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    # bbox_inches=None (NO 'tight') para que escudo + logo JO no se corten
-    fig.savefig(save_path, dpi=200, facecolor=BG, bbox_inches=None)
+    fig.savefig(save_path, dpi=130, facecolor=BG, bbox_inches=None)
     plt.close(fig)
     return save_path
 
 
+# Alias retro-compat
+diamond_team = opta_scatter_team
+
+
 def scatter_team_all(df: pl.DataFrame, team: str, out_dir: Path) -> list[Path]:
-    """Genera los 2 diamond scatters individuales del equipo."""
+    """Genera los 2 scatters Opta-style individuales del equipo."""
     out_dir = Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
     team_slug = team.lower().replace(" ", "_")
     paths = []
     for pair in _PAIRS:
         p = out_dir / f"scatter_{team_slug}_{pair['slug']}.png"
-        diamond_team(df, team, pair, p)
+        opta_scatter_team(df, team, pair, p)
         paths.append(p)
     return paths
 

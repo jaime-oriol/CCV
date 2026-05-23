@@ -96,3 +96,6 @@ data/parquet/derived/cate/model/cate_nuts.pkl
 # estos per-match son redundantes y se regeneran solos al re-correr M10/M11.
 data/parquet/derived/offball/per_match/
 data/parquet/derived/fisico/raw_per_match/
+src/viz/_backup_dark/
+outputs/viz/_backup_dark/
+outputs/viz/mock_light_scatter.png
