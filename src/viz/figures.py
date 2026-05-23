@@ -1,10 +1,10 @@
 """figures - Figuras analiticas del PCJ (capa causal).
 
-Estilo dark journal: grid-y suave + identidad propia. Lee outputs cacheados
-de M12 (DiD event-study Sun-Abraham) y los pinta minuto a minuto.
-
-Figura principal: event-study — efecto del shock minuto a minuto en los 4
-canales (ataque, defensa, off-ball, fisico) x 2 shocks (GA / GF).
+Estilo dark journal paper-style: layout factorial 2 (perspective) × 4 (canal)
+con cabeceras de fila + columna, tipografia limpia, banda IC + linea β,
+caption metodologico al pie. NO va en el `make_all` core showcase — es
+figura de METODO/validacion causal (pre-trends planos + efecto medio
+≈0 -> heterogeneidad individual en CATE bayesiano de M14).
 
 Uso:
     python -m src.viz.figures
@@ -21,82 +21,134 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import ATT, BG, DEF, WHITE, add_logo, style_ax
+from viz.common import ATT, BG, DEF, WHITE, add_logo
 
 _DID = _SRC.parent / "data" / "parquet" / "derived" / "did"
 
-# Labels y orden de los paneles (4 canales x 2 shocks)
-_CH_LABEL = {"ataque": "Empuje ofensivo", "defensa": "Solidez defensiva",
-              "offball": "Juego sin balon", "fisico": "Intensidad fisica"}
-_CH_ORDER = ["ataque", "defensa", "offball", "fisico"]
-_SH = [("GOAL_AGAINST", "tras ENCAJAR un gol", ATT),    # color azul (perspective atacante)
-       ("GOAL_FOR",     "tras MARCAR un gol",  DEF)]    # color rojo (perspective defensor)
+# Nombres paper-quality (no jerga colloquial) y orden canonico.
+_CHANNELS = ["ataque", "defensa", "offball", "fisico"]
+_CH_LABEL = {
+    "ataque":  "Produccion ofensiva",
+    "defensa": "Acciones defensivas",
+    "offball": "Movimiento off-ball",
+    "fisico":  "Carga fisica",
+}
+# Filas = perspective del shock. Color heredado de la identidad del repo
+# (azul ATT para post-GA, rojo DEF para post-GF; consistente con scatter/radar).
+_SHOCKS = [
+    ("GOAL_AGAINST", "Tras encajar", ATT),
+    ("GOAL_FOR",     "Tras marcar",  DEF),
+]
+
+_GRID_C   = "#5a5c5b"          # gris medio: spines + lineas de referencia
+_REF_GREY = "#7a7c7b"          # gris algo mas claro: y=0
 
 
 def event_study(save_path=None):
-    """Event-study Sun-Abraham: 4 canales x 2 shocks, beta minuto a minuto."""
+    """Event-study Sun-Abraham 2021: 2 shocks × 4 canales, β minuto a minuto.
+
+    Layout 2×4 (rows = perspective, cols = canal). Row labels rotados a la
+    izquierda; col labels solo en la fila superior. X compartido; Y libre por
+    panel (las escalas difieren mucho entre canales). Paleta sobria, lineas
+    finas, IC sombreado al 18% alpha. Caption metodologico al pie.
+    """
     es = pl.read_parquet(_DID / "event_study.parquet")
 
-    # Grid 4 filas (canales) x 2 columnas (shocks). sharex porque eje X comun.
-    fig, axes = plt.subplots(4, 2, figsize=(13, 14.5), sharex=True)
-    fig.set_facecolor(BG)
+    fig, axes = plt.subplots(
+        2, 4, figsize=(14, 7), sharex=True, sharey=False, facecolor=BG,
+    )
+    fig.subplots_adjust(
+        left=0.075, right=0.985, top=0.83, bottom=0.16,
+        wspace=0.22, hspace=0.32,
+    )
 
-    for ri, ch in enumerate(_CH_ORDER):
-        for ci, (sh, sh_lbl, color) in enumerate(_SH):
+    # ---- Cabecera: titulo declarativo + subtitulo metodologico ----
+    fig.text(0.5, 0.965,
+             "Efecto causal del shock emocional sobre los 4 canales del juego",
+             ha="center", va="top", color=WHITE,
+             fontsize=15, fontweight="bold")
+    fig.text(0.5, 0.927,
+             "Event-study DiD (Sun & Abraham, 2021)  ·  ventana ±10 min "
+             "respecto al gol  ·  Mundial Qatar 2022",
+             ha="center", va="top", color=WHITE, fontsize=10, alpha=0.78)
+
+    # ---- Grid de paneles ----
+    for ri, (sh, _row_lbl, color) in enumerate(_SHOCKS):
+        for ci, ch in enumerate(_CHANNELS):
             ax = axes[ri, ci]
-            style_ax(ax, ygrid=True)
+            ax.set_facecolor(BG)
+
             d = (es.filter((pl.col("channel") == ch) & (pl.col("shock_type") == sh))
                     .sort("relative_min"))
             x = d["relative_min"].to_numpy()
             b = d["beta"].to_numpy()
             lo, hi = d["ci_lo"].to_numpy(), d["ci_hi"].to_numpy()
 
-            # Sombreado de la zona "despues del gol" (0..10 min) en color del canal
-            ax.axvspan(0, 10, color=color, alpha=0.07, zorder=0)
-            # Linea horizontal en y=0 (referencia "sin efecto")
-            ax.axhline(0, color="#8a8c8b", lw=1.0, ls=(0, (4, 3)), zorder=1)
-            # Linea vertical en x=0 (instante del gol)
-            ax.axvline(0, color=WHITE, lw=1.3, alpha=0.8, zorder=2)
-            # Banda de incertidumbre (CI) + linea del efecto puntual
-            ax.fill_between(x, lo, hi, color=color, alpha=0.22, zorder=2)
-            ax.plot(x, b, "-o", color=color, ms=4, lw=2.0, zorder=3)
+            # Sombreado tenue de la zona post-shock (0, +10 min)
+            ax.axvspan(0, 10, color=color, alpha=0.05, zorder=0)
+            # Linea de referencia y = 0
+            ax.axhline(0, color=_REF_GREY, lw=0.7, alpha=0.6, zorder=1)
+            # Instante del gol (x = 0)
+            ax.axvline(0, color=WHITE, lw=0.8, ls=(0, (3, 3)),
+                       alpha=0.6, zorder=2)
+            # Banda IC 95% + linea de coeficientes + puntos discretos
+            ax.fill_between(x, lo, hi, color=color, alpha=0.18,
+                             edgecolor="none", zorder=2)
+            ax.plot(x, b, "-", color=color, lw=1.4, alpha=0.95, zorder=3)
+            ax.plot(x, b, "o", color=color, ms=3.0, mec=BG, mew=0.6, zorder=4)
 
-            ax.set_title(f"{_CH_LABEL[ch]}   ·   {sh_lbl}",
-                          color=WHITE, fontsize=11.5, fontweight="bold", pad=9)
+            # Cabecera de columna (canal) solo en fila superior
+            if ri == 0:
+                ax.set_title(_CH_LABEL[ch], color=WHITE,
+                              fontsize=11, fontweight="bold", pad=8)
+            # Label X solo en fila inferior
+            if ri == 1:
+                ax.set_xlabel(r"$\tau$ (min)", color=WHITE,
+                              fontsize=9.5, labelpad=3)
+            # Label Y solo en primera columna
+            if ci == 0:
+                ax.set_ylabel(r"$\hat{\beta}_{\tau}$",
+                              color=WHITE, fontsize=10.5, labelpad=4)
+
             ax.set_xlim(-10.5, 10.5)
             ax.set_xticks(range(-10, 11, 5))
-            ax.tick_params(labelsize=9)
-            if ri == 3:                                  # ultimo row -> label X
-                ax.set_xlabel("minutos respecto al gol", fontsize=10)
-            if ci == 0:                                  # primer col -> label Y
-                ax.set_ylabel("cambio en el jugador", fontsize=10)
-            # Etiquetas ANTES / DESPUES solo en panel superior izquierdo (orienta)
-            if ri == 0 and ci == 0:
-                yt = ax.get_ylim()[1]
-                ax.text(-5, yt, "ANTES", ha="center", va="top", color="#9a9c9b",
-                         fontsize=9, fontweight="bold", style="italic")
-                ax.text(5, yt, "DESPUES", ha="center", va="top", color=WHITE,
-                         fontsize=9, fontweight="bold", style="italic")
+            ax.tick_params(labelsize=8, colors=WHITE,
+                            length=3, width=0.7, pad=2)
+            # Spines: solo left + bottom, finos, gris medio
+            for s in ("top", "right"):
+                ax.spines[s].set_visible(False)
+            for s in ("left", "bottom"):
+                ax.spines[s].set_color(_GRID_C)
+                ax.spines[s].set_linewidth(0.7)
 
-    # ---- Titulo principal y subtitulo (fig coords) ----
-    fig.text(0.5, 0.977, "Cambia el jugador despues de un gol?",
-              ha="center", va="top", color=WHITE, fontsize=18, fontweight="bold")
-    fig.text(0.5, 0.957,
-              "El efecto del shock emocional minuto a minuto, en los 4 canales "
-              "del juego  ·  Mundial Qatar 2022",
-              ha="center", va="top", color=WHITE, fontsize=10.5)
-    # Nota al pie (instrucciones de lectura)
-    fig.text(0.5, 0.022,
-              "Como leerlo: cada punto es cuanto cambia el jugador medio ese "
-              "minuto respecto al minuto previo al gol.  La banda es la "
-              "incertidumbre.\nSi la linea se despega del 0 en la zona "
-              "sombreada (despues del gol), el shock tuvo efecto.",
-              ha="center", va="bottom", color=WHITE, fontsize=9.5,
-              style="italic", linespacing=1.6)
+    # ---- Etiquetas de fila (perspective) rotadas a la izquierda ----
+    for ri, (_, row_lbl, _) in enumerate(_SHOCKS):
+        pos = axes[ri, 0].get_position()
+        y_center = pos.y0 + pos.height / 2.0
+        fig.text(0.012, y_center, row_lbl, ha="left", va="center",
+                  color=WHITE, fontsize=11.5, fontweight="bold", rotation=90)
 
-    # Deja huecos para titulo (arriba) y nota (abajo) — tight_layout respeta el rect
-    fig.tight_layout(rect=[0, 0.055, 1, 0.945])
-    add_logo(fig, width_frac=0.085)                      # ↑ width_frac -> logo MAS GRANDE
+    # ---- Caption metodologico al pie (paper-style) ----
+    fig.text(
+        0.5, 0.085,
+        r"Coeficientes $\hat{\beta}_{\tau}$ del event-study Sun-Abraham (J Econometrics 225, 2021); "
+        r"bin de referencia $\tau = -1$. Banda = IC 95% con errores estandar agrupados por jugador (CRV1).",
+        ha="center", va="top", color=WHITE, fontsize=8.7, alpha=0.85,
+    )
+    fig.text(
+        0.5, 0.052,
+        "Pre-trends planos sostienen la identificacion causal; efecto medio "
+        "≈ 0 implica que la respuesta al shock es individual,",
+        ha="center", va="top", color=WHITE, fontsize=8.7, alpha=0.85,
+    )
+    fig.text(
+        0.5, 0.028,
+        "no poblacional — la heterogeneidad se captura en el CATE bayesiano de M14.",
+        ha="center", va="top", color=WHITE, fontsize=8.7, alpha=0.85,
+    )
+
+    # Logo JO pequeno esquina inferior derecha
+    add_logo(fig, width_frac=0.055, margin=0.010, corner="br")
 
     if save_path:
         save_path = Path(save_path)

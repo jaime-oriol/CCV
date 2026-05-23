@@ -1,9 +1,12 @@
 """Runner unico de la capa viz. Renderiza las figuras core a outputs/viz/.
 
 Uso:
-    python -m src.viz                        # PPCF + scatter + event-study + report
+    python -m src.viz                        # PPCF + 2 scatters globales + radar report
     python -m src.viz radar "Messi"          # solo el radar geometrico
     python -m src.viz report "Messi"         # radar_report (radar + tabla)
+
+El event-study (figura de metodo / validacion causal) se renderiza aparte:
+    python -m src.viz.figures
 """
 from __future__ import annotations
 
@@ -16,7 +19,7 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz import radar_report, figures, ppcf, radar, scatter
+from viz import radar_report, ppcf, radar, scatter
 
 _OUT = _SRC.parent / "outputs" / "viz"
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
@@ -37,7 +40,11 @@ def _render_radar(df: pl.DataFrame, query: str) -> Path:
 
 
 def make_all() -> None:
-    """Renderiza las 4 figuras core para la portada del repo / TFM."""
+    """Renderiza las 3 figuras core de portada (PPCF + 2 scatters + radar report).
+
+    El event-study (figura de validacion causal / metodos) NO entra aqui:
+    se genera aparte via `python -m src.viz.figures`.
+    """
     print("[viz] PPCF — 2-2 de Mbappe (Final ARG-FRA, min 81, instante de la volea)...")
     # frame 164933 = instante EXACTO del remate (game_event OTB de Mbappe, sync via
     # start_frame del evento del disparo; P2 regulacion = tracking limpio, sin espejo).
@@ -48,9 +55,6 @@ def make_all() -> None:
     for _key in ("remontador_cerrojo", "ataque_marcar_presion"):
         scatter.diamond_scatter(_tbl, config=_key,
                                  save_path=_OUT / f"scatter_{_key}.png")
-
-    print("[viz] Event-study causal (M12)...")
-    figures.event_study(save_path=_OUT / "event_study.png")
 
     print("[viz] Radar report — Messi (portada)...")
     df = pl.read_parquet(_TABLE)
