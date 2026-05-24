@@ -31,7 +31,7 @@ if str(_SRC) not in sys.path:
 from viz.common import (BG, GRID, LEGEND, MASTER_FIGSIZE, N_PLAYERS_WC22, TEXT,
                          TOURNAMENT_ES, draw_header, team_es)
 
-_TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"                # tabla scout final (M15)
+_TABLE = _SRC.parent / "outputs" / "xcv_table.parquet"                # tabla scout final (M15)
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"                 # caras jugadores (FotMob)
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"                 # escudos selecciones
 
@@ -208,7 +208,7 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
     ax.set_axisbelow(True)                                            # grid detras de los puntos
 
     # ---- Footer Opta-style: nota metodologica gris abajo-DCHA ----
-    fig.text(0.925, 0.06, pair["foot"], color=LEGEND, fontsize=12,
+    fig.text(0.925, 0.03, pair["foot"], color=LEGEND, fontsize=12,
              ha="right", style="italic")
 
     save_path = Path(save_path)

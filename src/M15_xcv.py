@@ -1,9 +1,9 @@
-"""M15_pcj - Perfil Clutch del Jugador (ensamblaje scout-facing final).
+"""M15_xcv - Perfil Clutch del Jugador (ensamblaje scout-facing final).
 
 Combina outputs de M14 (CATE jerarquico bayesiano con eta_ga, eta_gf,
-eta_pressure) + M04/M06/M08-M13 + metadata para producir outputs/pcj_table.parquet.
+eta_pressure) + M04/M06/M08-M13 + metadata para producir outputs/xcv_table.parquet.
 
-3 dimensiones del PCJ:
+3 dimensiones del xCV:
     Remontador (chasing)     eta_ga[atk] + eta_ga[off] post-GA
                              "el que sube cuando hay que remontar"
     Cerrojo (protecting)     eta_gf[def] + eta_gf[phys] post-GF
@@ -28,14 +28,14 @@ per-canal (8 cells: solo ataque_GF tiene senal real con N=172 shocks WC22).
 Tier_certain = Elite/Top SOLO si IC80 excluye 0 (robust al ruido).
 
 Outputs:
-    outputs/pcj_table.parquet                                 1 fila/jugador (~299 cols)
-    outputs/pcj_aux/top10_{chasing,protecting,pressure}_per_position.parquet
-    outputs/pcj_aux/top10_{chasing,protecting,pressure}_per_bucket.parquet
-    outputs/pcj_aux/dual_clutch_top.parquet
-    outputs/pcj_aux/by_team.parquet
+    outputs/xcv_table.parquet                                 1 fila/jugador (~299 cols)
+    outputs/xcv_aux/top10_{chasing,protecting,pressure}_per_position.parquet
+    outputs/xcv_aux/top10_{chasing,protecting,pressure}_per_bucket.parquet
+    outputs/xcv_aux/dual_clutch_top.parquet
+    outputs/xcv_aux/by_team.parquet
 
 Uso:
-    python M15_pcj.py [overwrite]
+    python M15_xcv.py [overwrite]
 """
 from __future__ import annotations
 import sys
@@ -58,7 +58,7 @@ _ATAQUE_PM   = _REPO / "data" / "parquet" / "derived" / "ataque" / "per_minute.p
 _DEFENSA_PM  = _REPO / "data" / "parquet" / "derived" / "defensa" / "per_minute.parquet"
 _PLAYERS_CSV = _REPO / "data_mundial" / "players.csv"
 _OUT_DIR     = _REPO / "outputs"
-_AUX_DIR     = _OUT_DIR / "pcj_aux"
+_AUX_DIR     = _OUT_DIR / "xcv_aux"
 
 MIN_SHOCKS = 2                # minimo viable: hay equipos (Tunisia) con max 2 shocks/jug
 MIN_MINUTES_FOR_PER90 = 90    # estabilidad ratios per-90 fisicas (1 partido)
@@ -95,11 +95,11 @@ POS_BUCKET_MAP: dict[str, str] = {
 }
 
 
-# ---- Schema contract estable de la tabla PCJ ----
-# Campos requeridos en pcj_table.parquet. Si falta alguno, M15 falla con
+# ---- Schema contract estable de la tabla xCV ----
+# Campos requeridos en xcv_table.parquet. Si falta alguno, M15 falla con
 # mensaje claro antes de persistir — protege a downstream consumers
 # (notebooks scout, exports, etc.) de schemas rotos.
-PCJ_REQUIRED_COLS: dict[str, type] = {
+XCV_REQUIRED_COLS: dict[str, type] = {
     # Identidad (6)
     "pff_player_id": pl.Int64, "player_name": pl.String,
     "team_name": pl.String, "position_group": pl.String,
@@ -122,9 +122,9 @@ PCJ_REQUIRED_COLS: dict[str, type] = {
     # Posterior probs (3)
     "p_chasing_positive": pl.Float64, "p_protecting_positive": pl.Float64,
     "p_dual_positive": pl.Float64,
-    # PCJ 4-vec summary (4)
-    "pcj_atk": pl.Float64, "pcj_def": pl.Float64,
-    "pcj_off": pl.Float64, "pcj_phys": pl.Float64,
+    # xCV 4-vec summary (4)
+    "xcv_atk": pl.Float64, "xcv_def": pl.Float64,
+    "xcv_off": pl.Float64, "xcv_phys": pl.Float64,
     # Rankings (6) global + within-position (16) + within-bucket (4)
     "rank_chasing_global": pl.UInt32, "rank_protecting_global": pl.UInt32,
     "rank_chasing_in_position": pl.UInt32,
@@ -157,17 +157,17 @@ PCJ_REQUIRED_COLS: dict[str, type] = {
 }
 
 
-def validate_pcj_schema(df: pl.DataFrame) -> None:
+def validate_xcv_schema(df: pl.DataFrame) -> None:
     """Falla con mensaje claro si faltan cols requeridas o tipos no coinciden.
 
-    Garantia de estabilidad del contrato pcj_table.parquet. Llamada
+    Garantia de estabilidad del contrato xcv_table.parquet. Llamada
     obligatoria antes de write_parquet en main().
     """
-    missing = [c for c in PCJ_REQUIRED_COLS if c not in df.columns]
+    missing = [c for c in XCV_REQUIRED_COLS if c not in df.columns]
     if missing:
-        raise ValueError(f"PCJ schema FALTAN cols: {missing}")
+        raise ValueError(f"xCV schema FALTAN cols: {missing}")
     bad_types = []
-    for c, expected in PCJ_REQUIRED_COLS.items():
+    for c, expected in XCV_REQUIRED_COLS.items():
         actual = df[c].dtype
         # Permitimos UInt32/Int64 intercambiables y Float32/Float64 intercambiables
         if expected in (pl.UInt32, pl.Int64) and actual in (pl.UInt32, pl.Int64,
@@ -180,7 +180,7 @@ def validate_pcj_schema(df: pl.DataFrame) -> None:
         if actual != expected:
             bad_types.append(f"{c}: expected {expected} got {actual}")
     if bad_types:
-        raise TypeError(f"PCJ schema TYPES wrong: {bad_types}")
+        raise TypeError(f"xCV schema TYPES wrong: {bad_types}")
 
 CHANNELS = ["ataque", "defensa", "offball", "fisico"]
 SHOCK_TYPES = ["GOAL_AGAINST", "GOAL_FOR"]   # GA=0, GF=1 (M14 sort order)
@@ -375,7 +375,7 @@ def _load_physical_per90() -> pl.DataFrame:
     """Metricas fisicas Bradley 2024 per-90 desde tracking PFF 25Hz.
 
     Agrega M11 raw_per_minute por jugador y devuelve totals + peak speed.
-    La normalizacion per-90 se hace en build_pcj_table tras join con minutes.
+    La normalizacion per-90 se hace en build_xcv_table tras join con minutes.
     """
     raw = pl.read_parquet(_FISICO_PM.parent / "raw_per_minute.parquet")
     return (raw.group_by("pff_player_id").agg([
@@ -390,8 +390,8 @@ def _load_physical_per90() -> pl.DataFrame:
 
 def _load_baseline_channels() -> pl.DataFrame:
     """Baseline absoluto per jugador outside shock windows (M10 obso, M11 score_phys,
-    M08 score_atk, M09 score_def). Permite distinguir 'PCJ_off bajo porque baseline
-    elite ya' vs 'PCJ_off bajo porque mediocre'.
+    M08 score_atk, M09 score_def). Permite distinguir 'xcv_off bajo porque baseline
+    elite ya' vs 'xcv_off bajo porque mediocre'.
     """
     rows = []
     for ch, path in PER_MIN_PATHS.items():
@@ -533,25 +533,25 @@ def _build_cate_wide(posterior: pl.DataFrame) -> pl.DataFrame:
     return long.pivot("key", index="pff_player_id", values="val")
 
 
-# ---- Vector PCJ summary 4-canal directional ----
+# ---- Vector xCV summary 4-canal directional ----
 
-def _build_pcj_summary_vector(cate_wide: pl.DataFrame) -> pl.DataFrame:
+def _build_xcv_summary_vector(cate_wide: pl.DataFrame) -> pl.DataFrame:
     """4-vector directional: cada canal usa shock_type de máxima leverage.
 
-    pcj_atk  = cate_ataque_GOAL_AGAINST_mean  (chasing)
-    pcj_def  = cate_defensa_GOAL_FOR_mean    (protecting)
-    pcj_off  = cate_offball_GOAL_AGAINST_mean (chasing)
-    pcj_phys = cate_fisico con max-magnitude signed (GA o GF, el más reactivo)
+    xcv_atk  = cate_ataque_GOAL_AGAINST_mean  (chasing)
+    xcv_def  = cate_defensa_GOAL_FOR_mean    (protecting)
+    xcv_off  = cate_offball_GOAL_AGAINST_mean (chasing)
+    xcv_phys = cate_fisico con max-magnitude signed (GA o GF, el más reactivo)
     """
     return cate_wide.with_columns([
-        pl.col("cate_ataque_GOAL_AGAINST_mean").alias("pcj_atk"),
-        pl.col("cate_defensa_GOAL_FOR_mean").alias("pcj_def"),
-        pl.col("cate_offball_GOAL_AGAINST_mean").alias("pcj_off"),
+        pl.col("cate_ataque_GOAL_AGAINST_mean").alias("xcv_atk"),
+        pl.col("cate_defensa_GOAL_FOR_mean").alias("xcv_def"),
+        pl.col("cate_offball_GOAL_AGAINST_mean").alias("xcv_off"),
         pl.when(pl.col("cate_fisico_GOAL_AGAINST_mean").abs() >=
                 pl.col("cate_fisico_GOAL_FOR_mean").abs())
           .then(pl.col("cate_fisico_GOAL_AGAINST_mean"))
           .otherwise(pl.col("cate_fisico_GOAL_FOR_mean"))
-          .alias("pcj_phys"),
+          .alias("xcv_phys"),
     ])
 
 
@@ -740,7 +740,7 @@ def _add_rankings(df: pl.DataFrame) -> pl.DataFrame:
 
 # ---- Build maestro ----
 
-def build_pcj_table() -> pl.DataFrame:
+def build_xcv_table() -> pl.DataFrame:
     print("[M15] Cargando M14 outputs (parquets, sin pkl)...")
     m14 = _load_m14()
     posterior = m14["posterior"]
@@ -768,8 +768,8 @@ def build_pcj_table() -> pl.DataFrame:
     cate_wide = _build_cate_wide(posterior)
     print(f"  cate_wide: {cate_wide.height} jugadores, {cate_wide.width} cols")
 
-    print("[M15] Vector PCJ summary 4-canal directional...")
-    cate_wide = _build_pcj_summary_vector(cate_wide)
+    print("[M15] Vector xCV summary 4-canal directional...")
+    cate_wide = _build_xcv_summary_vector(cate_wide)
 
     print("[M15] Acute window CATE +-5 min per player (M12B window_sensitivity)...")
     acute = _compute_acute_window_per_player(window=ACUTE_WINDOW)
@@ -906,7 +906,7 @@ def build_pcj_table() -> pl.DataFrame:
              "protecting_clutch_lo80", "protecting_clutch_hi80",
              "p_chasing_positive", "p_protecting_positive", "p_dual_positive",
              "intra_corr_chasing_atk_off", "intra_corr_protecting_def_phys",
-             "pcj_atk", "pcj_def", "pcj_off", "pcj_phys",
+             "xcv_atk", "xcv_def", "xcv_off", "xcv_phys",
              "rank_chasing_global", "rank_protecting_global",
              "rank_chasing_in_position", "rank_protecting_in_position",
              "tier_chasing_global", "tier_protecting_global",
@@ -953,18 +953,18 @@ def build_pcj_table() -> pl.DataFrame:
     return df
 
 
-def build_aux_tables(pcj: pl.DataFrame) -> dict:
+def build_aux_tables(xcv: pl.DataFrame) -> dict:
     """Tablas auxiliares scout-friendly."""
     aux = {}
     # Top10 chasing per position
-    aux["top10_chasing_per_position"] = (pcj.sort("chasing_clutch_idx", descending=True)
+    aux["top10_chasing_per_position"] = (xcv.sort("chasing_clutch_idx", descending=True)
         .group_by("position_group", maintain_order=True).head(10)
         .select(["position_group", "rank_chasing_in_position",
                  "player_name", "team_name", "chasing_clutch_idx",
                  "chasing_clutch_lo80", "chasing_clutch_hi80",
                  "p_chasing_positive", "tier_chasing_in_position",
                  "sig_chasing", "minutes_played"]))
-    aux["top10_protecting_per_position"] = (pcj.sort("protecting_clutch_idx", descending=True)
+    aux["top10_protecting_per_position"] = (xcv.sort("protecting_clutch_idx", descending=True)
         .group_by("position_group", maintain_order=True).head(10)
         .select(["position_group", "rank_protecting_in_position",
                  "player_name", "team_name", "protecting_clutch_idx",
@@ -973,7 +973,7 @@ def build_aux_tables(pcj: pl.DataFrame) -> dict:
                  "sig_protecting", "minutes_played"]))
     # Top10 por bucket (4 grupos: GK/DEF/MED/ATA) — ranking scout-friendly
     # con sample size suficiente. Excluye GK del scout principal de outfield.
-    outfield = pcj.filter(pl.col("position_bucket") != "GK")
+    outfield = xcv.filter(pl.col("position_bucket") != "GK")
     aux["top10_chasing_per_bucket"] = (outfield.sort("chasing_clutch_idx", descending=True)
         .group_by("position_bucket", maintain_order=True).head(10)
         .select(["position_bucket", "position_group", "rank_chasing_in_bucket",
@@ -989,7 +989,7 @@ def build_aux_tables(pcj: pl.DataFrame) -> dict:
                  "p_protecting_positive", "tier_protecting_in_bucket",
                  "sig_protecting", "minutes_played"]))
     # Dual clutch top: (chasing + protecting), filtered to both significant
-    dual = (pcj.with_columns(
+    dual = (xcv.with_columns(
                 (pl.col("chasing_clutch_idx") + pl.col("protecting_clutch_idx"))
                 .alias("dual_score"))
               .sort("dual_score", descending=True)
@@ -1000,8 +1000,8 @@ def build_aux_tables(pcj: pl.DataFrame) -> dict:
                        "p_dual_positive", "minutes_played"]))
     aux["dual_clutch_top"] = dual
     # Top10 pressure response per position (eta_pressure de M14 unificado)
-    if "pressure_response_idx" in pcj.columns:
-        aux["top10_pressure_per_position"] = (pcj
+    if "pressure_response_idx" in xcv.columns:
+        aux["top10_pressure_per_position"] = (xcv
             .filter(pl.col("pressure_response_idx").is_not_null())
             .sort("pressure_response_idx", descending=True)
             .group_by("position_group", maintain_order=True).head(10)
@@ -1020,7 +1020,7 @@ def build_aux_tables(pcj: pl.DataFrame) -> dict:
                      "p_pressure_clutch_positive", "tier_pressure_in_bucket",
                      "sig_pressure", "minutes_played"]))
     # Por equipo: agg de minutos + indices
-    by_team = (pcj.group_by("team_name").agg([
+    by_team = (xcv.group_by("team_name").agg([
         pl.len().alias("n_players"),
         pl.col("chasing_clutch_idx").mean().alias("team_chasing_mean"),
         pl.col("protecting_clutch_idx").mean().alias("team_protecting_mean"),
@@ -1032,37 +1032,37 @@ def build_aux_tables(pcj: pl.DataFrame) -> dict:
 
 
 def main():
-    pcj = build_pcj_table()
-    validate_pcj_schema(pcj)             # falla si schema contract roto
+    xcv = build_xcv_table()
+    validate_xcv_schema(xcv)             # falla si schema contract roto
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
     _AUX_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = _OUT_DIR / "pcj_table.parquet"
-    pcj.write_parquet(out_path)
-    print(f"\n[M15] Saved {out_path} ({pcj.height} jugadores, {pcj.width} cols)")
+    out_path = _OUT_DIR / "xcv_table.parquet"
+    xcv.write_parquet(out_path)
+    print(f"\n[M15] Saved {out_path} ({xcv.height} jugadores, {xcv.width} cols)")
 
-    aux = build_aux_tables(pcj)
+    aux = build_aux_tables(xcv)
     for name, df in aux.items():
         path = _AUX_DIR / f"{name}.parquet"
         df.write_parquet(path)
         print(f"  + aux: {name}.parquet ({df.height} rows)")
 
     # Resumen sanity
-    print(f"\n[PCJ Table summary]")
-    n_low = int(pcj["low_sample"].sum())
-    print(f"Jugadores n_shocks>={MIN_SHOCKS}: {pcj.height} "
+    print(f"\n[xCV Table summary]")
+    n_low = int(xcv["low_sample"].sum())
+    print(f"Jugadores n_shocks>={MIN_SHOCKS}: {xcv.height} "
            f"({n_low} con low_sample flag)")
-    print(f"Posiciones cubiertas: {pcj['position_group'].n_unique()}")
-    print(f"Equipos cubiertos: {pcj['team_name'].n_unique()}")
+    print(f"Posiciones cubiertas: {xcv['position_group'].n_unique()}")
+    print(f"Equipos cubiertos: {xcv['team_name'].n_unique()}")
     print(f"\nDistribucion sig_chasing:")
-    print(pcj.group_by("sig_chasing").len().sort("len", descending=True))
+    print(xcv.group_by("sig_chasing").len().sort("len", descending=True))
     print(f"\nDistribucion sig_protecting:")
-    print(pcj.group_by("sig_protecting").len().sort("len", descending=True))
+    print(xcv.group_by("sig_protecting").len().sort("len", descending=True))
     print(f"\nTop 10 Remontador globales:")
-    print(pcj.sort("rank_chasing_global").head(10).select(
+    print(xcv.sort("rank_chasing_global").head(10).select(
         ["rank_chasing_global", "player_name", "team_name", "position_group",
          "chasing_clutch_idx", "p_chasing_positive", "sig_chasing"]))
     print(f"\nTop 10 Cerrojo globales:")
-    print(pcj.sort("rank_protecting_global").head(10).select(
+    print(xcv.sort("rank_protecting_global").head(10).select(
         ["rank_protecting_global", "player_name", "team_name", "position_group",
          "protecting_clutch_idx", "p_protecting_positive", "sig_protecting"]))
 

@@ -1,4 +1,4 @@
-"""scatter - Scatters globales del PCJ estilo Opta (landscape, paper-grade).
+"""scatter - Scatters globales del xCV estilo Opta (landscape, paper-grade).
 
 Scatter X-Y nativo (NO rotado). Layout landscape 16x9 que casa con ancho de
 doc. Header PPCF-style (escudo WC22 IZQ | titulo+sub LEFT | JO DCHA). Todos
@@ -35,7 +35,7 @@ if str(_SRC) not in sys.path:
 from viz.common import (BG, GRID, LEGEND, MASTER_FIGSIZE, N_PLAYERS_WC22, PCT_CMAP,
                          TEXT, TOURNAMENT_ES, draw_header)
 
-_TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"                # tabla scout final (M15)
+_TABLE = _SRC.parent / "outputs" / "xcv_table.parquet"                # tabla scout final (M15)
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"                 # escudos selecciones
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"                 # caras jugadores (FotMob)
 _WC22_LOGO = _LOGOS / "wc22.png"                                       # escudo del torneo (header del scatter global)
@@ -174,7 +174,7 @@ def opta_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
     ax.set_axisbelow(True)                                            # grid detras de los puntos
 
     # ---- Footer Opta-style: nota metodologica gris abajo-DCHA ----
-    fig.text(0.925, 0.06, cfg["foot"], color=LEGEND, fontsize=12,
+    fig.text(0.925, 0.03, cfg["foot"], color=LEGEND, fontsize=12,
              ha="right", style="italic")
 
     if save_path:

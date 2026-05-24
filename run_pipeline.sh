@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run_pipeline.sh - Pipeline E2E del PCJ (M01-M15 + Z01-Z06).
+# run_pipeline.sh - Pipeline E2E del xCV (M01-M15 + Z01-Z06).
 #
 # Reproduce el pipeline completo extremo a extremo. Idempotente: cada modulo
 # cachea su salida en data/parquet/derived/; si la cache existe, la etapa la
@@ -68,7 +68,7 @@ if [[ "${REGEN_MIRROR:-0}" == "1" ]]; then
            "$DERIVED"/offball/per_shock_window.parquet          # M10 (conserva xg_grid.npy)
     rm -rf "$DERIVED"/did "$DERIVED"/did_validation \
            "$DERIVED"/aipw "$DERIVED"/cate                      # M12, M12B, M13, M14
-    rm -f  outputs/pcj_table.parquet outputs/pcj_aux/*.parquet  # M15
+    rm -f  outputs/xcv_table.parquet outputs/xcv_aux/*.parquet  # M15
     echo "[regen-mirror] upstream (M01-M08, Z04, Z05, M11) intacto (cache-hit)"
 fi
 
@@ -332,9 +332,9 @@ else
 fi
 
 # ------------------------------------------------------------------------
-# 12. M15 PCJ ensamblaje final
+# 12. M15 xCV ensamblaje final
 # ------------------------------------------------------------------------
-stage "15_pcj" "$PYTHON" -m src.M15_pcj
+stage "15_xcv" "$PYTHON" -m src.M15_xcv
 
 # ------------------------------------------------------------------------
 # Smoke final: tamano de outputs
@@ -343,8 +343,8 @@ echo ""
 echo "=== PIPELINE COMPLETO === $(date '+%H:%M:%S')"
 echo ""
 echo "Outputs:"
-ls -lh outputs/pcj_table.parquet 2>/dev/null || echo "  (sin pcj_table.parquet)"
-ls -lh outputs/pcj_aux/ 2>/dev/null || echo "  (sin pcj_aux/)"
+ls -lh outputs/xcv_table.parquet 2>/dev/null || echo "  (sin xcv_table.parquet)"
+ls -lh outputs/xcv_aux/ 2>/dev/null || echo "  (sin xcv_aux/)"
 echo ""
 echo "Logs:"
 ls -lh "$LOGS_DIR"/

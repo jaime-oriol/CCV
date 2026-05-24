@@ -417,8 +417,8 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
         ax_b3.plot(x_node, y_node, "o", ms=25, color=color, markeredgecolor=WHITE,
                     markeredgewidth=1.3, alpha=0.93, transform=ax_b3.transAxes,
                     clip_on=False, zorder=5)
-        ax_b3.text(x_txt, y_node, name, ha="left", va="center", fontsize=14,
-                    color=WHITE, fontweight="bold", transform=ax_b3.transAxes)
+        ax_b3.text(x_txt, y_node, team_es(name), ha="left", va="center", fontsize=14,
+                    color=LEGEND, fontweight="bold", transform=ax_b3.transAxes)
     # ---- Balon Telstar (dcha) ----
     # Mismo patron que en el campo, pero usando Ellipse (no Circle) pa compensar
     # que ax_b3 es no-cuadrado (5.6" wide x 1.3" tall → aspect ~4.31).

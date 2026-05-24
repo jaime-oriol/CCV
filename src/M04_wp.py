@@ -782,7 +782,7 @@ def build_wc22_groups_calib_matrix() -> pl.DataFrame:
     """Matrix de calibracion: 48 partidos fase grupos WC22 x 90 bins.
 
     Los 48 partidos de grupos NO son sagrados (solo los 16 KO lo son para
-    el test final del PCJ). Los usamos para recalibrar T via temperature
+    el test final del xCV). Los usamos para recalibrar T via temperature
     scaling. match_id de KO en PFF son los 10502-10517 (16 consecutivos);
     el resto son fase de grupos.
     """

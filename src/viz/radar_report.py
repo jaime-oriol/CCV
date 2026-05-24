@@ -29,10 +29,10 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import ATT, BG, DEF, LEGEND, PCT_CMAP, WHITE, _LOGO_PATH, team_es
-from viz.radar import PCJ_METRICS_12, PCJ_TITLES_12, TEAM_COLORS, _find, player_radar
+from viz.common import ATT, BG, DEF, LEGEND, PCT_CMAP, TOURNAMENT_ES, WHITE, _LOGO_PATH, team_es
+from viz.radar import XCV_METRICS_12, XCV_TITLES_12, TEAM_COLORS, _find, player_radar
 
-_TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"                # tabla scout final (M15)
+_TABLE = _SRC.parent / "outputs" / "xcv_table.parquet"                # tabla scout final (M15)
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"                 # caras jugadores (FotMob)
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"                 # escudos selecciones
 
@@ -124,7 +124,7 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     # ---- LOGO JO en FIG COORDS (0..1 X, 0..1 Y) — esquina sup-dcha ----
     figW, figH = fig.get_size_inches()
     logo_w = 0.23                                                     # ancho logo en fraccion fig — ↑ MAS GRANDE
-    right_edge = 0.755                                                # borde dcho del logo (fraccion fig) — ↑ mas a la DCHA
+    right_edge = 0.775                                                # borde dcho del logo (fraccion fig) — ↑ mas a la DCHA
     top_edge = 0.265                                                  # bottom-edge tras restar el alto — ↑ logo MAS ABAJO
     if _LOGO_PATH.exists():
         try:
@@ -163,10 +163,10 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
 
     # 3) Nombre + contexto (equipo · posicion) a la dcha de la cara
     name1 = _short(p1.get("player_name", str(player_id)))
-    ax.text(text1_x, y_start, name1, fontweight="bold", fontsize=14,
+    ax.text(text1_x, y_start, name1, fontweight="bold", fontsize=15,
              color=_NAME_COLOR, ha="left", va="center")
     ax.text(text1_x, y_start - 0.5,
-             f"{team_es(p1.get('team_name', ''))}  ·  {p1.get('position_group', '')}",
+             f"{team_es(p1.get('team_name', ''))}  ·  {p1.get('position_group', '')}  |  {TOURNAMENT_ES}",
              fontsize=12, color=WHITE, alpha=0.9, ha="left")
 
     # ---- Separador horizontal bajo el header ----
@@ -269,7 +269,7 @@ def player_radar_report(df: pl.DataFrame, player_id: int, save_path=None) -> Pat
     # la identidad (nombre + escudo + JO) vive en la tabla.
     team = str(df.filter(pl.col("pff_player_id") == player_id)["team_name"][0])
     team_colors = TEAM_COLORS.get(team, (ATT, DEF))
-    player_radar(df, player_id, PCJ_METRICS_12, PCJ_TITLES_12, colors=team_colors,
+    player_radar(df, player_id, XCV_METRICS_12, XCV_TITLES_12, colors=team_colors,
                   title="", subtitle="", logo=False, reorder=False, save_path=radar_p)
     create_stats_table(df, player_id, save_path=table_p)
 

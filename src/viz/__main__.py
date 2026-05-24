@@ -29,7 +29,7 @@ from viz import ppcf, radar, radar_report, scatter, scatter_team
 from viz.common import TOURNAMENT_ES, team_es
 
 _OUT = _SRC.parent / "outputs" / "viz"
-_TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
+_TABLE = _SRC.parent / "outputs" / "xcv_table.parquet"
 
 # ----------------------------------------------------------------------------
 # Players de la baraja completa (cara + escudo cacheados en outputs/assets/)

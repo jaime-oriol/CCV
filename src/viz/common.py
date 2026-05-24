@@ -158,7 +158,7 @@ PITCH_WIDTH  = 68.0                                                 # metros —
 # ----------------------------------------------------------------------------
 
 TOURNAMENT_ES   = "Mundial Qatar 2022"                              # nombre del torneo (subtitulos)
-N_PLAYERS_WC22  = 511                                                # numero jugadores filtrados en pcj_table.parquet
+N_PLAYERS_WC22  = 511                                                # numero jugadores filtrados en xcv_table.parquet
 
 # Mapeo nombres PFF (ingles) -> español. Pa traducir los team_name del parquet.
 TEAM_NAME_ES: dict[str, str] = {
@@ -387,9 +387,9 @@ def draw_header(fig: plt.Figure, *, title: str,
     # ---- Auto-fontsize: el alto rendered del texto ≈ fontsize_pt * _TEXT_FILL_FACTOR
     # → fontsize_pt = alto_inches * 72 / _TEXT_FILL_FACTOR
     if title_size is None:
-        title_size = (title_share * text_h_frac * band_h_inches) * 72.0 / _TEXT_FILL_FACTOR
+        title_size = (title_share * text_h_frac * band_h_inches) * 72.0 / _TEXT_FILL_FACTOR + 1
     if sub_size is None:
-        sub_size = (sub_share * text_h_frac * band_h_inches) * 72.0 / _TEXT_FILL_FACTOR
+        sub_size = (sub_share * text_h_frac * band_h_inches) * 72.0 / _TEXT_FILL_FACTOR + 1
 
     # ---- Zoom de los logos pa que midan logo_h_frac del band ----
     # Formula OffsetImage: displayed_inches = image_px * zoom / fig.dpi

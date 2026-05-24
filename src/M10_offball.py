@@ -1,6 +1,6 @@
 """M10_offball - Canal Inteligencia Espacial Off-ball via OBSO (Spearman 2018).
 
-Canal 3/4 del PCJ. OBSO 3-factor = PPCF * T * S sobre tracking 25 Hz.
+Canal 3/4 del xCV. OBSO 3-factor = PPCF * T * S sobre tracking 25 Hz.
 PPCF y contrafactual C-OBSO completos; T(r) se aproxima con kernel gaussiano
 (simplificacion fisica documentada).
 

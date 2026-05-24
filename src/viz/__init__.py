@@ -1,4 +1,4 @@
-"""src.viz - Capa de visualizacion del PCJ.
+"""src.viz - Capa de visualizacion del xCV.
 
 Identidad LIGHT OPTA-STYLE: fondo blanco, textos negros, tipografia Chakra Petch,
 paleta ATT/DEF light, PCT_CMAP morado→fuchsia→rosa, logo JO como firma.

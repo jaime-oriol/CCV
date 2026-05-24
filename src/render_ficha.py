@@ -1,6 +1,6 @@
-"""render_ficha - Render visual de la ficha PCJ scout-facing por jugador.
+"""render_ficha - Render visual de la ficha xCV scout-facing por jugador.
 
-Lee outputs/pcj_table.parquet y produce un printout en terminal/markdown
+Lee outputs/xcv_table.parquet y produce un printout en terminal/markdown
 con barras unicode + frases scout traducidas. NO genera PDF — solo console.
 
 Uso:
@@ -16,7 +16,7 @@ from pathlib import Path
 import polars as pl
 
 _REPO  = Path(__file__).resolve().parents[1]
-_TABLE = _REPO / "outputs" / "pcj_table.parquet"
+_TABLE = _REPO / "outputs" / "xcv_table.parquet"
 
 CHANNEL_LABELS = {"atk": "Ataque", "def": "Defensa",
                    "off": "Off-ball", "phys": "Físico"}
@@ -62,7 +62,7 @@ def _safe(row: dict, col: str, default=None):
 
 
 def render_ficha(player_row: dict) -> str:
-    """Construye string-ficha legible desde 1 fila pcj_table."""
+    """Construye string-ficha legible desde 1 fila xcv_table."""
     r = player_row
     name = r.get("player_name") or f"player_id={r['pff_player_id']}"
     team = r.get("team_name", "?")

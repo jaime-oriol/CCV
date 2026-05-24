@@ -1,6 +1,6 @@
 """M12_did - Identificacion causal del efecto del shock via DiD within-player.
 
-Capa 3 del PCJ. Estima el efecto causal del shock emocional (gol favor/contra)
+Capa 3 del xCV. Estima el efecto causal del shock emocional (gol favor/contra)
 sobre los 4 canales por jugador, respetando el tratamiento pulsado-instantaneo.
 
 Estimadores (panel jugador x shock x minute_relativo):
