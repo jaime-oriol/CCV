@@ -7,16 +7,235 @@
 \section{Descripción del problema}
 \label{sec:problema}
 
-\textit{[Pendiente.]}
+El 18 de diciembre de 2022, en el estadio de Lusail, Argentina y Francia
+disputaron la final del Mundial. El partido recoge, en menos de dos horas,
+todo el catálogo de shocks emocionales que ocupa esta tesis. Argentina marca
+el 1-0 al minuto 23 desde el punto de penalti, transformado por Messi, y el
+partido apenas cambia de tono: el bloque francés sigue jugando atrás como si
+nada hubiera ocurrido, mientras Argentina mantiene la circulación cómoda.
+Al minuto 36, Di María hace el 2-0; el público entra en delirio, pero
+Francia no reacciona del todo y el primer tiempo se va al descanso con
+Argentina sin generar más peligro y con un campeón vigente incapaz de pasar
+del medio campo. El guion se mantiene durante los primeros treinta y cinco
+minutos del segundo tiempo, hasta que al minuto 80 Mbappé transforma un
+penalti y firma el 2-1. Durante los noventa y siete segundos que separan ese
+tanto del 2-2 ---también de Mbappé, esta vez en jugada abierta tras pared
+con Thuram--- Francia juega el mejor fútbol del torneo entero y Argentina
+se desploma. La prórroga vuelve a abrirse para Argentina con el 3-2 de Messi
+al minuto 108, hasta que Mbappé empata al 118 desde otro penalti y completa
+su \emph{hat-trick}. La tanda decide el Mundial.
+
+Cada uno de esos seis goles es un shock emocional con respuesta colectiva
+propia, no derivable mecánicamente del marcador. El 1-0 prácticamente no
+movió el partido; el 2-0 movió mucho menos de lo razonable contra una
+Francia campeona; el 2-1 de Mbappé desató noventa y siete segundos
+eléctricos que cambiaron el tono del torneo entero. El equipo que iba
+ganando no siempre se cerró, ni el que iba perdiendo siempre se vino
+arriba: cada bloque procesó cada gol a su manera, en función del minuto,
+de la cercanía de eliminación, del tono del partido hasta ese instante y
+de su propia tipología táctica. Lo relevante para este trabajo es que esa
+heterogeneidad colectiva no es anecdótica, sino la regla. El patrón
+colectivo \emph{post-shock} es, en buena medida, lo que gobierna después el
+rendimiento individual, y por tanto cualquier intento de medir clutch a
+nivel jugador sin condicionar en ese patrón colectivo mezcla dos señales
+distintas y termina midiendo cosas que no se quieren medir.
+
+Aquí aparece la distinción que vertebra el resto de la memoria. Hay dos
+preguntas clutch posibles, y no son la misma. La primera es una pregunta
+de equipo: cómo reacciona el bloque tras un gol ---a favor o en contra---,
+si cierra atrás, si sube líneas, si presiona alto, si se hunde. La segunda
+es una pregunta de jugador: dentro de esa reacción colectiva, quién destaca
+individualmente por encima del bloque, quién se esconde por debajo y quién
+simplemente va con el flujo. El scouting moderno y el mercado de fichajes
+se han concentrado durante años en la segunda mientras median, sin querer,
+la primera. Cuando un jugador rinde bien en partidos grandes, ¿es porque él
+destaca o porque acompaña a un buen equipo que se viene arriba? Y al
+contrario: cuando el delantero estrella se diluye en una final, ¿se hundió
+él o se hundió todo el bloque?
+
+La respuesta operativa hoy es: no se sabe con certeza. Los rankings públicos
+del jugador que aparece cuando importa ---los \emph{big-game players} de la
+prensa anglosajona, los \emph{clutch performers} del scouting comercial---
+parten de \emph{eventing} puro, sin tracking sincronizado, sin contrafactual
+exógeno y, sobre todo, sin separar la contribución individual del flujo
+colectivo. El resultado es un mercado que paga sobreprecio por reputación
+clutch sin métrica objetiva, y un cuerpo técnico que decide cambios al
+minuto 75 protegiendo un 1-0 con base en intuición y experiencia. El
+trabajo conceptualmente más cercano, \textcite{Bransen2019Choke}, ya mostró
+en MIT Sloan que con \emph{eventing} puede ordenarse a los jugadores en
+categorías \emph{choke} o \emph{shine} dentro de bins de presión definidos
+a priori. Su métrica, sin embargo, sigue siendo descriptiva y no causal,
+sigue sin separar al jugador del bloque, y sobre todo carece del tracking
+que permite ver lo que el jugador hace cuando no tiene el balón ---
+precisamente las acciones que más se transforman tras un shock emocional.
+
+La pregunta abierta es, en consecuencia, si puede estimarse causalmente el
+rendimiento clutch del jugador residualizado contra el patrón colectivo de
+su bloque, sobre los cuatro canales del rendimiento ---ofensivo, defensivo,
+\emph{off-ball} y físico--- y diferenciando entre los tres contextos de
+impacto emocional ---post-gol a favor, post-gol en contra y cercanía de
+eliminación alta. Este trabajo defiende que sí, propone el marco para
+hacerlo y lo aplica al Mundial Qatar 2022.
 
 
 \section{Motivación}
 \label{sec:motivacion}
 
-\textit{[Pendiente.]}
+El concepto de jugador clutch ---el \emph{big-game player}, el que aparece
+cuando importa--- es el más debatido del scouting moderno y el menos medido
+con rigor. Es también una pregunta con consecuencias económicas inmediatas.
+Un director deportivo que decide entre dos centrocampistas de precio
+similar ---uno con reputación clutch en KO de Champions, el otro con
+perfil más estable pero sin antecedente de partidos grandes--- está hoy
+decidiendo sobre intuición, lectura de partidos sueltos y una literatura
+analítica que no ha resuelto la pregunta. Lo mismo vale para la gestión
+de cambios en el banquillo: al minuto 75 protegiendo un 1-0 en cuartos de
+Copa, ¿entra el mediocentro X, que en partidos grandes ha dado siempre
+minutos de cerrojo, o el jugador Y, que tiene mejor base estadística pero
+nunca ha estado en este contexto? La decisión se sigue tomando con base en
+reputación, no en medida causal. El sobreprecio que se paga por reputación
+clutch es la prueba más clara de que el mercado sabe que la propiedad
+existe, pero no sabe medirla.
+
+La literatura analítica de los últimos quince años ha avanzado mucho en
+cada pieza por separado pero no en su composición. La valoración causal de
+acciones \emph{on-ball} está madura desde \textcite{Decroos2019VAEP} y su
+familia (atomic-VAEP, xT, EPV \cite{Fernandez2021EPV}). La valoración
+defensiva individualizada se ha desarrollado con estimadores específicos
+en los últimos cinco años. La valoración \emph{off-ball} cuenta con
+modelos de control de espacio y peligro contrafactual ya consolidados. La
+capa física es trazable hasta el detalle desde los protocolos sobre tracking
+\emph{broadcast} en torneo. Y la identificación causal moderna ---
+diferencias-en-diferencias con tratamientos heterogéneos--- ha tenido una
+explosión de estimadores robustos para tratamientos pulsados como los de
+\textcite{SunAbraham2021}, \textcite{BorusyakJaravelSpiess2024} o las cotas
+de robustez de \textcite{RambachanRoth2023}.
+
+Nada de esto, sin embargo, se había encadenado al nivel jugador-minuto
+sobre un torneo eliminatorio, con identificación dual y residualizado
+contra el bloque colectivo. \textcite{Konefal2024} trabajan a nivel equipo
+y en la ventana pre-gol sobre cinco temporadas de la Ekstraklasa polaca,
+con un enfoque puramente físico y agregado. \textcite{Morgans2025} operan
+por mitades de partido sobre estados de marcador agregados en Premier
+League, sobre treinta y tres jugadores y dos temporadas, con métricas
+físicas únicamente. \textcite{Bransen2019Choke} trabajan sobre
+\emph{eventing} sin tracking y sin condicionamiento causal. Ninguno separa
+al jugador del flujo colectivo, ninguno triangula con un contrafactual
+exógeno, y ninguno cubre los cuatro canales del rendimiento de forma
+conjunta sobre un torneo de fase eliminatoria con prórroga.
+
+El punto técnico que abre la posibilidad de hacerlo es la liberación del
+dataset PFF FC del Mundial Qatar 2022. En septiembre de 2024, PFF FC
+publicó en abierto los sesenta y cuatro partidos del torneo con
+\emph{eventing}, tracking a 25\,Hz sincronizado con los eventos, presión
+individual etiquetada y \emph{grades} humanos por evento
+\parencite{PFFFC2024Release}. Es el único corpus público que combina los
+cuatro ingredientes que la pregunta exige simultáneamente: tracking de
+alta frecuencia, sincronización exacta con el \emph{eventing}, cobertura
+completa de fase eliminatoria con prórroga incluida, y \emph{grades}
+humanos por evento que sirven como contrafactual cualitativo y como
+\emph{prior} informativo para los modelos jerárquicos. Sin esa
+combinación, la pregunta sigue siendo metodológicamente atractiva pero
+empíricamente intratable; con ella, la ventana está abierta. La elección
+del Mundial Qatar 2022 como banco de pruebas obedece a esa condición y
+no a una preferencia por el torneo en sí: la contribución metodológica
+del trabajo es portable a cualquier corpus que reúna los mismos
+ingredientes.
+
+Junto a la ventana técnica hay también una ventana metodológica. La
+identificación causal del efecto del shock requiere triangulación: una
+sola estrategia es vulnerable a sesgos no observados, y el lector
+escéptico ---razonable en cualquier publicación que tenga la palabra
+\emph{causal} en el título--- demandará que dos estrategias independientes
+coincidan en signo y magnitud. La primera, propuesta en este trabajo, es
+una estimación de diferencias-en-diferencias \emph{within-player} sobre la
+ventana de $\pm 10$\,minutos respecto al gol, robustecida con los
+estimadores modernos para tratamientos pulsados. La segunda es un
+cuasi-experimento de \emph{near-miss}: dentro de los disparos con
+\emph{pre-shot} $xG$ comparable, el hecho de que el balón entre o no se
+aproxima a azar \parencite{GauriotPage2019}; el contraste entre la
+respuesta post-gol y la respuesta post-\emph{near-miss} aísla el efecto
+del shock del rendimiento intrínseco del bloque que generó el disparo. Si
+las dos estrategias coinciden, el efecto causal es robusto; si divergen,
+se reporta honestamente la divergencia como cota superior del
+\emph{confounding} no controlado.
+
+El marco propuesto en este trabajo ---el Expected Clutch Value (\xCV)---
+encadena estos elementos y entrega una métrica \emph{scout-facing} por
+jugador, por canal y por contexto, con cuantificación honesta de la
+incertidumbre vía intervalos de credibilidad bayesianos. La contribución
+central es metodológica: el marco es portable a cualquier dataset con la
+misma estructura (\emph{events} + tracking + \emph{grades} + cobertura KO
+completa), y la aplicación al Mundial Qatar 2022 funciona como prueba
+técnica de concepto, no como objetivo en sí. Si la siguiente liberación
+abierta de \emph{eventing} + tracking llega de la Eurocopa 2024, de la
+Champions 2024/2025 o de cualquier otro torneo de fase eliminatoria, el
+\emph{pipeline} \xCV se recalibra sobre los nuevos datos sin cambios
+estructurales.
 
 
 \section{Organización de la memoria}
 \label{sec:organizacion}
 
-\textit{[Pendiente.]}
+El presente documento se organiza en ocho capítulos más la bibliografía y
+los anexos.
+
+El capítulo~1, esta introducción, ha presentado la pregunta de
+investigación, ha distinguido entre el clutch del bloque y el clutch del
+jugador relativo al bloque, ha justificado por qué la pregunta sigue
+abierta a fecha de hoy y por qué el dataset PFF FC del Mundial Qatar 2022
+abre la primera ventana técnica realista para responderla.
+
+El capítulo~2 define el objetivo general del trabajo y los objetivos
+específicos asociados, vinculando cada uno a la pregunta de investigación
+correspondiente.
+
+El capítulo~3 recoge el estado del arte por bloque del \emph{pipeline}.
+Cubre, en orden, la \emph{Win Probability} bayesiana en fútbol, la
+valoración causal de acciones \emph{on-ball}, la valoración defensiva
+individualizada, la valoración \emph{off-ball}, las métricas físicas en
+torneo, la identificación causal con diferencias-en-diferencias modernas,
+los cuasi-experimentos \emph{near-miss} en deporte, los modelos CATE
+bayesianos jerárquicos y los trabajos previos sobre rendimiento clutch en
+fútbol. El capítulo cierra identificando el \emph{gap} específico que el
+\xCV cubre.
+
+El capítulo~4 formaliza la metodología del marco. Presenta el
+\emph{pipeline} en cinco fases, el marco teórico (notación de los deltas
+individuales y colectivos, especificación del estimador DiD y del
+cuasi-experimento \emph{near-miss}, formulación del CATE bayesiano
+\emph{multivariate}), las herramientas y datos empleados, las métricas
+de evaluación y el protocolo experimental que rige el resto del documento.
+
+El capítulo~5 documenta el desarrollo técnico módulo a módulo. Empieza por
+las capas de extracción y preprocesado, sigue con la \emph{backbone}
+temporal (\emph{Win Probability}, \emph{leverage}, proximidad de
+eliminación), continúa con la fase de identificación de \emph{shocks} y
+\emph{near-misses}, y desarrolla los cuatro canales del rendimiento
+---ofensivo, defensivo, \emph{off-ball} y físico--- con sus respectivos
+\emph{building blocks} SOTA. Cierra con la capa de identificación causal
+(DiD y AIPW sobre \emph{near-miss}), el modelo CATE bayesiano
+\emph{multivariate} y el ensamblaje final del \xCV en una tabla
+\emph{scout-facing} consolidada.
+
+El capítulo~6 reporta los resultados de validación interna del marco
+---calibración del PSxG, robustez del DiD, sensibilidad temporal,
+estratificación por fase--- y los resultados sustantivos a nivel
+poblacional e individual.
+
+El capítulo~7 discute esos resultados respondiendo a tres preguntas: qué
+demuestran, qué no demuestran y dónde funciona o no funciona el \xCV.
+Incluye las implicaciones operativas para scouting, fichajes, preparación
+de partidos KO y gestión de cambios.
+
+El capítulo~8 sintetiza las conclusiones generales, declara las
+limitaciones del estudio ---de las que el lector debe ser consciente para
+no sobre-interpretar el \emph{output}--- y plantea las líneas futuras
+naturales de extensión.
+
+El capítulo~9 recoge las referencias bibliográficas en formato APA séptima
+edición. Los anexos completan el documento con el detalle metodológico
+ampliado de las limitaciones, las validaciones empíricas adicionales y
+una nota técnica sobre la inconsistencia de coordenadas
+tracking-\emph{eventos} en la prórroga de algunos partidos PFF FC y su
+corrección automática dentro del \emph{pipeline}.
