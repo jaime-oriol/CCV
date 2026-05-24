@@ -1,13 +1,13 @@
 """common - Estilo + constantes + helpers compartidos por todas las vizs.
 
 Identidad LIGHT OPTA-STYLE: fondo BLANCO, textos NEGROS, leyenda gris medio.
-Paleta azul / rojo (saturada light para PPCF) + cmap morado→fuchsia→rosa
+Paleta azul / rojo (saturada light para PPCF) + cmap rosa→violeta→navy logo JO
 (para percentiles en scatter y radar table). Tipografia Chakra Petch (cortes
 angulares estilo Opta).
 
 Exporta:
   - Paleta:       BG, TEXT, LEGEND, GRID, PITCH, WHITE(=TEXT), ATT, DEF, GK, NEUTRAL
-  - Cmaps:        PPCF_CMAP (DEF→NEUTRAL→ATT), PCT_CMAP (violet→fuchsia→rose)
+  - Cmaps:        PPCF_CMAP (DEF→NEUTRAL→ATT), PCT_CMAP (rose→violet→navy)
   - Path effects: PE (halo fino), PE_S (halo gordo, dorsales sobre PPCF)
   - Tipografia:   FONT_STACK (Chakra Petch + fallbacks) — aplicado a rcParams
   - Layout:       MASTER_FIGSIZE (16x9), HEADER_BAND (0.85..1.0), PITCH_LENGTH/WIDTH
@@ -39,9 +39,9 @@ from matplotlib.colors import LinearSegmentedColormap              # pa cmaps cu
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage       # pa pegar PNGs (escudos, caras)
 from PIL import Image                                                # pa cargar/resize PNGs
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # REGISTRO DE FUENTES — Chakra Petch al importar el modulo
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Carga Chakra Petch (todos los pesos) en el fontManager de matplotlib pa que
 # rcParams pueda usarlo. Mira en outputs/assets/fonts y en ~/.local/share/fonts.
 # Si no existe el font, matplotlib usa el siguiente del FONT_STACK (Inter, etc).
@@ -55,9 +55,9 @@ for _fdir in (_CHAKRA_DIR, _SYS_FONT_DIR):
             except Exception:
                 pass                                                 # font corrupto/duplicado → ignora
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # PALETA LIGHT OPTA
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 BG      = "#ffffff"          # fondo de TODA la viz — cambia a off-white (#fafafa, #f5f5f5) si quieres mas tibio
 TEXT    = "#000000"          # color de titulos, labels de ejes, ticks — negro puro siempre
@@ -83,9 +83,9 @@ NEUTRAL = "#e5e7eb"          # gris muy claro pa el centro del PPCF (cuando cont
                               #   ↑ #d4d4d4 → zona 50/50 mas gris (mas visible)
                               #   ↓ #f3f4f6 → zona neutra casi desaparece
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # TIPOGRAFIA
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 # matplotlib usa el primer font de la lista que encuentre en el sistema.
 # Chakra Petch primero pa tener los cortes angulares Opta-style en mayusculas.
@@ -118,25 +118,25 @@ PE_S = [pe.withStroke(linewidth=2.2, foreground="black")]           # halo NEGRO
                                                                      #   ↑ linewidth → halo mas gordo (mas contraste pero texto se ve menos)
                                                                      #   foreground="white" → invierte a halo blanco (pa fondos oscuros)
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # COLORMAPS
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 # PPCF (pitch control): defensor (rojo) → neutro (gris claro) → atacante (azul).
 # Se reconstruye automaticamente si cambias ATT/DEF/NEUTRAL arriba.
 PPCF_CMAP = LinearSegmentedColormap.from_list("ppcf", [DEF, NEUTRAL, ATT])
 
 # Percentil combinado pa scatter (color de cada punto) y radar legend (5 tramos).
-# Morado → fuchsia → rosa: tonos vivos en BG blanco, con contraste a lo largo del rango.
+# Rosa → violeta → navy del logo JO: warm→cool sunset, elite = brand navy.
 PCT_CMAP = LinearSegmentedColormap.from_list("pct", [
-    "#5b21b6",   # violet-800 — percentil bajo (mas profundo pa mas contraste)
-    "#c026d3",   # fuchsia-600 — percentil medio
-    "#f43f5e",   # rose-500 — percentil alto (mas vivido pa mas contraste)
+    "#f43f5e",   # rose-500 — percentil bajo (rosa vivo, potente sobre blanco)
+    "#9333ea",   # purple-600 — percentil medio (violeta puente warm→cool)
+    "#1e3a8a",   # blue-900 — percentil alto (navy del logo JO, elite)
 ])
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # DIMENSIONES MASTER (LAYOUT GLOBAL)
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 # TODAS las vizs 16x9 (scatter, scatter_team) usan este figsize → PNG 2400x1350 @ 150dpi.
 # PPCF NO usa este figsize (se ajusta al campo, ver ppcf.py).
@@ -153,9 +153,9 @@ HEADER_BAND = (0.85, 1.0)                                           # (y_inferio
 PITCH_LENGTH = 105.0                                                # metros — norma FIFA, no tocar
 PITCH_WIDTH  = 68.0                                                 # metros — norma FIFA, no tocar
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # NAMING ESTANDAR (todo en ESPAÑOL, mismo wording en TODAS las vizs)
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 TOURNAMENT_ES   = "Mundial Qatar 2022"                              # nombre del torneo (subtitulos)
 N_PLAYERS_WC22  = 511                                                # numero jugadores filtrados en pcj_table.parquet
@@ -203,12 +203,12 @@ def team_es(name: str) -> str:
 
 # Logo JO (Jaime Oriol) — esquina derecha del header en draw_header,
 # o esquinas inferiores en add_logo (figures.py, radar.py).
-_LOGO_PATH = Path(__file__).resolve().parent / "assets" / "logo_2.png"
+_LOGO_PATH = Path(__file__).resolve().parent.parent.parent / "outputs" / "assets" / "logo.png"
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # draw_pitch — campo de futbol centrado en (0,0), metros
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 def draw_pitch(ax: plt.Axes,
                pitch_length: float = PITCH_LENGTH,
@@ -269,9 +269,9 @@ def draw_pitch(ax: plt.Axes,
     ax.axis("off")                                                  # sin ejes/ticks/bordes alrededor del campo
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # draw_header — PPCF-style header reusable (escudo IZQ | titulo+sub | JO DCHA)
-# ============================================================================
+# ----------------------------------------------------------------------------
 # CHEAT-SHEET de tuneo del header:
 #   - hdr_band    : (bot, top) en fraccion de figura — default HEADER_BAND=(0.85,1.0)
 #                    ↓ bot → header mas gordo, mas sitio pa titulo largo
@@ -436,9 +436,9 @@ def draw_header(fig: plt.Figure, *, title: str,
         fig.add_artist(ab)
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # add_logo — LEGACY: estampa el logo JO en una esquina (radar.py, figures.py)
-# ============================================================================
+# ----------------------------------------------------------------------------
 # draw_header ya maneja el JO en headers nuevos. add_logo se usa cuando la viz
 # NO tiene header (ej. radar standalone) o quiere el logo ABAJO (figures.py).
 

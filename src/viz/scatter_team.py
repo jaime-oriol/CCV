@@ -46,9 +46,9 @@ _TEAM_TO_SLUG = {
     "United States":"usa","Costa Rica":"crc","Australia":"aus",
 }
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Color accent primario por seleccion
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Bright + paper-friendly, alto contraste sobre BG blanco.
 # Si quieres mas variedad/identidad nacional fuerte, edita aqui.
 TEAM_ACCENT: dict[str, str] = {
@@ -86,10 +86,10 @@ TEAM_ACCENT: dict[str, str] = {
     "Tunisia":     "#dc2626",
 }
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Configuracion de los 2 paneles (mismos textos que scatter global por concepto
 # → coherencia global<->team)
-# ============================================================================
+# ----------------------------------------------------------------------------
 _PAIRS = [
     dict(
         x="chasing_clutch_idx", y="protecting_clutch_idx",
@@ -102,21 +102,21 @@ _PAIRS = [
     dict(
         x="cate_ataque_GOAL_FOR_mean", y="cate_ataque_PRESSURE_mean",
         title_concept="Atacantes clutch",
-        subtitle_concept="Comparando ataque tras marcar y ataque bajo presión",
+        subtitle_concept="Ataque tras marcar vs tras encajar",
         x_label="Producción ofensiva tras marcar",
-        y_label="Producción ofensiva bajo presión",
-        foot="*Cambio en la producción ofensiva tras el shock emocional",
-        slug="ataque_marcar_presion"),
+        y_label="Producción ofensiva tras encajar",
+        foot="*Cambio en la producción ofensiva tras marcar o encajar, ajustado por el resto del equipo",
+        slug="ataque_marcar_encajar"),
 ]
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Estetica de puntos
-# ============================================================================
+# ----------------------------------------------------------------------------
 _DOT_BG_SIZE     = 22                  # tamano de la nube del torneo (resto de jugadores) — ↑ MAS GRANDE
 _DOT_BG_COLOR    = "#d4d4d4"           # gris claro pa la nube — sin distraer del foco
 _DOT_BG_ALPHA    = 0.45                # transparencia de la nube — ↓ MAS transparente
-_DOT_TEAM_SIZE   = 110                 # tamano de los puntos del equipo (debajo de la cara) — ↑ MAS GRANDE
-_FACE_ZOOM       = 0.14                # zoom de las caras del equipo — ↑ MAS GRANDES
+_DOT_TEAM_SIZE   = 70                  # tamano de los puntos del equipo (debajo de la cara) — match scatter global
+_FACE_ZOOM       = 0.2                 # zoom de las caras del equipo — match scatter global
 _MED_LINE_COLOR  = "#888888"           # gris medio pa la mediana del torneo (dashed inline)
 _MED_LINE_LW     = 1.0                 # grosor de la mediana — ↑ MAS GRUESA
 
@@ -129,6 +129,7 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
     equipo coloreado en TEAM_ACCENT + cara FotMob. Mediana del torneo dashed inline.
     """
     accent = TEAM_ACCENT.get(team, "#ec4899")                         # fallback pink bright si no esta en TEAM_ACCENT
+    team_display = team_es(team)                                      # nombre español pa mostrar (Francia, Brasil, ...)
     x_metric, y_metric = pair["x"], pair["y"]
 
     # ---- Datos: TODOS los jugadores + mask del equipo ----
@@ -144,10 +145,12 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
     fig = plt.figure(figsize=MASTER_FIGSIZE, facecolor=BG)
 
     # Header PPCF-style: escudo del EQUIPO (izq) + titulo + subtitulo + JO dcha
+    # Naming ESTANDAR (todo español): TOURNAMENT_ES + N_PLAYERS_WC22 + team_es()
     slug = _TEAM_TO_SLUG.get(team)
     team_logo = (_LOGOS / f"{slug}.png") if slug else None
-    title = f"{team}  ·  {pair['title_concept']}"
-    subtitle = f"{pair['subtitle_concept']}  |  {team} · Mundial Qatar 2022 · 511 jugadores"
+    title = f"{team_display}  ·  {pair['title_concept']}"
+    subtitle = (f"{pair['subtitle_concept']}  |  "
+                f"{team_display} · {TOURNAMENT_ES} · {N_PLAYERS_WC22} jugadores")
     draw_header(fig, title=title, subtitle=subtitle,
                 escudo_path=team_logo)
 
@@ -184,17 +187,17 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
 
     # ---- Labels mediana INLINE (Opta-style, encima de las lineas) ----
     xlim = ax.get_xlim(); ylim = ax.get_ylim()
-    ax.text(x_med, ylim[1], "  mediana del torneo", color=LEGEND, fontsize=9,
-            ha="left", va="top", style="italic", zorder=4,
+    ax.text(x_med, ylim[1], "  Mediana", color=LEGEND, fontsize=10,
+            ha="left", va="top", style="italic", zorder=5,
             bbox=dict(facecolor=BG, edgecolor="none", pad=1, alpha=0.85))
-    ax.text(xlim[1], y_med, "mediana del torneo  ", color=LEGEND, fontsize=9,
-            ha="right", va="bottom", style="italic", zorder=4,
+    ax.text(xlim[1], y_med, "Mediana  ", color=LEGEND, fontsize=10,
+            ha="right", va="bottom", style="italic", zorder=5,
             bbox=dict(facecolor=BG, edgecolor="none", pad=1, alpha=0.85))
 
     # ---- Ejes (Opta-style: label limpio bold, ticks pequenos) ----
-    ax.set_xlabel(pair["x_label"], fontsize=12, fontweight="bold",
+    ax.set_xlabel(pair["x_label"], fontsize=14, fontweight="bold",
                    color=TEXT, labelpad=8)
-    ax.set_ylabel(pair["y_label"], fontsize=12, fontweight="bold",
+    ax.set_ylabel(pair["y_label"], fontsize=14, fontweight="bold",
                    color=TEXT, labelpad=8)
     ax.tick_params(colors=TEXT, labelsize=10, length=3, width=0.7)
     for s in ("top", "right"):
@@ -205,7 +208,7 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
     ax.set_axisbelow(True)                                            # grid detras de los puntos
 
     # ---- Footer Opta-style: nota metodologica gris abajo-DCHA ----
-    fig.text(0.95, 0.06, pair["foot"], color=LEGEND, fontsize=9,
+    fig.text(0.925, 0.06, pair["foot"], color=LEGEND, fontsize=12,
              ha="right", style="italic")
 
     save_path = Path(save_path)

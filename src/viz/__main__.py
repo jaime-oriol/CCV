@@ -7,7 +7,7 @@ Uso:
 
 La baraja completa incluye:
   - PPCF Mbappe 2-2 (final ARG-FRA, frame 164933 = instante exacto del remate)
-  - 2 scatter globales: Remontador x Cerrojo + Ataque tras marcar / bajo presion (511 jug)
+  - 2 scatter globales: Remontador x Cerrojo + Ataque tras marcar / tras encajar (511 jug)
   - 2 scatter de Francia: misma estetica que globales pero filtrado al equipo
   - 4 radar reports: Messi (1531), Hakimi (1681), Mbappe (3870), Brozovic (8129)
 
@@ -26,13 +26,14 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from viz import ppcf, radar, radar_report, scatter, scatter_team
+from viz.common import TOURNAMENT_ES, team_es
 
 _OUT = _SRC.parent / "outputs" / "viz"
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Players de la baraja completa (cara + escudo cacheados en outputs/assets/)
-# ============================================================================
+# ----------------------------------------------------------------------------
 _REPORT_PLAYERS = [
     1531,   # Lionel Messi (Argentina · CF)
     1681,   # Achraf Hakimi (Morocco · RB)
@@ -54,8 +55,8 @@ def _render_radar(df: pl.DataFrame, query: str) -> Path:
     radar.player_radar(
         df, pid,
         title=f"{r['player_name']}  ·  Perfil Clutch del Jugador",
-        subtitle=f"{r['team_name']}  ·  {r['position_group']}  ·  "
-                  f"{int(r['minutes_played'])} min  ·  Mundial Qatar 2022",
+        subtitle=(f"{team_es(r['team_name'])} · {r['position_group']} · "
+                  f"{int(r['minutes_played'])} min  |  {TOURNAMENT_ES}"),
         save_path=out)
     return out
 
@@ -69,9 +70,9 @@ def make_all() -> None:
     ppcf.plot_ppcf(_PPCF_MATCH, _PPCF_FRAME,
                     save_path=_OUT / "ppcf_mbappe_2_2_final.png")
 
-    # ---- 2) Scatter globales (Remontador x Cerrojo + Ataque tras marcar/presion) ----
+    # ---- 2) Scatter globales (Remontador x Cerrojo + Ataque tras marcar/encajar) ----
     print(f"[viz] Scatter globales x2 ({df.height} jugadores)...")
-    for key in ("remontador_cerrojo", "ataque_marcar_presion"):
+    for key in ("remontador_cerrojo", "ataque_marcar_encajar"):
         scatter.opta_scatter(df, config=key,
                               save_path=_OUT / f"scatter_{key}.png")
 

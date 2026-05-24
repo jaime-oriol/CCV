@@ -29,7 +29,7 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import ATT, BG, DEF, LEGEND, PCT_CMAP, WHITE, _LOGO_PATH
+from viz.common import ATT, BG, DEF, LEGEND, PCT_CMAP, WHITE, _LOGO_PATH, team_es
 from viz.radar import PCJ_METRICS_12, PCJ_TITLES_12, TEAM_COLORS, _find, player_radar
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"                # tabla scout final (M15)
@@ -48,9 +48,9 @@ _TEAM_TO_SLUG = {
     "United States":"usa","Costa Rica":"crc","Australia":"aus",
 }
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # 12 dimensiones de la tabla (4 canales x 3 contextos)
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Agrupadas POR CANAL (los 3 contextos de cada canal consecutivos) → mismo orden
 # que el radar 12 ejes con reorder=False.
 TABLE_METRICS = [
@@ -166,7 +166,7 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
     ax.text(text1_x, y_start, name1, fontweight="bold", fontsize=14,
              color=_NAME_COLOR, ha="left", va="center")
     ax.text(text1_x, y_start - 0.5,
-             f"{p1.get('team_name', '')}  ·  {p1.get('position_group', '')}",
+             f"{team_es(p1.get('team_name', ''))}  ·  {p1.get('position_group', '')}",
              fontsize=12, color=WHITE, alpha=0.9, ha="left")
 
     # ---- Separador horizontal bajo el header ----
@@ -226,16 +226,16 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
         ax.plot([x_pos - 0.25, x_pos + 0.25], [legend_y, legend_y],
                  color=node_cmap(percentile_norm(i * 25)), linewidth=3,
                  solid_capstyle="round")
-        ax.text(x_pos, legend_y - 0.4, f"{lo}-{hi}", fontsize=9, color=WHITE,
+        ax.text(x_pos, legend_y - 0.4, f"{lo}-{hi}", fontsize=9, color=LEGEND,
                  ha="center")
 
     # ---- Flecha BAJO → ALTO debajo de la leyenda ----
     arrow_y = legend_y - 0.8                                          # ↑ flecha SUBE (cerca de la leyenda)
     ax.annotate("", xy=(4.0, arrow_y), xytext=(1.2, arrow_y),
-                 arrowprops=dict(arrowstyle="->", color=WHITE, lw=1))
-    ax.text(1.1, arrow_y, "BAJO", fontsize=9, color=WHITE, ha="right",
+                 arrowprops=dict(arrowstyle="->", color=LEGEND, lw=1))
+    ax.text(1.1, arrow_y, "BAJO", fontsize=9, color=LEGEND, ha="right",
              va="center")
-    ax.text(4.1, arrow_y, "ALTO", fontsize=9, color=WHITE, ha="left",
+    ax.text(4.1, arrow_y, "ALTO", fontsize=9, color=LEGEND, ha="left",
              va="center")
 
     if save_path:

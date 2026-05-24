@@ -35,7 +35,7 @@ import Z02_pitch_control as pc                                      # computo PP
 from M01_loader_pff import scan_tracking, load_metadata, load_rosters
 from M03_preprocess import attacking_direction, goals_timeline
 
-from viz.common import (ATT, BG, DEF, GK, PE_S, PITCH_LENGTH, PITCH_WIDTH,
+from viz.common import (ATT, BG, DEF, GK, LEGEND, PE_S, PITCH_LENGTH, PITCH_WIDTH,
                          PPCF_CMAP, TOURNAMENT_ES, WHITE, draw_pitch, draw_header,
                          team_es)
 
@@ -57,9 +57,9 @@ _VEL_LAG_FRAMES = 15                                                # ~0.5 s a 3
 _SPEED_CAP_MPS  = 12.0                                              # cap anti-teleport del tracking PFF
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Adapter: frame de tracking PFF -> schema Z02
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 def _load_frame_z02(match_id: int, frame_num: int,
                      vel_lag: int = _VEL_LAG_FRAMES) -> tuple:
@@ -210,9 +210,9 @@ def frame_for_clock(match_id: int, period: int, clock_s: float) -> int:
     return int(tr["frameNum"][idx])
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Malla PPCF
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 def compute_ppcf_grid(frame_df: pd.DataFrame, att_team_id: int,
                        ball_pos: np.ndarray, pitch_l: float, pitch_w: float,
@@ -229,9 +229,9 @@ def compute_ppcf_grid(frame_df: pd.DataFrame, att_team_id: int,
     return ppcf.reshape(n_y, n_x)
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Layout pitch-aligned
-# ============================================================================
+# ----------------------------------------------------------------------------
 # La figura tiene EXACTAMENTE el ancho del campo, sin margenes laterales.
 # El alto se deriva pa que el axes del pitch tenga el ratio xlim/ylim correcto:
 #   xlim = [-55.5, 55.5] -> rango 111 m (PITCH_LENGTH + 6 de margen)
@@ -295,9 +295,9 @@ def _make_block_axes(fig, left, bottom, width, height):
     return ax
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Balon Telstar (pentagonos sobre circulo blanco)
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 def _draw_football_on_pitch(ax: plt.Axes, cx: float, cy: float,
                              r: float = 0.65, zorder: int = 10) -> None:
@@ -333,9 +333,9 @@ def _draw_football_on_pitch(ax: plt.Axes, cx: float, cy: float,
         ax.add_patch(patch)
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Footer — 3 bloques 40/20/40 del ancho del pitch
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
                   def_team_name: str, attacking_right: bool = True) -> None:
@@ -370,15 +370,15 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
         transform=ax_b1.transAxes, zorder=3))
     # Etiquetas extremos debajo de la barra
     ax_b1.text(bar_x0, bar_y - bar_h / 2 - 0.1, "100% defensor",
-                ha="left", va="top", fontsize=14, color=WHITE,
+                ha="left", va="top", fontsize=14, color=LEGEND,
                 transform=ax_b1.transAxes, fontweight="bold")
     ax_b1.text(bar_x1, bar_y - bar_h / 2 - 0.1, "100% atacante",
-                ha="right", va="top", fontsize=14, color=WHITE,
+                ha="right", va="top", fontsize=14, color=LEGEND,
                 transform=ax_b1.transAxes, fontweight="bold")
     # Descripcion arriba (normal: ni bold ni cursiva)
     ax_b1.text(0.5, bar_y + bar_h / 2 + 0.05,
                 "probabilidad de que el equipo controle ese punto del campo",
-                ha="center", va="bottom", fontsize=12, color=WHITE,
+                ha="center", va="bottom", fontsize=12, color=LEGEND,
                 transform=ax_b1.transAxes)
 
     # ---- BLOCK 2: triangulos Direccion de Ataque ----
@@ -405,7 +405,7 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
             alpha=alpha, transform=ax_b2.transAxes, zorder=10))
     # Etiqueta unica debajo de los triangulos
     ax_b2.text(0.5, 0.5, "Dirección de Ataque",
-                ha="center", va="center", fontsize=14, color=WHITE,
+                ha="center", va="center", fontsize=14, color=LEGEND,
                 transform=ax_b2.transAxes, fontweight="bold")
 
     # ---- BLOCK 3: equipos (izq + centro) + balon Telstar (dcha) ----
@@ -450,13 +450,13 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
         _op.set_clip_path(_ball_ell); ax_b3.add_patch(_op)
     # Label "Balón" a la derecha del balon (mismo gap que los nodos: +0.075)
     ax_b3.text(x_ball + 0.055, y_node, "Balón", ha="left", va="center",
-                fontsize=14, color=WHITE, fontweight="bold",
+                fontsize=14, color=LEGEND, fontweight="bold",
                 transform=ax_b3.transAxes)
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Render principal
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
                subtitle=None, save_path=None,
@@ -579,9 +579,9 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
     return fig
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # CLI: python -m src.viz.ppcf [match_id] [match_minute]
-# ============================================================================
+# ----------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # python -m src.viz.ppcf <match_id> <match_minute>

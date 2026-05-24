@@ -8,7 +8,7 @@ en el gradiente. Mediana del torneo dashed con label INLINE.
 
 2 conceptos config-driven (via SCATTERS):
   1. remontador_cerrojo    : Remontador x Cerrojo (los 2 perfiles agregados)
-  2. ataque_marcar_presion : Ataque tras GF x Ataque bajo presion (2 ejes con
+  2. ataque_marcar_encajar : Ataque tras GF x Ataque tras GA (2 ejes con
                              spread real; donde el shock deja huella medible)
 
 Identidad LIGHT OPTA: BG blanco, textos negros, leyenda gris medio, paleta
@@ -40,9 +40,9 @@ _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"                 # escudos 
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"                 # caras jugadores (FotMob)
 _WC22_LOGO = _LOGOS / "wc22.png"                                       # escudo del torneo (header del scatter global)
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Configuracion de los 2 scatters (pattern Opta)
-# ============================================================================
+# ----------------------------------------------------------------------------
 #   title       = noun phrase corto que dice QUIEN se mapea
 #   subtitle    = "Comparando X y Y | contexto" — los ejes no necesitan label largo
 #   x_label /
@@ -59,18 +59,18 @@ SCATTERS: dict[str, dict] = {
         x_label="Índice Remontador",
         y_label="Índice Cerrojo",
         foot="*Cambio en el rendimiento individual tras el shock emocional, ajustado por el resto del equipo"),
-    "ataque_marcar_presion": dict(
+    "ataque_marcar_encajar": dict(
         x="cate_ataque_GOAL_FOR_mean", y="cate_ataque_PRESSURE_mean",
         title="Atacantes clutch",
-        subtitle=f"Comparando ataque tras marcar y ataque bajo presión  |  {TOURNAMENT_ES} · {N_PLAYERS_WC22} jugadores",
+        subtitle=f"Ataque tras marcar vs tras encajar  |  {TOURNAMENT_ES} · {N_PLAYERS_WC22} jugadores",
         x_label="Producción ofensiva tras marcar",
-        y_label="Producción ofensiva bajo presión",
-        foot="*Cambio en la producción ofensiva tras el shock emocional"),
+        y_label="Producción ofensiva tras encajar",
+        foot="*Cambio en la producción ofensiva tras marcar o encajar, ajustado por el resto del equipo"),
 }
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Tuneo visual (puntos, caras, mediana)
-# ============================================================================
+# ----------------------------------------------------------------------------
 _DOT_SIZE        = 70          # ↑ → puntos MAS GRANDES (todos coloreados por PCT_CMAP)
 _FACE_ZOOM       = 0.2        # ↑ → caras FotMob MAS GRANDES sobre el punto
 _MED_LINE_COLOR  = "#888888"   # gris medio pa la mediana del torneo (dashed inline)
@@ -188,7 +188,7 @@ def opta_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
 
 if __name__ == "__main__":
     df = pl.read_parquet(_TABLE)
-    for key in ("remontador_cerrojo", "ataque_marcar_presion"):
+    for key in ("remontador_cerrojo", "ataque_marcar_encajar"):
         out = f"outputs/viz/scatter_{key}.png"
         opta_scatter(df, config=key, save_path=out)
         print(f"OK -> {out}  ({df.height} jugadores)")

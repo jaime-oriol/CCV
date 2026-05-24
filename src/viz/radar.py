@@ -35,13 +35,13 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import ATT, BG, DEF, WHITE, add_logo
+from viz.common import ATT, BG, DEF, TOURNAMENT_ES, WHITE, add_logo, team_es
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # 8 ejes: 4 canales x 2 contextos (tras GA + tras GF), bloque GA y bloque GF
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Orden: GA primero (4) + GF (4). Con reorder=True el eje i queda enfrentado al
 # i+4 → cada canal sale con su GA arriba y su GF abajo (Ataque-GA <-> Ataque-GF).
 PCJ_METRICS = [
@@ -55,9 +55,9 @@ PCJ_TITLES = [
     "Ataque\ntras GF", "Defensa\ntras GF", "Off-ball\ntras GF", "Físico\ntras GF",
 ]
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # 12 ejes: 4 canales x 3 contextos (tras GA + tras GF + bajo presion)
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Agrupados POR CANAL (los 3 contextos de cada canal consecutivos) — mismo orden
 # que la tabla de radar_report. Se usa con reorder=False (horario desde arriba):
 # wedge Ataque, wedge Defensa, wedge Off-ball, wedge Físico.
@@ -74,9 +74,9 @@ PCJ_TITLES_12 = [
     "Físico\ntras GA", "Físico\ntras GF", "Físico\nbajo presión",
 ]
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Colores de seleccion (primario, secundario)
-# ============================================================================
+# ----------------------------------------------------------------------------
 # Para el fill alterno de los anillos del radar. Cada par = 2 colores vivos que
 # contrastan entre si Y se ven bien sobre BG BLANCO a alpha=0.45.
 # Regla: evitar blanco (#FFF) y amarillos muy claros — quedan invisibles a
@@ -299,8 +299,8 @@ if __name__ == "__main__":
     player_radar(
         df, pid,
         title=f"{r['player_name']}  ·  Perfil Clutch del Jugador",
-        subtitle=f"{r['team_name']}  ·  {r['position_group']}  ·  "
-                  f"{int(r['minutes_played'])} min  ·  Mundial Qatar 2022",
+        subtitle=(f"{team_es(r['team_name'])} · {r['position_group']} · "
+                  f"{int(r['minutes_played'])} min  |  {TOURNAMENT_ES}"),
         save_path=out,
     )
     print(f"OK -> {out}")
