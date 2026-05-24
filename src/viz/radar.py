@@ -265,7 +265,7 @@ def player_radar(df: pl.DataFrame, player_id: int,
         fig.text(0.5, 0.93, subtitle, ha="center", va="top", color=WHITE,
                   fontsize=11)
     if logo:
-        add_logo(fig, width_frac=0.13)                                # ↑ logo MAS GRANDE
+        add_logo(fig, width_frac=0.15)                                # ↑ logo MAS GRANDE
 
     if save_path:
         save_path = Path(save_path)

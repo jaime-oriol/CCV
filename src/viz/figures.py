@@ -150,7 +150,7 @@ def event_study(save_path=None):
     )
 
     # Logo JO pequeño esquina inferior derecha
-    add_logo(fig, width_frac=0.055, margin=0.010, corner="br")
+    add_logo(fig, width_frac=0.063, margin=0.010, corner="br")
 
     if save_path:
         save_path = Path(save_path)

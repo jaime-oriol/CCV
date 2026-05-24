@@ -123,7 +123,7 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
 
     # ---- LOGO JO en FIG COORDS (0..1 X, 0..1 Y) — esquina sup-dcha ----
     figW, figH = fig.get_size_inches()
-    logo_w = 0.2                                                      # ancho logo en fraccion fig — ↑ MAS GRANDE
+    logo_w = 0.23                                                     # ancho logo en fraccion fig — ↑ MAS GRANDE
     right_edge = 0.755                                                # borde dcho del logo (fraccion fig) — ↑ mas a la DCHA
     top_edge = 0.265                                                  # bottom-edge tras restar el alto — ↑ logo MAS ABAJO
     if _LOGO_PATH.exists():

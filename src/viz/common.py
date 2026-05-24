@@ -204,6 +204,7 @@ def team_es(name: str) -> str:
 # Logo JO (Jaime Oriol) — esquina derecha del header en draw_header,
 # o esquinas inferiores en add_logo (figures.py, radar.py).
 _LOGO_PATH = Path(__file__).resolve().parent.parent.parent / "outputs" / "assets" / "logo.png"
+_JO_LOGO_SCALE = 1.15                                                # multiplier sobre el alto del escudo — ↑ logo JO MAS GRANDE en draw_header
 
 
 # ----------------------------------------------------------------------------
@@ -424,7 +425,7 @@ def draw_header(fig: plt.Figure, *, title: str,
     img_jo = _load_rgba(_LOGO_PATH)
     if img_jo is not None:
         img_jo = _normalize_img(img_jo)                             # normaliza a _ESCUDO_TARGET_PX → mismo source que escudo
-        jo_zoom = target_logo_px / img_jo.shape[0]                  # mismo target_h → mismo alto que escudo
+        jo_zoom = (target_logo_px * _JO_LOGO_SCALE) / img_jo.shape[0]  # JO_SCALE×alto del escudo
         ab = AnnotationBbox(
             OffsetImage(img_jo, zoom=jo_zoom),
             (jo_x, logo_y),
