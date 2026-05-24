@@ -1,0 +1,150 @@
+% =============================================================================
+% TFM - Expected Clutch Value (xCV)
+% Jaime Oriol Goicoechea · Master en Big Data Aplicado al Scouting en Futbol
+% Sports Data Campus · Curso 2025-2026
+% Tutor: Pablo Sanzol
+%
+% Compilar:    latexmk -pdf main.tex
+% Limpiar:     latexmk -C
+% =============================================================================
+
+\documentclass[12pt,a4paper,oneside]{report}
+
+% --- Encoding & idioma ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla,es-noindentfirst]{babel}
+\usepackage{csquotes}
+
+% --- Geometria de pagina ---
+\usepackage[a4paper,margin=2.5cm,top=2.7cm,bottom=2.7cm,headheight=14pt]{geometry}
+
+% --- Tipografia ---
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{setspace}
+\onehalfspacing
+
+% --- Matematicas ---
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+
+% --- Figuras ---
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{float}
+\usepackage{subcaption}
+
+% --- Tablas ---
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+
+% --- Caption ---
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf,format=plain,labelsep=period}
+
+% --- Listings de codigo ---
+\usepackage{xcolor}
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{gray!40},
+  backgroundcolor=\color{gray!5},
+  keywordstyle=\color{blue!70!black},
+  commentstyle=\color{green!50!black},
+  stringstyle=\color{red!70!black},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+}
+
+% --- Header / footer ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\nouppercase{\leftmark}}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\chaptermark}[1]{\markboth{\thechapter.\ #1}{}}
+
+% --- Estilo de titulo de capitulo ---
+\usepackage{titlesec}
+\titleformat{\chapter}[block]{\normalfont\Huge\bfseries}{\thechapter}{1em}{}
+\titlespacing*{\chapter}{0pt}{-30pt}{20pt}
+
+% --- Bibliografia BibLaTeX + biber + estilo APA 7 ---
+\usepackage[backend=biber,style=apa,sorting=nyt,hyperref=true]{biblatex}
+\addbibresource{refs.bib}
+
+% --- Hyperref (al final, casi siempre) ---
+\usepackage[hidelinks,breaklinks=true]{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue!50!black,
+  citecolor=blue!40!black,
+  pdftitle={Expected Clutch Value (xCV)},
+  pdfauthor={Jaime Oriol Goicoechea},
+}
+
+% --- Notacion estandar del TFM (uso global) ---
+\usepackage{xspace}
+\newcommand{\xCV}{\textit{xCV}\xspace}
+\newcommand{\dplayer}{\Delta_{\text{player}}}
+\newcommand{\dteam}{\Delta_{\text{team}}^{\text{LOO}}}
+\newcommand{\drel}{\Delta_{\text{player}}^{\text{rel}}}
+
+\begin{document}
+
+% =============================================================================
+% PORTADA
+% =============================================================================
+\input{portada}
+\clearpage
+
+% =============================================================================
+% RESUMEN / ABSTRACT / AGRADECIMIENTOS
+% =============================================================================
+\pagenumbering{roman}
+\input{sections/00_resumen}
+\input{sections/01_abstract}
+\input{sections/02_agradecimientos}
+
+% =============================================================================
+% INDICES
+% =============================================================================
+\tableofcontents
+\clearpage
+\listoffigures
+\clearpage
+\listoftables
+\clearpage
+
+% =============================================================================
+% CUERPO
+% =============================================================================
+\pagenumbering{arabic}
+\input{sections/03_introduccion}
+\input{sections/04_objetivos}
+\input{sections/05_estado_arte}
+\input{sections/06_metodologia}
+\input{sections/07_desarrollo}
+\input{sections/08_resultados}
+\input{sections/09_discusion}
+\input{sections/10_conclusiones}
+
+% =============================================================================
+% REFERENCIAS
+% =============================================================================
+\input{sections/11_referencias}
+
+% =============================================================================
+% ANEXOS
+% =============================================================================
+\appendix
+\input{sections/12_anexos}
+
+\end{document}
