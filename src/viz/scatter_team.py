@@ -1,13 +1,13 @@
 """scatter_team - 2 scatters Opta-style por seleccion (landscape, paper-grade).
 
-Misma estetica light Opta que scatter.py (X-Y nativo, landscape 14x8, header
+Misma estetica light Opta que scatter.py (X-Y nativo, landscape 16x9, header
 PPCF-style, mediana inline, footer gris). Filtrado al equipo: jugadores del
 torneo en grey low-alpha (la "nube" del torneo) + jugadores del equipo en
-TEAM_ACCENT con su CARA. Aesthetic + identitario.
+TEAM_ACCENT con su CARA (FotMob). Aesthetic + identitario.
 
-2 paneles, 1 PNG cada uno:
-  1. Remontador y Cerrojo               (chasing x protecting) — marco de la propuesta
-  2. Atacantes clutch                   (atk-GF x atk-Pressure) — donde el shock deja huella
+2 paneles, 1 PNG cada uno (mismos textos/conceptos que el scatter global):
+  1. Remontador y Cerrojo               (chasing x protecting)
+  2. Atacantes clutch                   (atk-GF x atk-Pressure)
 
 Uso:
     python -m src.viz.scatter_team France
@@ -21,20 +21,20 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 import matplotlib.pyplot as plt
-from matplotlib.offsetbox import AnnotationBbox, OffsetImage
+from matplotlib.offsetbox import AnnotationBbox, OffsetImage           # pa pegar caras FotMob
 from PIL import Image
 
 _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import BG, GRID, LEGEND, TEXT, draw_header
+from viz.common import BG, GRID, LEGEND, MASTER_FIGSIZE, TEXT, draw_header
 
-_TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
-_FACES = _SRC.parent / "outputs" / "assets" / "faces"
-_LOGOS = _SRC.parent / "outputs" / "assets" / "logos"
+_TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"                # tabla scout final (M15)
+_FACES = _SRC.parent / "outputs" / "assets" / "faces"                 # caras jugadores (FotMob)
+_LOGOS = _SRC.parent / "outputs" / "assets" / "logos"                 # escudos selecciones
 
-# pff team_name -> iso3 slug
+# pff team_name -> iso3 slug (pa escoger el escudo del equipo en el header)
 _TEAM_TO_SLUG = {
     "Argentina":"arg","Brazil":"bra","Ecuador":"ecu","Uruguay":"uru","Belgium":"bel",
     "Croatia":"cro","Denmark":"den","England":"eng","France":"fra","Germany":"ger",
@@ -45,7 +45,11 @@ _TEAM_TO_SLUG = {
     "United States":"usa","Costa Rica":"crc","Australia":"aus",
 }
 
-# Color accent primario por seleccion (bright + paper-friendly, alto contraste).
+# ============================================================================
+# Color accent primario por seleccion
+# ============================================================================
+# Bright + paper-friendly, alto contraste sobre BG blanco.
+# Si quieres mas variedad/identidad nacional fuerte, edita aqui.
 TEAM_ACCENT: dict[str, str] = {
     "Argentina":   "#5eb3e4",   # celeste
     "France":      "#1d4ed8",   # azul rey
@@ -81,8 +85,10 @@ TEAM_ACCENT: dict[str, str] = {
     "Tunisia":     "#dc2626",
 }
 
-# Configuracion de los 2 paneles. Mismos textos que scatter global por
-# concepto -> coherencia global<->team.
+# ============================================================================
+# Configuracion de los 2 paneles (mismos textos que scatter global por concepto
+# → coherencia global<->team)
+# ============================================================================
 _PAIRS = [
     dict(
         x="chasing_clutch_idx", y="protecting_clutch_idx",
@@ -102,38 +108,41 @@ _PAIRS = [
         slug="ataque_marcar_presion"),
 ]
 
-# ---- Estetica de puntos ----
-_DOT_BG_SIZE     = 22                  # nube del torneo (rest)
-_DOT_BG_COLOR    = "#d4d4d4"           # grey low-alpha
-_DOT_BG_ALPHA    = 0.45
-_DOT_TEAM_SIZE   = 110                 # puntos del equipo (team accent)
-_FACE_ZOOM       = 0.14                # caras del equipo
-_MED_LINE_COLOR  = "#888888"
-_MED_LINE_LW     = 1.0
+# ============================================================================
+# Estetica de puntos
+# ============================================================================
+_DOT_BG_SIZE     = 22                  # tamano de la nube del torneo (resto de jugadores) — ↑ MAS GRANDE
+_DOT_BG_COLOR    = "#d4d4d4"           # gris claro pa la nube — sin distraer del foco
+_DOT_BG_ALPHA    = 0.45                # transparencia de la nube — ↓ MAS transparente
+_DOT_TEAM_SIZE   = 110                 # tamano de los puntos del equipo (debajo de la cara) — ↑ MAS GRANDE
+_FACE_ZOOM       = 0.14                # zoom de las caras del equipo — ↑ MAS GRANDES
+_MED_LINE_COLOR  = "#888888"           # gris medio pa la mediana del torneo (dashed inline)
+_MED_LINE_LW     = 1.0                 # grosor de la mediana — ↑ MAS GRUESA
 
 
 def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
                        save_path: Path) -> Path:
-    """1 scatter Opta-style con caras del equipo + fondo de torneo en grey.
+    """1 scatter Opta-style con caras del equipo + fondo de torneo en gris.
 
-    El equipo se ve EN CONTEXTO del torneo: nube grey de los 511, equipo
-    coloreado en TEAM_ACCENT + cara. Mediana del torneo dashed inline.
+    El equipo se ve EN CONTEXTO del torneo: nube grey de los 511 jugadores,
+    equipo coloreado en TEAM_ACCENT + cara FotMob. Mediana del torneo dashed inline.
     """
-    accent = TEAM_ACCENT.get(team, "#ec4899")    # fallback pink bright
+    accent = TEAM_ACCENT.get(team, "#ec4899")                         # fallback pink bright si no esta en TEAM_ACCENT
     x_metric, y_metric = pair["x"], pair["y"]
 
+    # ---- Datos: TODOS los jugadores + mask del equipo ----
     pdf_full = df_full.to_pandas().reset_index(drop=True)
     xs_full = pdf_full[x_metric].fillna(0.0).to_numpy()
     ys_full = pdf_full[y_metric].fillna(0.0).to_numpy()
     team_mask = (pdf_full["team_name"] == team).to_numpy()
 
+    # Mediana del torneo (sobre TODOS, no solo el equipo)
     x_med, y_med = float(np.median(xs_full)), float(np.median(ys_full))
 
     # ---- Figura landscape MASTER ----
-    from viz.common import MASTER_FIGSIZE
     fig = plt.figure(figsize=MASTER_FIGSIZE, facecolor=BG)
 
-    # Header PPCF-style: escudo del EQUIPO (izq) + title + sub + sub2 + JO dcha
+    # Header PPCF-style: escudo del EQUIPO (izq) + titulo + subtitulo + JO dcha
     slug = _TEAM_TO_SLUG.get(team)
     team_logo = (_LOGOS / f"{slug}.png") if slug else None
     title = f"{team}  ·  {pair['title_concept']}"
@@ -141,7 +150,7 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
     draw_header(fig, title=title, subtitle=subtitle,
                 escudo_path=team_logo)
 
-    # Plot area: header arriba y=[0.833,1.0]; plot y=[0.12, 0.815]; footer abajo
+    # Plot area: header arriba y=[0.85,1.0]; plot y=[0.12, 0.815]; footer abajo
     ax = fig.add_axes([0.07, 0.12, 0.88, 0.695])
     ax.set_facecolor(BG)
 
@@ -156,7 +165,7 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
                 c=_DOT_BG_COLOR, alpha=_DOT_BG_ALPHA, edgecolor="none",
                 zorder=3)
 
-    # ---- Jugadores del equipo: dot accent + face ----
+    # ---- Jugadores del equipo: dot accent grande + cara FotMob encima ----
     team_pdf = pdf_full[team_mask]
     ax.scatter(team_pdf[x_metric].to_numpy(), team_pdf[y_metric].to_numpy(),
                 s=_DOT_TEAM_SIZE, c=accent, edgecolor=TEXT, lw=0.6,
@@ -166,13 +175,13 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
         pid = int(r["pff_player_id"])
         face_p = _FACES / f"{pid}.png"
         if not face_p.exists():
-            continue
+            continue                                                  # sin cara → solo el punto accent
         img_arr = np.asarray(Image.open(face_p).convert("RGBA"))
         ab = AnnotationBbox(OffsetImage(img_arr, zoom=_FACE_ZOOM),
                              (x, y), frameon=False, pad=0, zorder=6)
         ax.add_artist(ab)
 
-    # ---- Labels mediana INLINE (Opta-style) ----
+    # ---- Labels mediana INLINE (Opta-style, encima de las lineas) ----
     xlim = ax.get_xlim(); ylim = ax.get_ylim()
     ax.text(x_med, ylim[1], "  mediana del torneo", color=LEGEND, fontsize=9,
             ha="left", va="top", style="italic", zorder=4,
@@ -181,7 +190,7 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
             ha="right", va="bottom", style="italic", zorder=4,
             bbox=dict(facecolor=BG, edgecolor="none", pad=1, alpha=0.85))
 
-    # ---- Ejes (Opta-style) ----
+    # ---- Ejes (Opta-style: label limpio bold, ticks pequenos) ----
     ax.set_xlabel(pair["x_label"], fontsize=12, fontweight="bold",
                    color=TEXT, labelpad=8)
     ax.set_ylabel(pair["y_label"], fontsize=12, fontweight="bold",
@@ -192,9 +201,9 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
     for s in ("left", "bottom"):
         ax.spines[s].set_color(GRID); ax.spines[s].set_linewidth(0.9)
     ax.grid(True, alpha=0.55, color=GRID, lw=0.5, axis="both")
-    ax.set_axisbelow(True)
+    ax.set_axisbelow(True)                                            # grid detras de los puntos
 
-    # ---- Footer Opta-style: gris pequeño abajo-DCHA al nivel del eje X ----
+    # ---- Footer Opta-style: nota metodologica gris abajo-DCHA ----
     fig.text(0.95, 0.06, pair["foot"], color=LEGEND, fontsize=9,
              ha="right", style="italic")
 
@@ -203,10 +212,6 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
     fig.savefig(save_path, dpi=150, facecolor=BG, bbox_inches=None)
     plt.close(fig)
     return save_path
-
-
-# Alias retro-compat
-diamond_team = opta_scatter_team
 
 
 def scatter_team_all(df: pl.DataFrame, team: str, out_dir: Path) -> list[Path]:

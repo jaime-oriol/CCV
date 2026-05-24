@@ -1,10 +1,12 @@
 """figures - Figuras analiticas del PCJ (capa causal).
 
-Estilo dark journal paper-style: layout factorial 2 (perspective) × 4 (canal)
-con cabeceras de fila + columna, tipografia limpia, banda IC + linea β,
-caption metodologico al pie. NO va en el `make_all` core showcase — es
-figura de METODO/validacion causal (pre-trends planos + efecto medio
-≈0 -> heterogeneidad individual en CATE bayesiano de M14).
+Estilo paper-style sobre BG blanco: layout factorial 2 (perspective) x 4 (canal)
+con cabeceras de fila + columna, tipografia limpia, banda IC + linea beta,
+caption metodologico al pie.
+
+NO va en el make_all core showcase — es figura de METODO / validacion causal
+(pre-trends planos + efecto medio ≈0 → heterogeneidad individual en CATE
+bayesiano de M14).
 
 Uso:
     python -m src.viz.figures
@@ -25,29 +27,29 @@ from viz.common import ATT, BG, DEF, WHITE, add_logo
 
 _DID = _SRC.parent / "data" / "parquet" / "derived" / "did"
 
-# Nombres paper-quality (no jerga colloquial) y orden canonico.
+# Nombres paper-quality (no jerga coloquial) + orden canonico.
 _CHANNELS = ["ataque", "defensa", "offball", "fisico"]
 _CH_LABEL = {
-    "ataque":  "Produccion ofensiva",
+    "ataque":  "Producción ofensiva",
     "defensa": "Acciones defensivas",
     "offball": "Movimiento off-ball",
-    "fisico":  "Carga fisica",
+    "fisico":  "Carga física",
 }
 # Filas = perspective del shock. Color heredado de la identidad del repo
-# (azul ATT para post-GA, rojo DEF para post-GF; consistente con scatter/radar).
+# (azul ATT pa tras encajar, rojo DEF pa tras marcar; consistente con scatter/radar).
 _SHOCKS = [
     ("GOAL_AGAINST", "Tras encajar", ATT),
     ("GOAL_FOR",     "Tras marcar",  DEF),
 ]
 
-_GRID_C   = "#5a5c5b"          # gris medio: spines + lineas de referencia
-_REF_GREY = "#7a7c7b"          # gris algo mas claro: y=0
+_GRID_C   = "#cccccc"      # gris claro pa spines + lineas de referencia (legible en BG blanco)
+_REF_GREY = "#999999"      # gris medio pa la linea y=0
 
 
 def event_study(save_path=None):
-    """Event-study Sun-Abraham 2021: 2 shocks × 4 canales, β minuto a minuto.
+    """Event-study Sun-Abraham 2021: 2 shocks x 4 canales, beta minuto a minuto.
 
-    Layout 2×4 (rows = perspective, cols = canal). Row labels rotados a la
+    Layout 2x4 (rows = perspective, cols = canal). Row labels rotados a la
     izquierda; col labels solo en la fila superior. X compartido; Y libre por
     panel (las escalas difieren mucho entre canales). Paleta sobria, lineas
     finas, IC sombreado al 18% alpha. Caption metodologico al pie.
@@ -114,7 +116,7 @@ def event_study(save_path=None):
             ax.set_xticks(range(-10, 11, 5))
             ax.tick_params(labelsize=8, colors=WHITE,
                             length=3, width=0.7, pad=2)
-            # Spines: solo left + bottom, finos, gris medio
+            # Spines: solo left + bottom, finos, gris claro
             for s in ("top", "right"):
                 ax.spines[s].set_visible(False)
             for s in ("left", "bottom"):
@@ -147,7 +149,7 @@ def event_study(save_path=None):
         ha="center", va="top", color=WHITE, fontsize=8.7, alpha=0.85,
     )
 
-    # Logo JO pequeno esquina inferior derecha
+    # Logo JO pequeño esquina inferior derecha
     add_logo(fig, width_frac=0.055, margin=0.010, corner="br")
 
     if save_path:

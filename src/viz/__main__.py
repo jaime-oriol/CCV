@@ -1,12 +1,18 @@
-"""Runner unico de la capa viz. Renderiza las figuras core a outputs/viz/.
+"""Runner unico de la capa viz. Renderiza toda la baraja de figuras a outputs/viz/.
 
 Uso:
-    python -m src.viz                        # PPCF + 2 scatters globales + radar report
-    python -m src.viz radar "Messi"          # solo el radar geometrico
-    python -m src.viz report "Messi"         # radar_report (radar + tabla)
+    python -m src.viz                        # baraja completa (default)
+    python -m src.viz radar "Messi"          # solo el radar geometrico (8 ejes) standalone
+    python -m src.viz report "Messi"         # solo el radar_report (radar + tabla) standalone
 
-El event-study (figura de metodo / validacion causal) se renderiza aparte:
-    python -m src.viz.figures
+La baraja completa incluye:
+  - PPCF Mbappe 2-2 (final ARG-FRA, frame 164933 = instante exacto del remate)
+  - 2 scatter globales: Remontador x Cerrojo + Ataque tras marcar / bajo presion (511 jug)
+  - 2 scatter de Francia: misma estetica que globales pero filtrado al equipo
+  - 4 radar reports: Messi (1531), Hakimi (1681), Mbappe (3870), Brozovic (8129)
+
+El event-study causal (figura de validacion / metodos) NO entra aqui — se genera
+aparte via `python -m src.viz.figures`.
 """
 from __future__ import annotations
 
@@ -19,10 +25,25 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz import radar_report, ppcf, radar, scatter
+from viz import ppcf, radar, radar_report, scatter, scatter_team
 
 _OUT = _SRC.parent / "outputs" / "viz"
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"
+
+# ============================================================================
+# Players de la baraja completa (cara + escudo cacheados en outputs/assets/)
+# ============================================================================
+_REPORT_PLAYERS = [
+    1531,   # Lionel Messi (Argentina · CF)
+    1681,   # Achraf Hakimi (Morocco · RB)
+    3870,   # Kylian Mbappe (France · LW)
+    8129,   # Marcelo Brozovic (Croatia · CM)
+]
+_TEAM_SCATTER = "France"   # equipo pa los 2 scatter_team de la baraja
+
+# Frame exacto del 2-2 de Mbappe (game_event OTB del remate, P2 = tracking sin espejo)
+_PPCF_MATCH = 10517
+_PPCF_FRAME = 164933
 
 
 def _render_radar(df: pl.DataFrame, query: str) -> Path:
@@ -40,30 +61,38 @@ def _render_radar(df: pl.DataFrame, query: str) -> Path:
 
 
 def make_all() -> None:
-    """Renderiza las 3 figuras core de portada (PPCF + 2 scatters + radar report).
-
-    El event-study (figura de validacion causal / metodos) NO entra aqui:
-    se genera aparte via `python -m src.viz.figures`.
-    """
-    print("[viz] PPCF — 2-2 de Mbappe (Final ARG-FRA, min 81, instante de la volea)...")
-    # frame 164933 = instante EXACTO del remate (game_event OTB de Mbappe, sync via
-    # start_frame del evento del disparo; P2 regulacion = tracking limpio, sin espejo).
-    ppcf.plot_ppcf(10517, 164933, save_path=_OUT / "ppcf_mbappe_2_2_final.png")
-
-    print("[viz] Scatters globales (Remontador x Cerrojo + ataque marcar vs presion, 511 jug)...")
-    _tbl = pl.read_parquet(_TABLE)
-    for _key in ("remontador_cerrojo", "ataque_marcar_presion"):
-        scatter.diamond_scatter(_tbl, config=_key,
-                                 save_path=_OUT / f"scatter_{_key}.png")
-
-    print("[viz] Radar report — Messi (portada)...")
+    """Renderiza la baraja COMPLETA de figuras de portada del TFM."""
     df = pl.read_parquet(_TABLE)
-    radar_report.player_radar_report(df, radar_report._find(df, "Messi"))
 
-    print(f"[viz] OK — figuras en {_OUT}")
+    # ---- 1) PPCF: 2-2 de Mbappe (Final ARG-FRA, instante exacto del remate) ----
+    print(f"[viz] PPCF — 2-2 de Mbappe (Final ARG-FRA, frame {_PPCF_FRAME})...")
+    ppcf.plot_ppcf(_PPCF_MATCH, _PPCF_FRAME,
+                    save_path=_OUT / "ppcf_mbappe_2_2_final.png")
+
+    # ---- 2) Scatter globales (Remontador x Cerrojo + Ataque tras marcar/presion) ----
+    print(f"[viz] Scatter globales x2 ({df.height} jugadores)...")
+    for key in ("remontador_cerrojo", "ataque_marcar_presion"):
+        scatter.opta_scatter(df, config=key,
+                              save_path=_OUT / f"scatter_{key}.png")
+
+    # ---- 3) Scatter por equipo (Francia: mismos 2 conceptos, caras + nube torneo) ----
+    print(f"[viz] Scatter equipo x2 ({_TEAM_SCATTER})...")
+    scatter_team.scatter_team_all(df, _TEAM_SCATTER, _OUT)
+
+    # ---- 4) Radar reports (radar 12 ejes + tabla percentiles) ----
+    print(f"[viz] Radar reports x{len(_REPORT_PLAYERS)}...")
+    for pid in _REPORT_PLAYERS:
+        out = radar_report.player_radar_report(df, pid)
+        print(f"       OK -> {out.name}")
+
+    print(f"[viz] OK — todas las figuras en {_OUT}")
 
 
 if __name__ == "__main__":
+    # Subcomandos:
+    #   python -m src.viz                    → baraja completa
+    #   python -m src.viz radar "Messi"      → radar standalone
+    #   python -m src.viz report "Messi"     → radar_report standalone
     if len(sys.argv) > 2 and sys.argv[1] in ("radar", "report"):
         df = pl.read_parquet(_TABLE)
         if sys.argv[1] == "radar":
