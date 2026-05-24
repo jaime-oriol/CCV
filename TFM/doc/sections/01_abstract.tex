@@ -1,15 +1,71 @@
 % =============================================================================
-% ABSTRACT (English, mirror del Resumen)
+% ABSTRACT (English mirror of Resumen)
 % =============================================================================
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
 \markboth{Abstract}{}
 
-\noindent\textit{[Pendiente de redacción — turno 2 del doc.]}
+\textit{Clutch} performance is one of the most debated concepts in modern
+football scouting and one of the least rigorously measured. Public rankings
+of the player who shows up when it matters rely on pure event data, with no
+tracking, no exogenous counterfactual and---above all---no separation between
+the player who genuinely stands out and the player who simply rides the wave
+of a team that comes alive. The result is a market that overpays for clutch
+reputation without an objective metric. The open question is whether a
+player's clutch performance can be estimated causally, net of the collective
+pattern of their team, without presupposing that pattern a priori.
+
+This work proposes and evaluates the Expected Clutch Value (\xCV), a causal
+framework that estimates the effect of the emotional shock of a goal---both
+for and against---on player performance across four channels (offensive,
+defensive, off-ball and physical) and three contexts (after scoring, after
+conceding and high elimination proximity), residualized against the team's
+own delta via a leave-one-out scheme at each shock. The central contribution
+of this work is the framework itself; its application to the 2022 FIFA
+World Cup with PFF FC data follows from it being the only elite knockout
+tournament with open synchronized event and 25\,Hz tracking data, a
+condition that enables methodological validation on the most demanding
+competitive context without commercial barriers. The output table covers
+511~players, 233 with sufficient minutes for reliable analysis
+($\geq 270$\,min), and 172 goal-shocks split between 120 from the group
+stage and 52 from the knockout rounds.
+
+Causal identification is triangulated through two independent strategies.
+The first is a within-player Differences-in-Differences (DiD) estimate over
+a $\pm 10$-minute window around each goal, contrasted against modern
+estimators for pulse treatments
+\parencite{SunAbraham2021,BorusyakJaravelSpiess2024} and with robustness
+bounds against parallel-trends violations \parencite{RambachanRoth2023}. The
+second is a near-miss quasi-experiment: conditional on comparable pre-shot
+$xG$, whether the ball goes in is, in practice, random
+\parencite{GauriotPage2019}. The player-level heterogeneous effect is
+condensed into a hierarchical multivariate Bayesian Conditional Average
+Treatment Effect (CATE) estimated via Hamiltonian Monte Carlo (HMC) with
+the No-U-Turn (NUTS) sampler across four chains, with priors informed by
+PFF grades and cross-channel correlations modeled through a
+Lewandowski--Kurowicka--Joe (LKJ) prior.
+
+The population-average effect is statistically indistinguishable from zero
+across the four channels: the shock does not move the average player. The
+clutch signal lives in individual heterogeneity and emerges under high
+elimination proximity: four players exhibit a significant pressure-clutch
+effect at $P(\hat{\beta}>0\mid\text{data}) \geq 0.85$, led by Kylian Mbappé
+with a coefficient of $+0.11$ standard deviations and a posterior
+probability of $0.97$---consistent with his emergence in the closing stages
+of the Argentina-France final. At the channel-specific level, twenty-two
+players show a significant effect on the post-scoring offense cell, five
+with offensive output rising after scoring and seventeen declining. The
+Chasing and Protecting aggregates yield no significant players: the
+aggregated effect by shock direction is under-identified at $N = 172$,
+whereas the response conditional on the elimination-imminence context is
+identifiable. To the best of the present bibliographic review, \xCV stands
+as the first framework triangulating within-player DiD with a near-miss
+quasi-experiment over a knockout tournament at the player level, across
+four channels and residualized against the team block, with honest
+quantification of per-player uncertainty.
 
 \vspace{1em}
-\noindent\textbf{Keywords:} xCV; clutch performance; causal identification;
-difference-in-differences; near-miss quasi-experiment; hierarchical Bayesian CATE;
-PFF FC; 2022 FIFA World Cup.
+\noindent\textbf{Keywords:} \xCV; clutch performance; causal identification;
+hierarchical Bayesian CATE; PFF FC.
 
 \clearpage
