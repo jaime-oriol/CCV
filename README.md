@@ -63,18 +63,25 @@ TFM/
 ├── notebooks/
 │   ├── regen_all.ipynb                            # regen E2E completa M03-M15 + Z03-Z06 en orden DAG
 │   └── regen_m14_kaggle.ipynb                     # regen M14 NUTS HMC en Kaggle GPU
-└── outputs/
-    ├── xcv_table.parquet                          # tabla scout final (511 jug x 299 cols)
-    ├── viz/                                       # figuras PNG (PPCF, radar, radar_report, scatter, scatter_team, event-study)
-    └── xcv_aux/
-        ├── top10_chasing_per_position.parquet     # 16 position_group granulares
-        ├── top10_protecting_per_position.parquet
-        ├── top10_pressure_per_position.parquet
-        ├── top10_chasing_per_bucket.parquet       # 4 buckets (DEF/MED/ATA, GK aparte)
-        ├── top10_protecting_per_bucket.parquet
-        ├── top10_pressure_per_bucket.parquet
-        ├── dual_clutch_top.parquet
-        └── by_team.parquet
+├── outputs/
+│   ├── xcv_table.parquet                          # tabla scout final (511 jug x 299 cols)
+│   ├── viz/                                       # figuras PNG (PPCF, radar, radar_report, scatter, scatter_team, event-study)
+│   └── xcv_aux/
+│       ├── top10_chasing_per_position.parquet     # 16 position_group granulares
+│       ├── top10_protecting_per_position.parquet
+│       ├── top10_pressure_per_position.parquet
+│       ├── top10_chasing_per_bucket.parquet       # 4 buckets (DEF/MED/ATA, GK aparte)
+│       ├── top10_protecting_per_bucket.parquet
+│       ├── top10_pressure_per_bucket.parquet
+│       ├── dual_clutch_top.parquet
+│       └── by_team.parquet
+└── TFM/doc/                                       # documento TFM en LaTeX (paper EPV style, estructura RITMO)
+    ├── main.tex                                   # entry point (babel ES + biblatex APA 7 + biber)
+    ├── portada.tex                                # titulo ES + EN + autor + tutor + master
+    ├── refs.bib                                   # BibLaTeX (citas verificadas 1 a 1 vs DOI)
+    ├── Makefile                                   # make pdf | watch | clean
+    ├── figures/  -> ../../outputs/viz/            # symlink
+    └── sections/00..12_*.tex                      # 13 ficheros: Resumen, Abstract, Agradec., 8 caps, Refs, Anexos
 ```
 
 ## Estado del pipeline
@@ -157,6 +164,22 @@ Para regenerar desde cero (sin cache hit, requiere raw PFF + StatsBomb + Wyscout
 ```bash
 FORCE_CLEAN=1 ./run_pipeline.sh
 ```
+
+## Documento TFM
+
+El documento final del TFM se redacta en LaTeX en `TFM/doc/`. Estilo paper EPV
+(Fernandez, Bornn & Cervone 2021) en castellano, estructura tipo RITMO (Resumen +
+Abstract + 8 capitulos + Refs + Anexos), citas APA 7a edicion via BibLaTeX +
+biber. Compilar a PDF:
+
+```bash
+cd TFM/doc && make pdf            # genera build/main.pdf
+cd TFM/doc && make watch          # recompila al guardar (latexmk -pvc)
+cd TFM/doc && make clean          # borra build/
+```
+
+Toolchain requerido: TeX Live 2023+ con `latexmk` y `biber`. En Ubuntu/Debian:
+`sudo apt install texlive-full latexmk biber`.
 
 ## Stack
 
