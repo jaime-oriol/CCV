@@ -113,8 +113,8 @@ def opta_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
                 subtitle2=cfg.get("subtitle2"),
                 escudo_path=_WC22_LOGO)
 
-    # Plot area
-    ax = fig.add_axes([0.07, 0.13, 0.88, 0.72])
+    # Plot area: header arriba y=[0.833,1.0]; plot y=[0.12, 0.815]; footer abajo
+    ax = fig.add_axes([0.07, 0.12, 0.88, 0.695])
     ax.set_facecolor(BG)
 
     # ---- Lineas mediana del torneo (dashed grey) ----
@@ -170,7 +170,7 @@ def opta_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
     if save_path:
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(save_path, dpi=130, facecolor=BG, bbox_inches=None)
+        fig.savefig(save_path, dpi=150, facecolor=BG, bbox_inches=None)
         plt.close(fig)
     return fig
 

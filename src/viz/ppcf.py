@@ -36,7 +36,8 @@ from M01_loader_pff import scan_tracking, load_metadata, load_rosters
 from M03_preprocess import attacking_direction, goals_timeline
 
 from viz.common import (ATT, BALL, BG, DEF, GK, PE_S, PITCH_LENGTH,
-                         PITCH_WIDTH, PPCF_CMAP, WHITE, draw_pitch, _LOGO_PATH)
+                         PITCH_WIDTH, PPCF_CMAP, WHITE, draw_pitch, draw_header,
+                         _LOGO_PATH)
 
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"
 
@@ -223,37 +224,52 @@ def compute_ppcf_grid(frame_df: pd.DataFrame, att_team_id: int,
 # ---- Layout pitch-aligned (header + pitch + footer al mismo ancho) ----
 # Campo aspect = 105/68 = 1.544. Anclo header/footer al ancho exacto del pitch.
 
-FIGSIZE = (14.0, 10.5)
-PITCH_RATIO = PITCH_LENGTH / PITCH_WIDTH       # 1.544
+# ---- Layout: figura se ajusta al campo (sin margenes laterales) ----
+# La figura tiene exactamente el ancho del campo. El alto se deriva para que
+# el axes del pitch tenga el ratio correcto (datos x/y, no fisico 105/68):
+#   xlim = [-55.5, 55.5] -> rango 111 m
+#   ylim = [-37,   37  ] -> rango 74 m
+#   ratio datos = 111/74 = 1.5 (ligeramente mas cuadrado que 105/68=1.544)
+# Con axes width=FIG_W y height=FIG_W/1.5, set_aspect("equal") encaja perfecto.
 
-# Alturas (fraccion del alto fig). Suma + pads <= 1.
-H_HEADER = 0.10                                # ↑ header MAS ALTO -> mas espacio titulo
-H_PITCH  = 0.68                                # ↑ pitch MAS ALTO -> campo MAS GRANDE
-H_FOOTER = 0.18                                # ↑ footer MAS ALTO -> leyenda MAS GRANDE
-PAD_TOP            = 0.015
-PAD_HEADER_PITCH   = 0.0                       # ↑ separa header del pitch
-PAD_PITCH_FOOTER   = 0.005                     # ↑ separa pitch del footer
-PAD_BOTTOM         = 0.020
+FIG_W            = 14.0    # ancho fijo en pulgadas (= ancho fisico del campo)
+HEADER_H_IN      = 1.1     # ↑ → header mas alto / ↓ → mas espacio al campo
+FOOTER_H_IN      = 1.3     # ↑ → footer mas alto (leyenda)
+PAD_TOP_IN       = 0.04    # margen entre tope de fig y header
+PAD_HDR_PITCH_IN = 0.0     # separacion header-campo (0 = pegados)
+PAD_PCH_FTR_IN   = 0.05    # separacion campo-footer
+PAD_BOT_IN       = 0.07    # margen entre footer y base
+
+_DATA_RATIO = (PITCH_LENGTH + 6.0) / (PITCH_WIDTH + 6.0)   # 111/74 ≈ 1.5
+PITCH_H_IN  = FIG_W / _DATA_RATIO                           # alto del axes del campo
+
+FIG_H = (PAD_TOP_IN + HEADER_H_IN + PAD_HDR_PITCH_IN
+         + PITCH_H_IN + PAD_PCH_FTR_IN
+         + FOOTER_H_IN + PAD_BOT_IN)
+
+FIGSIZE = (FIG_W, FIG_H)
 
 
-def _layout(figsize=FIGSIZE) -> dict:
-    """Computa posiciones absolutas de header/pitch/footer ancladas al pitch."""
-    fw, fh = figsize
-    pitch_h_in = H_PITCH * fh
-    pitch_w_in = pitch_h_in * PITCH_RATIO
-    pitch_w_frac = pitch_w_in / fw                # ancho del pitch (frac fig)
-    left = (1.0 - pitch_w_frac) / 2.0             # centra el pitch en horizontal
+def _layout(figsize: tuple = FIGSIZE) -> dict:
+    """Posiciones absolutas de header/pitch/footer. Pitch ocupa todo el ancho."""
+    _, fh = figsize
+    h_hdr = HEADER_H_IN      / fh
+    h_pch = PITCH_H_IN       / fh
+    h_ftr = FOOTER_H_IN      / fh
+    p_top = PAD_TOP_IN       / fh
+    p_hp  = PAD_HDR_PITCH_IN / fh
+    p_pf  = PAD_PCH_FTR_IN   / fh
+    p_bot = PAD_BOT_IN       / fh
 
-    y_footer_bot = PAD_BOTTOM
-    y_footer_top = y_footer_bot + H_FOOTER
-    y_pitch_bot  = y_footer_top + PAD_PITCH_FOOTER
-    y_pitch_top  = y_pitch_bot + H_PITCH
-    y_header_bot = y_pitch_top + PAD_HEADER_PITCH
+    y_ftr_bot = p_bot
+    y_pch_bot = y_ftr_bot + h_ftr + p_pf
+    y_pch_top = y_pch_bot + h_pch
+    y_hdr_bot = y_pch_top + p_hp
     return {
-        "left": left, "width": pitch_w_frac,
-        "header": (left, y_header_bot, pitch_w_frac, H_HEADER),
-        "pitch":  (left, y_pitch_bot,  pitch_w_frac, H_PITCH),
-        "footer": (left, y_footer_bot, pitch_w_frac, H_FOOTER),
+        "left": 0.0, "width": 1.0,
+        "header": (0.0, y_hdr_bot, 1.0, h_hdr),
+        "pitch":  (0.0, y_pch_bot, 1.0, h_pch),
+        "footer": (0.0, y_ftr_bot, 1.0, h_ftr),
     }
 
 
@@ -267,61 +283,6 @@ def _make_block_axes(fig, left, bottom, width, height):
         s.set_visible(False)
     return ax
 
-
-# ---- Header (strip superior anclado al pitch) ----
-
-def _draw_header(ax: plt.Axes, title: str, subtitle,
-                  team_logo_path: Optional[str] = None,
-                  project_logo_path: Optional[str] = None) -> None:
-    """Escudo seleccion (izq) + titulo + subtitulo + logo JO (dcha)."""
-    ax.set_facecolor(BG)
-    ax.set_xlim(0, 1); ax.set_ylim(0, 1)
-    ax.set_xticks([]); ax.set_yticks([])
-    for s in ax.spines.values():
-        s.set_visible(False)
-
-    # ---- Escudo team a la izquierda del header ----
-    text_x = 0.135                                       # ↑ texto MAS a la DERECHA (defecto sin escudo)
-    if team_logo_path and Path(team_logo_path).exists():
-        try:
-            img = plt.imread(str(team_logo_path))
-            ab = AnnotationBbox(
-                OffsetImage(img, zoom=1.20),             # ↑ zoom -> escudo MAS GRANDE
-                (0.02, 0.50), frameon=False,              # X=0 -> pegado al borde IZQ; Y=0.5 -> centro vertical
-                box_alignment=(0.0, 0.5))                # ancla LEFT-edge en X
-            ab.set_clip_on(False)                        # permite render fuera del axes
-            ax.add_artist(ab)
-            text_x = 0.12                                # con escudo, texto se desplaza un pelin a la izq
-        except Exception:
-            pass
-
-    # ---- Titulo + subtitulos (acepta str o list) ----
-    sub_lines = list(subtitle) if isinstance(subtitle, (list, tuple)) else [subtitle]
-    n_sub = len(sub_lines)
-    title_y       = 0.82 if n_sub >= 2 else 0.55         # ↑ titulo MAS ARRIBA (en multi-linea)
-    gap_title_sub = 0.36                                  # ↑ MAS SEPARACION titulo - sub1
-    gap_sub_sub   = 0.26                                  # ↑ MAS SEPARACION sub1 - sub2
-
-    ax.text(text_x, title_y, title, color=WHITE,
-             fontsize=22, fontweight="bold", ha="left", va="center")
-    y = title_y
-    for i, line in enumerate(sub_lines):
-        y -= gap_title_sub if i == 0 else gap_sub_sub
-        ax.text(text_x, y, line, color=WHITE,
-                 fontsize=13, ha="left", va="center")
-
-    # ---- Logo JO a la derecha del header ----
-    if project_logo_path and Path(project_logo_path).exists():
-        try:
-            img = plt.imread(str(project_logo_path))
-            ab = AnnotationBbox(
-                OffsetImage(img, zoom=0.15),             # ↑ zoom -> logo JO MAS GRANDE
-                (0.95, 0.42), frameon=False,              # X=1 -> pegado al borde DCHA; ↓ Y -> logo BAJA
-                box_alignment=(1.0, 0.5))                # ancla RIGHT-edge en X
-            ab.set_clip_on(False)
-            ax.add_artist(ab)
-        except Exception:
-            pass
 
 
 # ---- Footer (3 bloques: leyenda + direccion + stats) ----
@@ -452,14 +413,17 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
             f"{home_name} {score_home} - {score_away} {away_name}",
         ]
 
-    # ---- Construye fig + 3 axes (header / pitch / footer) ----
+    # ---- Construye fig + 2 axes (pitch / footer) ----
     L = _layout(FIGSIZE)
     fig = plt.figure(figsize=FIGSIZE, facecolor=BG)
 
-    ax_header = fig.add_axes(L["header"])
-    _draw_header(ax_header, title, subtitle,
-                  team_logo_path=(str(team_logo) if team_logo and team_logo.exists() else None),
-                  project_logo_path=str(_LOGO_PATH) if _LOGO_PATH.exists() else None)
+    sub_lines = subtitle if isinstance(subtitle, list) else ([subtitle] if subtitle else [])
+    draw_header(fig, title=title,
+                subtitle=sub_lines[0] if len(sub_lines) > 0 else None,
+                subtitle2=sub_lines[1] if len(sub_lines) > 1 else None,
+                escudo_path=(str(team_logo) if team_logo and team_logo.exists() else None),
+                hdr_band=(L["header"][1], L["header"][1] + L["header"][3]),
+                sub_size=13)
 
     ax_pitch = fig.add_axes(L["pitch"])
     draw_pitch(ax_pitch, meta["pitch_l"], meta["pitch_w"])
@@ -512,7 +476,7 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
         # bbox_inches=None (NO 'tight') porque el layout esta absoluto en fig coords
-        fig.savefig(save_path, dpi=200, facecolor=BG, bbox_inches=None)
+        fig.savefig(save_path, dpi=150, facecolor=BG, bbox_inches=None)
     return fig
 
 
