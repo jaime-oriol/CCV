@@ -6,64 +6,68 @@
 \markboth{Resumen}{}
 
 \textit{Clutch} es uno de los conceptos más debatidos del scouting moderno y
-de los menos medidos con rigor. Los \textit{rankings} públicos del jugador que
-aparece cuando importa parten de \textit{eventing} puro, sin tracking, sin
-contrafactual exógeno y, sobre todo, sin separar al jugador que destaca del
-que simplemente acompaña a un equipo que se viene arriba. El resultado es un
-mercado que paga sobreprecio por reputación \textit{clutch} sin métrica
-objetiva. La pregunta abierta es si puede estimarse causalmente el rendimiento
-clutch del jugador residualizado contra el patrón colectivo de su bloque, sin
-presuponer ese patrón a priori.
+de los menos medidos con rigor. Los \textit{rankings} públicos del jugador
+que aparece cuando importa parten de \textit{eventing} puro, sin tracking,
+sin contrafactual exógeno y, sobre todo, sin separar al jugador que destaca
+del que simplemente acompaña a un equipo que se viene arriba. El resultado
+es un mercado que paga sobreprecio por reputación \textit{clutch} sin métrica
+objetiva. La pregunta abierta es si puede estimarse causalmente el
+rendimiento clutch del jugador residualizado contra el patrón colectivo de
+su bloque, sin presuponer ese patrón a priori.
 
 Este trabajo propone y evalúa el \textit{Expected Clutch Value} (\xCV), un
-marco causal que estima el efecto del shock emocional del gol (a favor y en
-contra) sobre el rendimiento del jugador en cuatro canales --- Empuje
-Ofensivo, Solidez Defensiva, Inteligencia Espacial \textit{off-ball} y Pulso
-Físico --- y tres contextos --- post-gol a favor, post-gol en contra y
-proximidad de eliminación alta ---, residualizado contra el delta del propio
-equipo mediante \textit{leave-one-out} en cada \textit{shock}. El marco se
-aplica sobre el Mundial Qatar 2022 con datos PFF FC (eventos y tracking a
-25\,Hz sincronizado en los 64 partidos, liberados en abierto por el
-proveedor). La tabla final cubre 511 jugadores, 233 con minutos suficientes
-para análisis fiable ($\geq 270$\,min), y 172 goles-\textit{shock} repartidos
+marco causal que estima el efecto del shock emocional del gol --- a favor y
+en contra --- sobre el desempeño del jugador en cuatro canales (ofensivo,
+defensivo, \textit{off-ball} y físico) y tres contextos (post-gol a favor,
+post-gol en contra y proximidad de eliminación alta), residualizado contra
+el delta del propio equipo mediante \textit{leave-one-out} en cada
+\textit{shock}. La aportación central del trabajo es el marco causal en sí;
+la aplicación al Mundial Qatar 2022 con datos PFF FC obedece a que es el
+único torneo eliminatorio de élite con eventos y tracking sincronizado a
+25\,Hz liberados en abierto, condición que permite validar la metodología
+sobre la final del ciclo competitivo más exigente sin barrera comercial.
+La tabla \textit{output} cubre 511~jugadores, 233 con minutos suficientes
+para análisis fiable ($\geq 270$\,min), y 172~goles-\textit{shock} repartidos
 entre 120 de fase de grupos y 52 de eliminatoria.
 
-La identificación causal se triangula con dos estrategias independientes. La
-primera es una estimación de diferencias-en-diferencias \textit{within-player}
-sobre la ventana de $\pm 10$ minutos respecto al gol, contrastada con los
-estimadores modernos para tratamientos pulsados (Sun--Abraham,
-Borusyak--Jaravel--Spiess) y con cotas de robustez frente a violaciones de
-tendencias paralelas vía HonestDiD. La segunda es un cuasi-experimento de
-\textit{near-miss}: dado un disparo con \textit{pre-shot} $xG$ comparable,
-el hecho de que el balón entre o no es, en la práctica, azar. El efecto
-heterogéneo por jugador se condensa en un CATE jerárquico bayesiano
-\textit{multivariate} estimado por NUTS HMC con cuatro cadenas,
-\textit{priors} informados por \textit{grades} PFF y correlaciones cross-canal
-modeladas mediante una previa LKJ.
+La identificación causal se triangula con dos estrategias independientes.
+La primera es una estimación de diferencias-en-diferencias \textit{within-player}
+(DiD) sobre la ventana de $\pm 10$ minutos respecto al gol, contrastada con
+los estimadores modernos para tratamientos pulsados
+\parencite{SunAbraham2021,BorusyakJaravelSpiess2024} y con cotas de robustez
+frente a violaciones de tendencias paralelas \parencite{RambachanRoth2023}.
+La segunda es un cuasi-experimento de \textit{near-miss}: dado un disparo
+con \textit{pre-shot}~$xG$ comparable, el hecho de que el balón entre o no
+es, en la práctica, azar \parencite{GauriotPage2019}. El efecto heterogéneo
+por jugador se condensa en un \textit{Conditional Average Treatment Effect}
+(CATE) jerárquico bayesiano \textit{multivariate} estimado vía
+\textit{Hamiltonian Monte Carlo} (HMC) con el \textit{sampler} No-U-Turn
+(NUTS) sobre cuatro cadenas, \textit{priors} informados por \textit{grades}
+PFF y correlaciones cross-canal modeladas con una previa
+Lewandowski--Kurowicka--Joe (LKJ).
 
-El efecto poblacional medio es estadísticamente indistinguible de cero en los
-cuatro canales: el \textit{shock} no mueve al jugador promedio. La señal
-\textit{clutch} vive en la heterogeneidad individual y emerge bajo proximidad
-de eliminación alta: cuatro jugadores presentan efecto \textit{pressure-clutch}
-significativo a $P(\hat{\beta}>0\mid\text{datos})\geq 0{,}85$, liderados por
-Kylian Mbappé con un coeficiente de $+0{,}11$ desviaciones estándar y
-probabilidad posterior $0{,}97$ --- coherente con su irrupción en el cierre
-de la final ARG-FRA. En la dimensión canal-específica, veintidós jugadores
-muestran efecto significativo en la celda ataque-tras-marcar, repartidos
-entre cinco que elevan su producción ofensiva tras anotar y diecisiete que
-la reducen. Los agregados Remontador y Cerrojo no arrojan jugadores
-significativos: el efecto agregado por dirección del \textit{shock} queda
-infra-identificado con $N=172$, mientras que la respuesta condicional al
-contexto de eliminación inminente sí es identificable. El \xCV constituye,
-hasta donde alcanza la revisión bibliográfica, el primer marco que triangula
-DiD \textit{within-player} con cuasi-experimento \textit{near-miss} sobre un
+El efecto poblacional medio es estadísticamente indistinguible de cero en
+los cuatro canales: el \textit{shock} no mueve al jugador promedio. La señal
+\textit{clutch} vive en la heterogeneidad individual y emerge bajo
+proximidad de eliminación alta: cuatro jugadores presentan efecto
+\textit{pressure-clutch} significativo a $P(\hat{\beta}>0\mid\text{datos})
+\geq 0{,}85$, liderados por Kylian Mbappé con un coeficiente de $+0{,}11$
+desviaciones estándar y probabilidad posterior $0{,}97$ --- coherente con
+su irrupción en el cierre de la final Argentina-Francia. En la dimensión
+canal-específica, veintidós jugadores muestran efecto significativo en la
+celda ataque-tras-marcar, cinco con producción ofensiva al alza tras anotar
+y diecisiete a la baja. Los agregados Remontador y Cerrojo no arrojan
+jugadores significativos: el efecto agregado por dirección del \textit{shock}
+queda infra-identificado con $N=172$, mientras que la respuesta condicional
+al contexto de eliminación inminente sí lo es. El \xCV constituye, hasta
+donde alcanza la revisión bibliográfica, el primer marco que triangula DiD
+\textit{within-player} con cuasi-experimento \textit{near-miss} sobre un
 torneo eliminatorio a nivel jugador, sobre cuatro canales y residualizado
 contra el bloque del equipo, con cuantificación honesta de la incertidumbre
 por jugador.
 
 \vspace{1em}
 \noindent\textbf{Palabras clave:} \xCV; rendimiento \textit{clutch};
-identificación causal; diferencias-en-diferencias; cuasi-experimento
-\textit{near-miss}; CATE bayesiano jerárquico; PFF FC; Mundial Qatar 2022.
+identificación causal; CATE bayesiano jerárquico; PFF FC.
 
 \clearpage
