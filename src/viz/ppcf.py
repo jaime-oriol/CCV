@@ -36,7 +36,8 @@ from M01_loader_pff import scan_tracking, load_metadata, load_rosters
 from M03_preprocess import attacking_direction, goals_timeline
 
 from viz.common import (ATT, BG, DEF, GK, PE_S, PITCH_LENGTH, PITCH_WIDTH,
-                         PPCF_CMAP, WHITE, draw_pitch, draw_header)
+                         PPCF_CMAP, TOURNAMENT_ES, WHITE, draw_pitch, draw_header,
+                         team_es)
 
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"               # escudos selecciones (sportlogos/sport.db.logos)
 
@@ -245,8 +246,13 @@ PAD_TOP_IN       = 0.04    # margen entre tope de fig y header (pulgadas)
 PAD_HDR_PITCH_IN = 0.0     # separacion header-campo (0 = pegados)
 PAD_PCH_FTR_IN   = 0.05    # separacion campo-footer
 PAD_BOT_IN       = 0.07    # margen entre footer y base
+PITCH_MARGIN_Y_M = 1.0     # margen Y del axes del campo (arriba/abajo) — antes 3
+                            # ↓ campo MAS PEGADO al header/footer (menos hueco)
+                            # ↑ MAS espacio entre lineas del campo y bordes del axes
+PITCH_MARGIN_X_M = 2.0     # margen X del axes (laterales) — MIN 1.5 pa que entren porterias (±54m)
+                            # ↑ MAS espacio lateral (mas aire para porterias y nombres de equipo)
 
-_DATA_RATIO = (PITCH_LENGTH + 6.0) / (PITCH_WIDTH + 6.0)            # 111/74 ≈ 1.5 (ratio xlim/ylim del axes)
+_DATA_RATIO = (PITCH_LENGTH + 2 * PITCH_MARGIN_X_M) / (PITCH_WIDTH + 2 * PITCH_MARGIN_Y_M)
 PITCH_H_IN  = FIG_W / _DATA_RATIO                                    # alto del axes del campo (pulgadas)
 
 FIG_H = (PAD_TOP_IN + HEADER_H_IN + PAD_HDR_PITCH_IN
@@ -364,15 +370,15 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
         transform=ax_b1.transAxes, zorder=3))
     # Etiquetas extremos debajo de la barra
     ax_b1.text(bar_x0, bar_y - bar_h / 2 - 0.1, "100% defensor",
-                ha="left", va="top", fontsize=12, color=WHITE,
+                ha="left", va="top", fontsize=14, color=WHITE,
                 transform=ax_b1.transAxes, fontweight="bold")
     ax_b1.text(bar_x1, bar_y - bar_h / 2 - 0.1, "100% atacante",
-                ha="right", va="top", fontsize=12, color=WHITE,
+                ha="right", va="top", fontsize=14, color=WHITE,
                 transform=ax_b1.transAxes, fontweight="bold")
     # Descripcion arriba (normal: ni bold ni cursiva)
-    ax_b1.text(0.5, bar_y + bar_h / 2 + 0.1,
+    ax_b1.text(0.5, bar_y + bar_h / 2 + 0.05,
                 "probabilidad de que el equipo controle ese punto del campo",
-                ha="center", va="bottom", fontsize=10, color=WHITE,
+                ha="center", va="bottom", fontsize=12, color=WHITE,
                 transform=ax_b1.transAxes)
 
     # ---- BLOCK 2: triangulos Direccion de Ataque ----
@@ -399,19 +405,19 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
             alpha=alpha, transform=ax_b2.transAxes, zorder=10))
     # Etiqueta unica debajo de los triangulos
     ax_b2.text(0.5, 0.5, "Dirección de Ataque",
-                ha="center", va="center", fontsize=12, color=WHITE,
+                ha="center", va="center", fontsize=14, color=WHITE,
                 transform=ax_b2.transAxes, fontweight="bold")
 
     # ---- BLOCK 3: equipos (izq + centro) + balon Telstar (dcha) ----
     y_node = 0.75                                                    # y comun pa los 3 elementos
     # Nodos de los 2 equipos: marker "o" con ms=25 (= 25pt diametro)
     for x_node, x_txt, color, name in (
-            (0.07, 0.145, ATT, att_team_name),                       # IZQUIERDA: atacante (azul)
-            (0.38, 0.455, DEF, def_team_name)):                      # CENTRO:    defensor (rojo)
+            (0.07, 0.125, ATT, att_team_name),                       # IZQUIERDA: atacante (azul)
+            (0.35, 0.405, DEF, def_team_name)):                      # CENTRO:    defensor (rojo)
         ax_b3.plot(x_node, y_node, "o", ms=25, color=color, markeredgecolor=WHITE,
                     markeredgewidth=1.3, alpha=0.93, transform=ax_b3.transAxes,
                     clip_on=False, zorder=5)
-        ax_b3.text(x_txt, y_node, name, ha="left", va="center", fontsize=12,
+        ax_b3.text(x_txt, y_node, name, ha="left", va="center", fontsize=14,
                     color=WHITE, fontweight="bold", transform=ax_b3.transAxes)
     # ---- Balon Telstar (dcha) ----
     # Mismo patron que en el campo, pero usando Ellipse (no Circle) pa compensar
@@ -443,8 +449,8 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
         _op = mpatches.Polygon(_pts_o, facecolor="black", edgecolor="none", zorder=6)
         _op.set_clip_path(_ball_ell); ax_b3.add_patch(_op)
     # Label "Balón" a la derecha del balon (mismo gap que los nodos: +0.075)
-    ax_b3.text(x_ball + 0.075, y_node, "Balón", ha="left", va="center",
-                fontsize=12, color=WHITE, fontweight="bold",
+    ax_b3.text(x_ball + 0.055, y_node, "Balón", ha="left", va="center",
+                fontsize=14, color=WHITE, fontweight="bold",
                 transform=ax_b3.transAxes)
 
 
@@ -483,12 +489,14 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
     score_away = int(g["cum_away"].max() or 0) if g.height else 0
 
     # Titulo + subtitulo auto-generados desde metadata (formato Opta-style)
-    home_name = meta["home_name"]; away_name = meta["away_name"]
+    # Naming ESTANDAR (todo español): nombres equipos traducidos via team_es(),
+    # torneo siempre TOURNAMENT_ES de common.py, marcador X-Y sin espacios, fecha en parens.
+    home_es = team_es(meta["home_name"])
+    away_es = team_es(meta["away_name"])
     if title is None:
-        title = f"Pitch Control: {home_name} vs {away_name}"
+        title = f"Pitch Control: {home_es} vs {away_es}"
     if subtitle is None:
         from datetime import datetime
-        comp = meta["comp_name"] or "Mundial Qatar 2022"
         _MES = ["enero","febrero","marzo","abril","mayo","junio",
                 "julio","agosto","septiembre","octubre","noviembre","diciembre"]
         try:
@@ -496,8 +504,8 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
             date_fmt = f"{dt.day} de {_MES[dt.month-1]} de {dt.year}"
         except Exception:
             date_fmt = meta["date_iso"]
-        subtitle = (f"{comp}  |  "
-                    f"{home_name} {score_home} - {score_away} {away_name}"
+        subtitle = (f"{TOURNAMENT_ES}  |  "
+                    f"{home_es} {score_home}-{score_away} {away_es}"
                     f"  ({date_fmt})")
 
     # ---- Construye fig + axes (header se pinta como artists, no axes) ----
@@ -509,11 +517,12 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
                 subtitle=subtitle if isinstance(subtitle, str) else None,
                 escudo_path=(str(team_logo) if team_logo and team_logo.exists() else None),
                 hdr_band=(L["header"][1], L["header"][1] + L["header"][3]),
-                sub_size=13)
+                sub_size=14)
 
     # ---- Pitch ----
     ax_pitch = fig.add_axes(L["pitch"])
-    draw_pitch(ax_pitch, meta["pitch_l"], meta["pitch_w"])
+    draw_pitch(ax_pitch, meta["pitch_l"], meta["pitch_w"],
+                margin=PITCH_MARGIN_Y_M, margin_x=PITCH_MARGIN_X_M)
     L_h, W_h = meta["pitch_l"] / 2, meta["pitch_w"] / 2
 
     # ---- Superficie PPCF sobre el campo ----
@@ -540,17 +549,18 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
                               headlength=4.5, headaxislength=4.0, alpha=0.85,
                               zorder=3)
 
-    # ---- Jugadores (circulo grande + dorsal con halo BG) ----
-    # ms=22 → diametro 22pt del nodo; ↑ → jugador MAS GRANDE
-    # markeredgewidth=1.3 → borde blanco fino; ↑ → borde MAS GRUESO
+    # ---- Jugadores (circulo grande + dorsal BLANCO con halo NEGRO) ----
+    # ms=25 → mismo diametro que los nodos de la leyenda (25pt); ↑ → jugador MAS GRANDE
+    # Dorsal: color="white" + PE_S (halo negro) → maxima legibilidad sobre azul/rojo saturados
+    # markeredgewidth=1.3 → borde negro fino; ↑ → borde MAS GRUESO
     for _, p in field.iterrows():
         color = (GK if p["is_goalkeeper"]
                   else (ATT if p["team_id"] == att else DEF))
-        ax_pitch.plot(p["x_tracking"], p["y_tracking"], "o", ms=22, color=color,
+        ax_pitch.plot(p["x_tracking"], p["y_tracking"], "o", ms=25, color=color,
                        markeredgecolor=WHITE, markeredgewidth=1.3, alpha=0.93,
                        zorder=5)
         ax_pitch.text(p["x_tracking"], p["y_tracking"], str(int(p["jersey"])),
-                       color=WHITE, fontsize=8.5, ha="center", va="center",
+                       color="white", fontsize=12, ha="center", va="center",
                        fontweight="bold", zorder=6, path_effects=PE_S)
 
     # ---- Balon Telstar ----

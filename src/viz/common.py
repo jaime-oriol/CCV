@@ -112,10 +112,11 @@ plt.rcParams.update({
     "ytick.color": TEXT,                                            # color de los ticks Y = negro
 })
 
-# Path effects: halo BG alrededor del texto pa que se lea sobre fondos coloreados.
-PE   = [pe.withStroke(linewidth=1.5, foreground=BG), pe.Normal()]   # halo fino (texto normal sobre PPCF)
-PE_S = [pe.withStroke(linewidth=2.6, foreground=BG)]                # halo gordo (dorsales sobre PPCF)
-                                                                     #   ↑ linewidth → halo mas gordo
+# Path effects: halo alrededor del texto pa que se lea sobre fondos coloreados.
+PE   = [pe.withStroke(linewidth=1.5, foreground=BG), pe.Normal()]   # halo BLANCO fino (texto negro sobre PPCF claro)
+PE_S = [pe.withStroke(linewidth=2.2, foreground="black")]           # halo NEGRO grueso (dorsales BLANCOS sobre nodos azul/rojo saturados)
+                                                                     #   ↑ linewidth → halo mas gordo (mas contraste pero texto se ve menos)
+                                                                     #   foreground="white" → invierte a halo blanco (pa fondos oscuros)
 
 # ============================================================================
 # COLORMAPS
@@ -152,6 +153,54 @@ HEADER_BAND = (0.85, 1.0)                                           # (y_inferio
 PITCH_LENGTH = 105.0                                                # metros — norma FIFA, no tocar
 PITCH_WIDTH  = 68.0                                                 # metros — norma FIFA, no tocar
 
+# ============================================================================
+# NAMING ESTANDAR (todo en ESPAÑOL, mismo wording en TODAS las vizs)
+# ============================================================================
+
+TOURNAMENT_ES   = "Mundial Qatar 2022"                              # nombre del torneo (subtitulos)
+N_PLAYERS_WC22  = 511                                                # numero jugadores filtrados en pcj_table.parquet
+
+# Mapeo nombres PFF (ingles) -> español. Pa traducir los team_name del parquet.
+TEAM_NAME_ES: dict[str, str] = {
+    "Argentina":     "Argentina",
+    "Brazil":        "Brasil",
+    "Ecuador":       "Ecuador",
+    "Uruguay":       "Uruguay",
+    "Belgium":       "Bélgica",
+    "Croatia":       "Croacia",
+    "Denmark":       "Dinamarca",
+    "England":       "Inglaterra",
+    "France":        "Francia",
+    "Germany":       "Alemania",
+    "Netherlands":   "Países Bajos",
+    "Poland":        "Polonia",
+    "Portugal":      "Portugal",
+    "Serbia":        "Serbia",
+    "Spain":         "España",
+    "Switzerland":   "Suiza",
+    "Wales":         "Gales",
+    "Cameroon":      "Camerún",
+    "Ghana":         "Ghana",
+    "Morocco":       "Marruecos",
+    "Senegal":       "Senegal",
+    "Tunisia":       "Túnez",
+    "Japan":         "Japón",
+    "South Korea":   "Corea del Sur",
+    "Iran":          "Irán",
+    "Qatar":         "Qatar",
+    "Saudi Arabia":  "Arabia Saudí",
+    "Canada":        "Canadá",
+    "Mexico":        "México",
+    "United States": "Estados Unidos",
+    "Costa Rica":    "Costa Rica",
+    "Australia":     "Australia",
+}
+
+
+def team_es(name: str) -> str:
+    """Traduce un team_name de PFF al español. Si no esta mapeado, devuelve igual."""
+    return TEAM_NAME_ES.get(name, name)
+
 # Logo JO (Jaime Oriol) — esquina derecha del header en draw_header,
 # o esquinas inferiores en add_logo (figures.py, radar.py).
 _LOGO_PATH = Path(__file__).resolve().parent / "assets" / "logo_2.png"
@@ -164,8 +213,21 @@ _LOGO_PATH = Path(__file__).resolve().parent / "assets" / "logo_2.png"
 def draw_pitch(ax: plt.Axes,
                pitch_length: float = PITCH_LENGTH,
                pitch_width: float = PITCH_WIDTH,
-               color: str = PITCH, lw: float = 1.0) -> None:
-    """Dibuja un campo de futbol centrado en (0,0), en metros. Sin mplsoccer."""
+               color: str = PITCH, lw: float = 1.0,
+               margin: float = 3.0,
+               margin_x: Optional[float] = None) -> None:
+    """Dibuja un campo de futbol centrado en (0,0), en metros. Sin mplsoccer.
+
+    Margenes:
+      - margin   = metros de margen Y (arriba/abajo del campo)
+      - margin_x = metros de margen X (laterales). None → usa `margin` (margen uniforme)
+                   IMPORTANTE: las porterias van de ±L a ±(L+1.5), asi que margin_x>=1.5
+                   pa que NO se corten los postes traseros.
+    Default ambos 3.0 (≈0.4" a 150dpi en vizs 16x9). Usalo junto con _DATA_RATIO
+    de tu layout pa que set_aspect encaje sin huecos.
+    """
+    if margin_x is None:
+        margin_x = margin
     L, W = pitch_length / 2, pitch_width / 2                        # semieje long/ancho — origen en el centro
 
     # Borde exterior del campo
@@ -201,8 +263,8 @@ def draw_pitch(ax: plt.Axes,
         ax.plot([sign * (L + 1.5), sign * (L + 1.5)], [-3.66, 3.66],
                 color=color, lw=lw * 1.5, zorder=2)                 # palo trasero de la porteria
 
-    ax.set_xlim(-L - 3, L + 3)                                      # 3 m de margen exterior (no cortar el campo)
-    ax.set_ylim(-W - 3, W + 3)
+    ax.set_xlim(-L - margin_x, L + margin_x)                        # margen X (incluye porterias ±(L+1.5))
+    ax.set_ylim(-W - margin, W + margin)                            # margen Y exterior
     ax.set_aspect("equal")                                          # aspecto 1:1 (sin deformar el campo)
     ax.axis("off")                                                  # sin ejes/ticks/bordes alrededor del campo
 
@@ -263,48 +325,91 @@ def _normalize_img(img: np.ndarray, target_h: int = _ESCUDO_TARGET_PX) -> np.nda
     # LANCZOS = mejor calidad al reducir; alternativa BILINEAR pa mas velocidad
 
 
+_TEXT_FILL_FACTOR = 1.2   # divisor pa convertir alto en pt → matplotlib fontsize (compensa line-spacing/padding)
+                           #   ↑ 1.5 → texto MAS PEQUEÑO pa misma altura asignada (mas margen)
+                           #   ↓ 1.0 → texto MAS GRANDE (toca los limites)
+
+
 def draw_header(fig: plt.Figure, *, title: str,
                 subtitle: Optional[str] = None,
                 escudo_path=None,
                 hdr_band: Tuple[float, float] = HEADER_BAND,
                 escudo_x: float = 0.04, text_x: float = 0.13, jo_x: float = 0.96,
-                escudo_zoom: float = 1.20, jo_zoom: float = 0.15,
-                title_size: float = 22, sub_size: float = 14) -> None:
-    """Header PPCF-style: escudo grande IZQ | titulo TOP + subtitulo LEFT | JO DCHA.
+                logo_h_frac: float = 0.5,
+                text_h_frac: float = 0.5,
+                title_share: float = 2.0 / 3.0,
+                title_size: Optional[float] = None,
+                sub_size: Optional[float] = None) -> None:
+    """Header PPCF-style: escudo grande IZQ | titulo + subtitulo CENTRO | JO DCHA.
+
+    Proporciones (todo relativo al alto del header band):
+      - Logos (escudo+JO):    centrados vertical, alto = logo_h_frac del band
+                              (default 0.5 → van de 0.25 a 0.75)
+      - Bloque titulo+sub:    centrado vertical, alto = text_h_frac del band
+                              (default 0.5 → tambien 0.25-0.75, mismo que logos)
+      - Dentro del bloque:    titulo = title_share del alto (default 2/3)
+                              sub    = (1 - title_share) del alto (default 1/3)
 
     Args:
       fig:          la Figure de matplotlib donde pintar
       title:        texto del titulo (Chakra Petch 700, negro)
       subtitle:     subtitulo (Chakra Petch 500, negro). None = no se pinta
-      escudo_path:  PNG del escudo a la izquierda (selecciones/torneo). None = no escudo
+      escudo_path:  PNG del escudo IZQ (selecciones/torneo). None = sin escudo
       hdr_band:     franja vertical reservada al header — default HEADER_BAND
       escudo_x/text_x/jo_x: posiciones x de cada elemento en fraccion [0..1] de figura
-      escudo_zoom/jo_zoom:  escala de cada logo (sobre target px normalizado)
-      title_size/sub_size:  fontsizes del texto
+      logo_h_frac:  alto de AMBOS logos en fraccion del band — ↑ logos MAS GRANDES
+      text_h_frac:  alto total del bloque texto en fraccion del band — ↑ texto MAS GRANDE
+      title_share:  cuanto del bloque ocupa el titulo (resto va al sub)
+      title_size:   override fontsize del titulo. None = auto-derivado del espacio asignado
+      sub_size:     override fontsize del subtitulo. None = auto-derivado
     """
     bot, top = hdr_band                                             # fraccion inferior/superior del header en figura
     h = top - bot                                                   # alto total del header en fraccion de figura
 
-    # Posiciones verticales (fraccion de figura, NO del header)
-    title_y  = bot + 0.85 * h                                       # titulo: arriba del todo
-    sub_y    = bot + 0.55 * h                                       # subtitulo: centro
-    escudo_y = bot + 0.50 * h                                       # escudo: centrado vertical
-    jo_y     = bot + 0.42 * h                                       # JO: ligeramente bajo el centro
+    fig_h_inches = fig.get_size_inches()[1]
+    band_h_inches = h * fig_h_inches                                # alto del band en pulgadas
+
+    # ---- Bloque de texto: titulo arriba (title_share) + sub abajo (1-title_share) ----
+    # Bloque centrado vertical en el band, ocupa text_h_frac de su alto.
+    sub_share = 1.0 - title_share
+    block_bot_frac = 0.5 - text_h_frac / 2.0                        # default 0.25 (con text_h_frac=0.5)
+    block_top_frac = 0.5 + text_h_frac / 2.0                        # default 0.75
+    boundary_frac = block_bot_frac + sub_share * text_h_frac         # frontera titulo/sub
+    # Centros verticales de cada texto (pa va="center")
+    sub_center_frac   = (block_bot_frac + boundary_frac) / 2.0
+    title_center_frac = (boundary_frac + block_top_frac) / 2.0
+
+    title_y = bot + title_center_frac * h
+    sub_y   = bot + sub_center_frac   * h
+    logo_y  = bot + 0.5 * h                                         # logos centrados vertical en el band
+
+    # ---- Auto-fontsize: el alto rendered del texto ≈ fontsize_pt * _TEXT_FILL_FACTOR
+    # → fontsize_pt = alto_inches * 72 / _TEXT_FILL_FACTOR
+    if title_size is None:
+        title_size = (title_share * text_h_frac * band_h_inches) * 72.0 / _TEXT_FILL_FACTOR
+    if sub_size is None:
+        sub_size = (sub_share * text_h_frac * band_h_inches) * 72.0 / _TEXT_FILL_FACTOR
+
+    # ---- Zoom de los logos pa que midan logo_h_frac del band ----
+    # Formula OffsetImage: displayed_inches = image_px * zoom / fig.dpi
+    # → zoom = (target_inches * fig.dpi) / image_px
+    target_logo_px = logo_h_frac * band_h_inches * fig.dpi          # alto deseado en pixeles a fig.dpi
 
     # ---- Escudo IZQ (si se pasa path) ----
     if escudo_path is not None:
-        img = _load_rgba(escudo_path)                               # carga PNG como RGBA
+        img = _load_rgba(escudo_path)
         if img is not None:
-            img = _normalize_img(img)                               # normaliza a _ESCUDO_TARGET_PX px de alto
+            img = _normalize_img(img)                               # normaliza a _ESCUDO_TARGET_PX (uniformiza source)
+            escudo_zoom = target_logo_px / img.shape[0]
             ab = AnnotationBbox(
-                OffsetImage(img, zoom=escudo_zoom),                 # escudo escalado — ↑ zoom → mas grande
-                (escudo_x, escudo_y),                               # posicion (x,y) en fraccion de figura
-                frameon=False,                                      # sin caja/borde
-                xycoords="figure fraction",                         # coords relativas a la figura entera
+                OffsetImage(img, zoom=escudo_zoom),
+                (escudo_x, logo_y),
+                frameon=False,
+                xycoords="figure fraction",
                 box_alignment=(0.0, 0.5),                           # ancla BORDE IZQ del escudo en escudo_x
             )
-            ab.set_clip_on(False)                                   # permite que sobresalga del axes si es grande
-            fig.add_artist(ab)                                      # pega directamente sobre la figura
+            ab.set_clip_on(False)
+            fig.add_artist(ab)
 
     # ---- Titulo (Chakra Petch 700 = bold, negro) ----
     fig.text(text_x, title_y, title, ha="left", va="center",
@@ -315,17 +420,19 @@ def draw_header(fig: plt.Figure, *, title: str,
         fig.text(text_x, sub_y, subtitle, ha="left", va="center",
                  color=TEXT, fontsize=sub_size, fontweight=500)
 
-    # ---- Logo JO en DCHA (default _LOGO_PATH del repo) ----
+    # ---- Logo JO en DCHA ----
     img_jo = _load_rgba(_LOGO_PATH)
     if img_jo is not None:
+        img_jo = _normalize_img(img_jo)                             # normaliza a _ESCUDO_TARGET_PX → mismo source que escudo
+        jo_zoom = target_logo_px / img_jo.shape[0]                  # mismo target_h → mismo alto que escudo
         ab = AnnotationBbox(
-            OffsetImage(img_jo, zoom=jo_zoom),                      # logo escalado — ↑ zoom → mas grande
-            (jo_x, jo_y),                                           # pegado al borde derecho de la figura
+            OffsetImage(img_jo, zoom=jo_zoom),
+            (jo_x, logo_y),
             frameon=False,
             xycoords="figure fraction",
             box_alignment=(1.0, 0.5),                               # ancla BORDE DCHA del logo en jo_x
         )
-        ab.set_clip_on(False)                                       # permite que sobresalga si hace falta
+        ab.set_clip_on(False)
         fig.add_artist(ab)
 
 

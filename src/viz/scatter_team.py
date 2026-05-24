@@ -28,7 +28,8 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import BG, GRID, LEGEND, MASTER_FIGSIZE, TEXT, draw_header
+from viz.common import (BG, GRID, LEGEND, MASTER_FIGSIZE, N_PLAYERS_WC22, TEXT,
+                         TOURNAMENT_ES, draw_header, team_es)
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"                # tabla scout final (M15)
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"                 # caras jugadores (FotMob)

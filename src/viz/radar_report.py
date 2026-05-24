@@ -226,7 +226,7 @@ def create_stats_table(df: pl.DataFrame, player_id: int,
         ax.plot([x_pos - 0.25, x_pos + 0.25], [legend_y, legend_y],
                  color=node_cmap(percentile_norm(i * 25)), linewidth=3,
                  solid_capstyle="round")
-        ax.text(x_pos, legend_y - 0.3, f"{lo}-{hi}", fontsize=9, color=WHITE,
+        ax.text(x_pos, legend_y - 0.4, f"{lo}-{hi}", fontsize=9, color=WHITE,
                  ha="center")
 
     # ---- Flecha BAJO → ALTO debajo de la leyenda ----

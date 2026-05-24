@@ -32,7 +32,8 @@ _SRC = Path(__file__).resolve().parents[1]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from viz.common import BG, GRID, LEGEND, PCT_CMAP, TEXT, draw_header, MASTER_FIGSIZE
+from viz.common import (BG, GRID, LEGEND, MASTER_FIGSIZE, N_PLAYERS_WC22, PCT_CMAP,
+                         TEXT, TOURNAMENT_ES, draw_header)
 
 _TABLE = _SRC.parent / "outputs" / "pcj_table.parquet"                # tabla scout final (M15)
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"                 # escudos selecciones
@@ -54,14 +55,14 @@ SCATTERS: dict[str, dict] = {
     "remontador_cerrojo": dict(
         x="chasing_clutch_idx", y="protecting_clutch_idx",
         title="Remontador y Cerrojo",
-        subtitle="Comparando los dos perfiles del shock emocional  |  Mundial Qatar 2022 · 511 jugadores",
+        subtitle=f"Comparando los dos perfiles del shock emocional  |  {TOURNAMENT_ES} · {N_PLAYERS_WC22} jugadores",
         x_label="Índice Remontador",
         y_label="Índice Cerrojo",
         foot="*Cambio en el rendimiento individual tras el shock emocional, ajustado por el resto del equipo"),
     "ataque_marcar_presion": dict(
         x="cate_ataque_GOAL_FOR_mean", y="cate_ataque_PRESSURE_mean",
         title="Atacantes clutch",
-        subtitle="Comparando ataque tras marcar y ataque bajo presión  |  Mundial Qatar 2022 · 511 jugadores",
+        subtitle=f"Comparando ataque tras marcar y ataque bajo presión  |  {TOURNAMENT_ES} · {N_PLAYERS_WC22} jugadores",
         x_label="Producción ofensiva tras marcar",
         y_label="Producción ofensiva bajo presión",
         foot="*Cambio en la producción ofensiva tras el shock emocional"),
@@ -71,7 +72,7 @@ SCATTERS: dict[str, dict] = {
 # Tuneo visual (puntos, caras, mediana)
 # ============================================================================
 _DOT_SIZE        = 70          # ↑ → puntos MAS GRANDES (todos coloreados por PCT_CMAP)
-_FACE_ZOOM       = 0.16        # ↑ → caras FotMob MAS GRANDES sobre el punto
+_FACE_ZOOM       = 0.2        # ↑ → caras FotMob MAS GRANDES sobre el punto
 _MED_LINE_COLOR  = "#888888"   # gris medio pa la mediana del torneo (dashed inline)
 _MED_LINE_LW     = 1.0         # grosor de la mediana — ↑ MAS GRUESO
 
@@ -148,18 +149,18 @@ def opta_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
     # ---- Labels mediana INLINE (Opta-style, encima de las lineas) ----
     xlim = ax.get_xlim(); ylim = ax.get_ylim()
     # Label horizontal arriba del axvline (mediana X)
-    ax.text(x_med, ylim[1], "  mediana del torneo", color=LEGEND, fontsize=9,
+    ax.text(x_med, ylim[1], "  Mediana", color=LEGEND, fontsize=10,
             ha="left", va="top", style="italic", zorder=5,
             bbox=dict(facecolor=BG, edgecolor="none", pad=1, alpha=0.85))
     # Label horizontal a la dcha del axhline (mediana Y)
-    ax.text(xlim[1], y_med, "mediana del torneo  ", color=LEGEND, fontsize=9,
+    ax.text(xlim[1], y_med, "Mediana  ", color=LEGEND, fontsize=10,
             ha="right", va="bottom", style="italic", zorder=5,
             bbox=dict(facecolor=BG, edgecolor="none", pad=1, alpha=0.85))
 
     # ---- Ejes (Opta-style: label limpio bold, ticks pequenos) ----
-    ax.set_xlabel(cfg["x_label"], fontsize=12, fontweight="bold",
+    ax.set_xlabel(cfg["x_label"], fontsize=14, fontweight="bold",
                    color=TEXT, labelpad=8)
-    ax.set_ylabel(cfg["y_label"], fontsize=12, fontweight="bold",
+    ax.set_ylabel(cfg["y_label"], fontsize=14, fontweight="bold",
                    color=TEXT, labelpad=8)
     ax.tick_params(colors=TEXT, labelsize=10, length=3, width=0.7)
     # Quita spines top + right (estilo Opta paper)
@@ -173,7 +174,7 @@ def opta_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
     ax.set_axisbelow(True)                                            # grid detras de los puntos
 
     # ---- Footer Opta-style: nota metodologica gris abajo-DCHA ----
-    fig.text(0.95, 0.06, cfg["foot"], color=LEGEND, fontsize=9,
+    fig.text(0.925, 0.06, cfg["foot"], color=LEGEND, fontsize=12,
              ha="right", style="italic")
 
     if save_path:
