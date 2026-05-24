@@ -62,8 +62,8 @@ PITCH   = "#000000"          # color de las lineas del campo — negro; pon "#55
 WHITE = TEXT   # alias retro-compat: codigo viejo que usaba WHITE sigue pintando negro sobre blanco
 
 # colores accent — deben ser SATURADOS pa contrastar bien sobre BG blanco
-ATT     = "#1d4ed8"          # azul vivo: atacante, canal ofensivo, chasing — cambiar ej. a "#2563eb" pa mas claro
-DEF     = "#dc2626"          # rojo vivo: defensor, canal defensivo, protecting — cambiar ej. a "#b91c1c" pa mas oscuro
+ATT     = "#3b82f6"          # azul vivo light: atacante, canal ofensivo, chasing — cambiar ej. a "#1d4ed8" pa mas oscuro/navy
+DEF     = "#ef4444"          # rojo vivo light: defensor, canal defensivo, protecting — cambiar ej. a "#dc2626" pa mas oscuro
 GK      = "#000000"          # portero en pitch viz — negro; pon un gris "#555" pa distinguirlo menos
 BALL    = "#000000"          # balon en pitch viz — negro
 NEUTRAL = "#e5e7eb"          # gris muy claro pa el centro de los cmaps divergentes (PPCF, CATE)
@@ -114,13 +114,11 @@ PE_S = [pe.withStroke(linewidth=2.6, foreground=BG)]                # halo gordo
 PPCF_CMAP = LinearSegmentedColormap.from_list("ppcf", [DEF, NEUTRAL, ATT])
             # cambiar DEF y ATT directamente arriba pa cambiar los colores del campo
 
-# percentil combinado pa scatter (x+y): morado → fuchsia → rosa
+# percentil combinado pa scatter y radar legend: morado → fuchsia → rosa (mas contraste)
 PCT_CMAP = LinearSegmentedColormap.from_list("pct", [
-    "#7e22ce",   # purple-700 — percentil bajo (bottom-left del scatter)
-    "#c026d3",   # fuchsia-600 — percentil medio (cuerpo del scatter)
-    "#ec4899",   # pink-500 — percentil alto (top-right, los mejores)
-                  # cambiar el ultimo por "#f97316" (naranja) pa toque calido
-                  # cambiar el primero por "#581c87" (indigo) pa mas profundidad
+    "#5b21b6",   # violet-800 — percentil bajo (mas profundo pa mas contraste)
+    "#c026d3",   # fuchsia-600 — percentil medio
+    "#f43f5e",   # rose-500 — percentil alto (mas vivido pa mas contraste)
 ])
 
 # CATE divergente (efecto negativo rojo → cero neutro → positivo azul)

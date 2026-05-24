@@ -137,9 +137,8 @@ def opta_scatter_team(df_full: pl.DataFrame, team: str, pair: dict,
     slug = _TEAM_TO_SLUG.get(team)
     team_logo = (_LOGOS / f"{slug}.png") if slug else None
     title = f"{team}  ·  {pair['title_concept']}"
-    subtitle = pair["subtitle_concept"]
-    subtitle2 = f"Selección de {team}  |  contexto: 511 jugadores del Mundial Qatar 2022"
-    draw_header(fig, title=title, subtitle=subtitle, subtitle2=subtitle2,
+    subtitle = f"{pair['subtitle_concept']}  |  {team} · Mundial Qatar 2022 · 511 jugadores"
+    draw_header(fig, title=title, subtitle=subtitle,
                 escudo_path=team_logo)
 
     # Plot area: header arriba y=[0.833,1.0]; plot y=[0.12, 0.815]; footer abajo

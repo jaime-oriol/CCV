@@ -285,6 +285,34 @@ def _make_block_axes(fig, left, bottom, width, height):
 
 
 
+def _draw_football_on_pitch(ax: plt.Axes, cx: float, cy: float,
+                             r: float = 0.65, zorder: int = 10) -> None:
+    """Balon de futbol (patron pentagono Telstar) en coords del campo.
+
+    El campo debe tener set_aspect('equal') para que el circulo no se deforme.
+    """
+    n = 5
+    ball = mpatches.Circle((cx, cy), r, facecolor="white", edgecolor="black",
+                            linewidth=1.5, zorder=zorder)
+    ax.add_patch(ball)
+    rp = r * 0.37
+    c_ang = np.array([np.pi / 2 + 2 * np.pi * i / n for i in range(n)])
+    pts_c = np.column_stack([cx + rp * np.cos(c_ang), cy + rp * np.sin(c_ang)])
+    ax.add_patch(mpatches.Polygon(pts_c, facecolor="black", edgecolor="none",
+                                   zorder=zorder + 1))
+    r_outer, rp2 = r * 0.73, r * 0.27
+    for i in range(n):
+        ang = c_ang[i]
+        ox = cx + r_outer * np.cos(ang)
+        oy = cy + r_outer * np.sin(ang)
+        o_ang = np.array([ang + 2 * np.pi * k / n for k in range(n)])
+        pts_o = np.column_stack([ox + rp2 * np.cos(o_ang), oy + rp2 * np.sin(o_ang)])
+        patch = mpatches.Polygon(pts_o, facecolor="black", edgecolor="none",
+                                  zorder=zorder + 1)
+        patch.set_clip_path(ball)
+        ax.add_patch(patch)
+
+
 # ---- Footer (3 bloques: leyenda + direccion + stats) ----
 
 def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
@@ -354,20 +382,52 @@ def _draw_footer(fig: plt.Figure, L: dict, att_team_name: str,
             verts, closed=True, facecolor=ATT, edgecolor="none",
             alpha=alpha, transform=ax_b2.transAxes, zorder=10))
     # Etiqueta unica (bold, sin cursiva)
-    ax_b2.text(0.5, 0.5, "direccion del juego",
+    ax_b2.text(0.5, 0.5, "Dirección de Ataque",
                 ha="center", va="center", fontsize=12, color=WHITE,
                 transform=ax_b2.transAxes, fontweight="bold")
 
-    # ---- BLOCK 3: leyenda de nodos por equipo (2 celdas horizontales, misma altura) ----
-    y_node = 0.75                                         # ↑ leyenda SUBE (misma altura ambos)
+    # ---- BLOCK 3: equipos (izq + centro-izq) + balon (dcha) ----
+    y_node = 0.75
     for x_node, x_txt, color, name in (
-            (0.1, 0.175, ATT, att_team_name),             # mitad IZQUIERDA: azul atacante
-            (0.6, 0.675, DEF, def_team_name)):            # mitad DERECHA: rojo defensor
+            (0.07, 0.145, ATT, att_team_name),            # IZQUIERDA: atacante
+            (0.38, 0.455, DEF, def_team_name)):           # CENTRO: defensor
         ax_b3.plot(x_node, y_node, "o", ms=25, color=color, markeredgecolor=WHITE,
                     markeredgewidth=1.3, alpha=0.93, transform=ax_b3.transAxes,
                     clip_on=False, zorder=5)
         ax_b3.text(x_txt, y_node, name, ha="left", va="center", fontsize=12,
                     color=WHITE, fontweight="bold", transform=ax_b3.transAxes)
+    # Balon al final (dcha): mismo patron Telstar que en el campo, compensado
+    # por el aspect del footer (5.6"x1.3" = no-cuadrado) usando una Ellipse.
+    x_ball = 0.70
+    _b3_aspect = (FIG_W * b3_w) / FOOTER_H_IN          # ≈ 5.6 / 1.3 ≈ 4.31
+    # ms=25pt en los nodos de equipo → diametro 25pt = 0.347" = 0.267 frac alto
+    # → radio y = 0.134, mismo tamaño visible que los nodos France/Argentina
+    _r_y = 0.134
+    _r_x = _r_y / _b3_aspect                            # compensa pa que parezca circulo
+    _n = 5
+    _c_ang = np.array([np.pi / 2 + 2 * np.pi * i / _n for i in range(_n)])
+    _ball_ell = mpatches.Ellipse((x_ball, y_node), 2 * _r_x, 2 * _r_y,
+                                   facecolor="white", edgecolor="black",
+                                   linewidth=1.5, zorder=5)
+    ax_b3.add_patch(_ball_ell)
+    # pentagono central negro
+    _pts_c = np.column_stack([x_ball + _r_x * 0.37 * np.cos(_c_ang),
+                                y_node + _r_y * 0.37 * np.sin(_c_ang)])
+    _cp = mpatches.Polygon(_pts_c, facecolor="black", edgecolor="none", zorder=6)
+    _cp.set_clip_path(_ball_ell); ax_b3.add_patch(_cp)
+    # 5 pentagones exteriores (vertice tocando el borde)
+    for _i in range(_n):
+        _ang = _c_ang[_i]
+        _ox = x_ball + _r_x * 0.73 * np.cos(_ang)
+        _oy = y_node + _r_y * 0.73 * np.sin(_ang)
+        _o_ang = np.array([_ang + 2 * np.pi * _k / _n for _k in range(_n)])
+        _pts_o = np.column_stack([_ox + _r_x * 0.27 * np.cos(_o_ang),
+                                    _oy + _r_y * 0.27 * np.sin(_o_ang)])
+        _op = mpatches.Polygon(_pts_o, facecolor="black", edgecolor="none", zorder=6)
+        _op.set_clip_path(_ball_ell); ax_b3.add_patch(_op)
+    ax_b3.text(x_ball + 0.075, y_node, "Balón", ha="left", va="center",
+                fontsize=12, color=WHITE, fontweight="bold",
+                transform=ax_b3.transAxes)
 
 
 # ---- Render principal ----
@@ -401,26 +461,30 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
     score_home = int(g["cum_home"].max() or 0) if g.height else 0
     score_away = int(g["cum_away"].max() or 0) if g.height else 0
 
-    # Titulo + subtitulos auto-generados desde metadata
+    # Titulo + subtitulo auto-generados desde metadata (formato Opta-style)
     home_name = meta["home_name"]; away_name = meta["away_name"]
     if title is None:
         title = f"Pitch Control: {home_name} vs {away_name}"
     if subtitle is None:
+        from datetime import datetime
         comp = meta["comp_name"] or "Mundial Qatar 2022"
-        date_slash = meta["date_iso"].replace("-", "/")           # YYYY/MM/DD
-        subtitle = [
-            f"{comp}  ·  {date_slash}",
-            f"{home_name} {score_home} - {score_away} {away_name}",
-        ]
+        _MES = ["enero","febrero","marzo","abril","mayo","junio",
+                "julio","agosto","septiembre","octubre","noviembre","diciembre"]
+        try:
+            dt = datetime.strptime(meta["date_iso"], "%Y-%m-%d")
+            date_fmt = f"{dt.day} de {_MES[dt.month-1]} de {dt.year}"
+        except Exception:
+            date_fmt = meta["date_iso"]
+        subtitle = (f"{comp}  |  "
+                    f"{home_name} {score_home} - {score_away} {away_name}"
+                    f"  ({date_fmt})")
 
     # ---- Construye fig + 2 axes (pitch / footer) ----
     L = _layout(FIGSIZE)
     fig = plt.figure(figsize=FIGSIZE, facecolor=BG)
 
-    sub_lines = subtitle if isinstance(subtitle, list) else ([subtitle] if subtitle else [])
     draw_header(fig, title=title,
-                subtitle=sub_lines[0] if len(sub_lines) > 0 else None,
-                subtitle2=sub_lines[1] if len(sub_lines) > 1 else None,
+                subtitle=subtitle if isinstance(subtitle, str) else None,
                 escudo_path=(str(team_logo) if team_logo and team_logo.exists() else None),
                 hdr_band=(L["header"][1], L["header"][1] + L["header"][3]),
                 sub_size=13)
@@ -464,9 +528,8 @@ def plot_ppcf(match_id: int, frame_num: int, title: Optional[str] = None,
                        color=WHITE, fontsize=8.5, ha="center", va="center",
                        fontweight="bold", zorder=6, path_effects=PE_S)
 
-    # ---- Balon ----
-    ax_pitch.plot(ball_pos[0], ball_pos[1], "o", ms=11, color=BALL,
-                    markeredgecolor="black", markeredgewidth=0.9, zorder=10)
+    # ---- Balon (patron pentagono Telstar) ----
+    _draw_football_on_pitch(ax_pitch, ball_pos[0], ball_pos[1])
 
     _draw_footer(fig, L,
                   att_team_name=att_team_name, def_team_name=def_team_name,

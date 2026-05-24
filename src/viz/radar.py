@@ -37,8 +37,8 @@ PCJ_METRICS = [
     "cate_offball_GOAL_FOR_mean",     "cate_fisico_GOAL_FOR_mean",
 ]
 PCJ_TITLES = [
-    "Ataque\npost-GA", "Defensa\npost-GA", "Off-ball\npost-GA", "Fisico\npost-GA",
-    "Ataque\npost-GF", "Defensa\npost-GF", "Off-ball\npost-GF", "Fisico\npost-GF",
+    "Ataque\ntras GA", "Defensa\ntras GA", "Off-ball\ntras GA", "Físico\ntras GA",
+    "Ataque\ntras GF", "Defensa\ntras GF", "Off-ball\ntras GF", "Físico\ntras GF",
 ]
 
 # Variante 12 ejes: 4 canales x 3 contextos (post-GA, post-GF, pre-elim).
@@ -52,47 +52,48 @@ PCJ_METRICS_12 = [
     "cate_fisico_GOAL_AGAINST_mean",  "cate_fisico_GOAL_FOR_mean",  "cate_fisico_PRESSURE_mean",
 ]
 PCJ_TITLES_12 = [
-    "Ataque\npost-GA", "Ataque\npost-GF", "Ataque\npre-elim",
-    "Defensa\npost-GA", "Defensa\npost-GF", "Defensa\npre-elim",
-    "Off-ball\npost-GA", "Off-ball\npost-GF", "Off-ball\npre-elim",
-    "Fisico\npost-GA", "Fisico\npost-GF", "Fisico\npre-elim",
+    "Ataque\ntras GA", "Ataque\ntras GF", "Ataque\nbajo presión",
+    "Defensa\ntras GA", "Defensa\ntras GF", "Defensa\nbajo presión",
+    "Off-ball\ntras GA", "Off-ball\ntras GF", "Off-ball\nbajo presión",
+    "Físico\ntras GA", "Físico\ntras GF", "Físico\nbajo presión",
 ]
 
 # Colores de seleccion (primario, secundario) para el radar: pares vivos que
-# contrastan entre si y brillan sobre el fondo oscuro. Fallback a (ATT, DEF).
+# contrastan entre si y se ven bien sobre fondo BLANCO. Fallback a (ATT, DEF).
+# Regla: evitar blanco (#FFF) y amarillos muy claros — quedan invisibles a alpha=0.45
 TEAM_COLORS: dict[str, tuple[str, str]] = {
-    "Argentina":   ("#6CACE4", "#FFFFFF"),   # celeste + blanco
-    "France":      ("#3B7DD8", "#E1314A"),   # azul + rojo
-    "Croatia":     ("#F1414F", "#FFFFFF"),   # rojo + blanco (damero)
-    "Morocco":     ("#E63946", "#19A35A"),   # rojo + verde
-    "Brazil":      ("#FFDF00", "#1CA64C"),   # amarillo + verde
-    "England":     ("#FFFFFF", "#E8344E"),   # blanco + rojo
-    "Spain":       ("#E0314B", "#FFC83D"),   # rojo + amarillo
-    "Portugal":    ("#E8344E", "#1CA64C"),   # rojo + verde
-    "Netherlands": ("#FF7A1A", "#FFFFFF"),   # naranja + blanco
-    "Germany":     ("#F2F2F2", "#FFD23B"),   # blanco + dorado
-    "Belgium":     ("#E83B4E", "#FFD23B"),   # rojo + dorado
-    "Japan":       ("#3A6FE0", "#FFFFFF"),   # azul + blanco
-    "Mexico":      ("#1CA64C", "#E8344E"),   # verde + rojo
-    "Uruguay":     ("#5CBFEB", "#FFFFFF"),   # celeste + blanco
-    "Senegal":     ("#1CA64C", "#E8344E"),   # verde + rojo
-    "USA":         ("#3A6FE0", "#E8344E"),   # azul + rojo
-    "Switzerland": ("#F1414F", "#FFFFFF"),   # rojo + blanco
-    "Poland":      ("#FFFFFF", "#E8344E"),   # blanco + rojo
-    "Denmark":     ("#F1414F", "#FFFFFF"),   # rojo + blanco
-    "Australia":   ("#FFD23B", "#1CA64C"),   # oro + verde
-    "Ecuador":     ("#FFD23B", "#3A6FE0"),   # amarillo + azul
-    "Qatar":       ("#9E2B4E", "#FFFFFF"),   # granate + blanco
-    "Saudi Arabia":("#1CA64C", "#FFFFFF"),   # verde + blanco
-    "Iran":        ("#1CA64C", "#E8344E"),   # verde + rojo
-    "Wales":       ("#E8344E", "#1CA64C"),   # rojo + verde
-    "Canada":      ("#F1414F", "#FFFFFF"),   # rojo + blanco
-    "Costa Rica":  ("#E8344E", "#3A6FE0"),   # rojo + azul
-    "Serbia":      ("#E0314B", "#3A6FE0"),   # rojo + azul
-    "Cameroon":    ("#1CA64C", "#E8344E"),   # verde + rojo
-    "Ghana":       ("#E8344E", "#FFD23B"),   # rojo + dorado
-    "South Korea": ("#E8344E", "#3A6FE0"),   # rojo + azul
-    "Tunisia":     ("#E8344E", "#FFFFFF"),   # rojo + blanco
+    "Argentina":    ("#5BAEE0", "#003087"),   # celeste + azul navy
+    "France":       ("#3B7DD8", "#E1314A"),   # bleu + rouge
+    "Croatia":      ("#EE1D23", "#0033A0"),   # rojo damero + azul croata
+    "Morocco":      ("#E63946", "#19A35A"),   # rojo + verde
+    "Brazil":       ("#D4B000", "#1CA64C"),   # dorado oscuro + verde
+    "England":      ("#CC2222", "#00205B"),   # rojo St George + azul navy
+    "Spain":        ("#E0314B", "#D4A017"),   # rojo + dorado oscuro
+    "Portugal":     ("#E8344E", "#1CA64C"),   # rojo + verde
+    "Netherlands":  ("#FF6B00", "#21468B"),   # oranje + azul real
+    "Germany":      ("#1a1a1a", "#D4AF00"),   # negro + dorado
+    "Belgium":      ("#E83B4E", "#D4A017"),   # rojo + dorado oscuro
+    "Japan":        ("#2B5CBF", "#BC002D"),   # azul + rojo hinomaru
+    "Mexico":       ("#1CA64C", "#E8344E"),   # verde + rojo
+    "Uruguay":      ("#5BAEE0", "#003087"),   # celeste + azul navy
+    "Senegal":      ("#1CA64C", "#E8344E"),   # verde + rojo
+    "United States":("#1A3A8A", "#B22234"),   # azul + rojo
+    "Switzerland":  ("#D52B1E", "#5a5a5a"),   # rojo suizo + gris oscuro
+    "Poland":       ("#DC143C", "#5a5a5a"),   # rojo polaco + gris oscuro
+    "Denmark":      ("#C60C30", "#1a1a1a"),   # rojo danes + negro
+    "Australia":    ("#D4A017", "#1CA64C"),   # dorado + verde
+    "Ecuador":      ("#D4A017", "#3A6FE0"),   # dorado + azul
+    "Qatar":        ("#8B1839", "#3a3a3a"),   # granate + gris oscuro
+    "Saudi Arabia": ("#007A3D", "#003082"),   # verde + azul navy
+    "Iran":         ("#1CA64C", "#E8344E"),   # verde + rojo
+    "Wales":        ("#E8344E", "#1CA64C"),   # rojo + verde
+    "Canada":       ("#D52B1E", "#5a5a5a"),   # rojo + gris oscuro
+    "Costa Rica":   ("#E8344E", "#3A6FE0"),   # rojo + azul
+    "Serbia":       ("#E0314B", "#3A6FE0"),   # rojo + azul
+    "Cameroon":     ("#1CA64C", "#E8344E"),   # verde + rojo
+    "Ghana":        ("#E8344E", "#D4A017"),   # rojo + dorado oscuro
+    "South Korea":  ("#E8344E", "#3A6FE0"),   # rojo + azul
+    "Tunisia":      ("#CC2222", "#5a5a5a"),   # rojo + gris oscuro
 }
 
 
@@ -141,7 +142,7 @@ def player_radar(df: pl.DataFrame, player_id: int,
         if i == 0:
             continue                                            # el centro no se dibuja
         if i == len(radius_circles) - 1:
-            color, lw, alpha = "white", 1.2, 1.0               # borde exterior nitido
+            color, lw, alpha = "black", 1.5, 1.0               # borde exterior nitido sobre fondo blanco
         else:
             color, lw, alpha = "grey", 1, 0.4
         ax.add_patch(plt.Circle((0, 0), rad, fc="none", ec=color, lw=lw, alpha=alpha))
@@ -157,7 +158,7 @@ def player_radar(df: pl.DataFrame, player_id: int,
         if y < 0:
             rot += 180                                           # mantiene texto legible abajo
         ax.text(x, y, t, rotation=rot, ha="center", va="center",
-                fontsize=lbl_fs, fontweight="bold", color=WHITE, family="DejaVu Sans")
+                fontsize=lbl_fs, fontweight="bold", color=WHITE)
 
     # Lineas radiales (separadores entre ejes)
     for angle in angles:
@@ -182,7 +183,7 @@ def player_radar(df: pl.DataFrame, player_id: int,
             ax.text(rad * np.sin(angle), rad * np.cos(angle), label,
                     ha="center", va="center", size=7, color=WHITE,
                     bbox=dict(boxstyle="round,pad=0.15", facecolor=BG,
-                              edgecolor="none", alpha=0.9), family="DejaVu Sans")
+                              edgecolor="none", alpha=0.9))
 
     # ---- Poligono del jugador (coords polares -> cartesianas) ----
     vertices = []

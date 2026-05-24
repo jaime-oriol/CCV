@@ -50,18 +50,14 @@ SCATTERS: dict[str, dict] = {
     "remontador_cerrojo": dict(
         x="chasing_clutch_idx", y="protecting_clutch_idx",
         title="Remontador y Cerrojo",
-        subtitle="Comparando los dos perfiles del shock emocional",
-        subtitle2="Mundial Qatar 2022  |  511 jugadores",
+        subtitle="Comparando los dos perfiles del shock emocional  |  Mundial Qatar 2022 · 511 jugadores",
         x_label="Índice Remontador",
         y_label="Índice Cerrojo",
         foot="*Cambio en el rendimiento individual tras el shock emocional, ajustado por el resto del equipo"),
-    # Los 2 unicos ejes con estructura real: atk-GF (rango 0.87, 22 Sig) y
-    # atk-Pressure (0.59). El mapa de produccion ofensiva tras el shock.
     "ataque_marcar_presion": dict(
         x="cate_ataque_GOAL_FOR_mean", y="cate_ataque_PRESSURE_mean",
         title="Atacantes clutch",
-        subtitle="Comparando ataque tras marcar y ataque bajo presión",
-        subtitle2="Mundial Qatar 2022  |  511 jugadores",
+        subtitle="Comparando ataque tras marcar y ataque bajo presión  |  Mundial Qatar 2022 · 511 jugadores",
         x_label="Producción ofensiva tras marcar",
         y_label="Producción ofensiva bajo presión",
         foot="*Cambio en la producción ofensiva tras el shock emocional"),
@@ -110,7 +106,6 @@ def opta_scatter(df: pl.DataFrame, config: str | dict = "remontador_cerrojo",
 
     # Header PPCF-style: escudo torneo (izq) + titulo+sub+sub2 LEFT + JO dcha
     draw_header(fig, title=cfg["title"], subtitle=cfg["subtitle"],
-                subtitle2=cfg.get("subtitle2"),
                 escudo_path=_WC22_LOGO)
 
     # Plot area: header arriba y=[0.833,1.0]; plot y=[0.12, 0.815]; footer abajo
