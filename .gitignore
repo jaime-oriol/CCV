@@ -17,7 +17,7 @@ data/parquet/pff/tracking/
 docs/
 CLAUDE.md
 
-# Outputs (pcj_table.parquet final + pcj_aux/) -> SI versionar (output canonico
+# Outputs (xcv_table.parquet final + xcv_aux/) -> SI versionar (output canonico
 # del pipeline para que cualquiera pueda inspeccionar resultados sin recomputar)
 
 # Python
