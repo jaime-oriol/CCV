@@ -30,9 +30,9 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from viz.common import ATT, BG, DEF, LEGEND, PCT_CMAP, TOURNAMENT_ES, WHITE, _LOGO_PATH, team_es
-from viz.radar import XCV_METRICS_12, XCV_TITLES_12, TEAM_COLORS, _find, player_radar
+from viz.radar import CCV_METRICS_12, CCV_TITLES_12, TEAM_COLORS, _find, player_radar
 
-_TABLE = _SRC.parent / "outputs" / "xcv_table.parquet"                # tabla scout final (M15)
+_TABLE = _SRC.parent / "outputs" / "ccv_table.parquet"                # tabla scout final (M15)
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"                 # caras jugadores (FotMob)
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"                 # escudos selecciones
 
@@ -269,7 +269,7 @@ def player_radar_report(df: pl.DataFrame, player_id: int, save_path=None) -> Pat
     # la identidad (nombre + escudo + JO) vive en la tabla.
     team = str(df.filter(pl.col("pff_player_id") == player_id)["team_name"][0])
     team_colors = TEAM_COLORS.get(team, (ATT, DEF))
-    player_radar(df, player_id, XCV_METRICS_12, XCV_TITLES_12, colors=team_colors,
+    player_radar(df, player_id, CCV_METRICS_12, CCV_TITLES_12, colors=team_colors,
                   title="", subtitle="", logo=False, reorder=False, save_path=radar_p)
     create_stats_table(df, player_id, save_path=table_p)
 

@@ -1,6 +1,6 @@
 """M11_fisico - Canal Pulso Fisico via Bradley 2024 + residual bayesiano.
 
-Canal 4/4 del xCV. Aisla "lo que el jugador APRIETA" (decision mental) de
+Canal 4/4 del CCV. Aisla "lo que el jugador APRIETA" (decision mental) de
 "lo que el jugador PUEDE" (estado fisico) reportando el RESIDUO de 3 rates
 observadas vs lo predicho por baseline_jugador + curva_temporal_minuto.
 

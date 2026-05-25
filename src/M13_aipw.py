@@ -1,6 +1,6 @@
 """M13_aipw - Validacion causal independiente via cuasi-experimento near-miss.
 
-Capa 3 del xCV (Estrategia B, Gauriot & Page 2019 ReStat). Estima ATT del
+Capa 3 del CCV (Estrategia B, Gauriot & Page 2019 ReStat). Estima ATT del
 shock sobre los 4 canales explotando que, dado pre-shot xG comparable, el
 gol vs no-gol es practicamente azar (variacion exogena del outcome).
 

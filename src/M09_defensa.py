@@ -1,6 +1,6 @@
 """M09_defensa - Canal Solidez Defensiva.
 
-Canal 2/4 del xCV. Combina on-ball (VAEP de M08) con off-ball (tracking PFF
+Canal 2/4 del CCV. Combina on-ball (VAEP de M08) con off-ball (tracking PFF
 25 Hz). Outcome principal `score_def_v4` = vdep_strict + xpress + maejima_value.
 
 Sub-canales agregados per (match, player, minute):

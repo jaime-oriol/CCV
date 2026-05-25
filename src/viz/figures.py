@@ -1,11 +1,11 @@
-"""figures - Figuras analiticas del xCV (capa causal).
+"""figures - Figuras analiticas del CCV (capa causal).
 
 Estilo LIGHT OPTA paper sobre BG blanco: layout 2 (perspective) x 4 (canal)
 con header PPCF-style (escudo WC22 + titulo + sub + JO), tipografia Chakra
 Petch limpia, banda IC + linea beta, footer scout-style en 1 linea.
 
 NO va en el make_all core showcase: es figura de METODO / validacion causal
-del xCV. La interpretacion (pre-trends planos + efecto medio ≈ 0 → la
+del CCV. La interpretacion (pre-trends planos + efecto medio ≈ 0 → la
 heterogeneidad se captura en el CATE bayesiano de M14) se cuenta en el TFM,
 no en el chart.
 
@@ -64,7 +64,7 @@ def event_study(save_path=None):
     # ---- Header PPCF-style (escudo WC22 + titulo + sub + JO DCHA) ----
     draw_header(fig,
                 title="Efecto del shock emocional sobre los 4 canales",
-                subtitle=f"xCV  ·  {TOURNAMENT_ES}  ·  {N_PLAYERS_WC22} jugadores",
+                subtitle=f"CCV  ·  {TOURNAMENT_ES}  ·  {N_PLAYERS_WC22} jugadores",
                 escudo_path=_WC22)
 
     # ---- Grid 2x4: y=[0.10, 0.815]; x=[0.07, 0.985] (deja header arriba y footer abajo) ----

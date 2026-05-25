@@ -1,4 +1,4 @@
-# xCV: Expected Clutch Value
+# CCV: Causal Clutch Value
 
 TFM Master Big Data Aplicado al Scouting Deportivo (Sport Data Campus).
 
@@ -43,7 +43,7 @@ TFM/
 │   ├── M12B_validation.py                         # placebo + power + window sensitivity + stage stratified
 │   ├── M13_aipw.py                                # AIPW DoubleMLIRM + DML PLR + DR learner + RDD + spec curve
 │   ├── M14_cate.py                                # CATE bayesiano NUTS HMC 4 chains + 5 etas + LKJ
-│   ├── M15_xcv.py                                 # tabla scout final + 16 cells contextualizados + buckets
+│   ├── M15_ccv.py                                 # tabla scout final + 16 cells contextualizados + buckets
 │   ├── render_ficha.py                            # ficha visual scout facing por jugador
 │   ├── Z01_vaep.py                                # atomic VAEP wrapper
 │   ├── Z02_pitch_control.py                       # PPCF Spearman 2018 vectorizado
@@ -64,9 +64,9 @@ TFM/
 │   ├── regen_all.ipynb                            # regen E2E completa M03-M15 + Z03-Z06 en orden DAG
 │   └── regen_m14_kaggle.ipynb                     # regen M14 NUTS HMC en Kaggle GPU
 ├── outputs/
-│   ├── xcv_table.parquet                          # tabla scout final (511 jug x 299 cols)
+│   ├── ccv_table.parquet                          # tabla scout final (511 jug x 299 cols)
 │   ├── viz/                                       # figuras PNG (PPCF, radar, radar_report, scatter, scatter_team, event-study)
-│   └── xcv_aux/
+│   └── ccv_aux/
 │       ├── top10_chasing_per_position.parquet     # 16 position_group granulares
 │       ├── top10_protecting_per_position.parquet
 │       ├── top10_pressure_per_position.parquet
@@ -108,7 +108,7 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 | M12B   | did_validation/{placebo,power,window,baseline_naive,stage}  | placebo 1000 perm + BH FDR (null); window fisico-GA ~8x w3-w10 |
 | M13    | aipw/{panel_master,att_aipw,att_dml_plr,att_dr_learner}     | 163 shots con jug en campo; 12,416 filas panel; AIPW+DML+DR    |
 | M14    | cate/{panel_delta,posterior_player,indices,rankings,diag}   | NUTS 4x1000+1000 GPU; 0 div; 108/144 R-hat<1.05; PPC 8/8       |
-| M15    | outputs/xcv_table.parquet + xcv_aux/                        | 511 jug x 299 cols + 4 buckets posicionales (GK/DEF/MED/ATA)   |
+| M15    | outputs/ccv_table.parquet + ccv_aux/                        | 511 jug x 299 cols + 4 buckets posicionales (GK/DEF/MED/ATA)   |
 
 ## Validaciones empiricas
 
@@ -153,10 +153,10 @@ logo JO como firma. Genera las figuras a `outputs/viz/`:
 
 ```bash
 # Clonar repo y arrancar pipeline E2E (cache hit en M03-M14 instantaneo)
-git clone https://github.com/jaime-oriol/xCV.git
-cd xCV
+git clone https://github.com/jaime-oriol/CCV.git
+cd CCV
 ./run_pipeline.sh                # auto detect cores + GPU
-# Outputs en outputs/xcv_table.parquet + xcv_aux/
+# Outputs en outputs/ccv_table.parquet + ccv_aux/
 ```
 
 Para regenerar desde cero (sin cache hit, requiere raw PFF + StatsBomb + Wyscout):

@@ -31,7 +31,7 @@ if str(_SRC) not in sys.path:
 from viz.common import (BG, GRID, LEGEND, MASTER_FIGSIZE, N_PLAYERS_WC22, TEXT,
                          TOURNAMENT_ES, draw_header, team_es)
 
-_TABLE = _SRC.parent / "outputs" / "xcv_table.parquet"                # tabla scout final (M15)
+_TABLE = _SRC.parent / "outputs" / "ccv_table.parquet"                # tabla scout final (M15)
 _FACES = _SRC.parent / "outputs" / "assets" / "faces"                 # caras jugadores (FotMob)
 _LOGOS = _SRC.parent / "outputs" / "assets" / "logos"                 # escudos selecciones
 

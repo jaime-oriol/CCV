@@ -158,7 +158,7 @@ PITCH_WIDTH  = 68.0                                                 # metros —
 # ----------------------------------------------------------------------------
 
 TOURNAMENT_ES   = "Mundial Qatar 2022"                              # nombre del torneo (subtitulos)
-N_PLAYERS_WC22  = 511                                                # numero jugadores filtrados en xcv_table.parquet
+N_PLAYERS_WC22  = 511                                                # numero jugadores filtrados en ccv_table.parquet
 
 # Mapeo nombres PFF (ingles) -> español. Pa traducir los team_name del parquet.
 TEAM_NAME_ES: dict[str, str] = {

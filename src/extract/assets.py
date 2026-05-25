@@ -15,7 +15,7 @@ por separado sin pisar el otro).
 
 Uso:
     python -m src.extract.assets --logos    # solo escudos
-    python -m src.extract.assets --faces    # solo caras (lee xcv_table)
+    python -m src.extract.assets --faces    # solo caras (lee ccv_table)
     python -m src.extract.assets --all      # ambos
 """
 from __future__ import annotations
@@ -36,7 +36,7 @@ ROOT      = Path(__file__).resolve().parents[2]
 OUT_LOGOS = ROOT / "outputs" / "assets" / "logos"
 OUT_FACES = ROOT / "outputs" / "assets" / "faces"
 MANIFEST  = ROOT / "outputs" / "assets" / "manifest.csv"
-XCV_TABLE = ROOT / "outputs" / "xcv_table.parquet"
+CCV_TABLE = ROOT / "outputs" / "ccv_table.parquet"
 
 # Endpoints externos
 SPORTLOGOS_BASE = "https://raw.githubusercontent.com/sportlogos/sport.db.logos/master"
@@ -53,7 +53,7 @@ HEADERS = {
     "Accept-Encoding": "gzip",
 }
 
-# xcv.team_name -> (continent_folder, iso3_slug) en sportlogos/sport.db.logos
+# ccv.team_name -> (continent_folder, iso3_slug) en sportlogos/sport.db.logos
 TEAM_TO_PATH = {
     "Argentina":     ("south-america", "arg"), "Brazil":      ("south-america", "bra"),
     "Ecuador":       ("south-america", "ecu"), "Uruguay":     ("south-america", "uru"),
@@ -142,9 +142,9 @@ def fotmob_pick(name: str, team: str) -> tuple[int | None, str]:
 
 
 def fetch_faces(verbose: bool = True) -> list[dict]:
-    """Descarga las caras de TODOS los jugadores en outputs/xcv_table.parquet."""
+    """Descarga las caras de TODOS los jugadores en outputs/ccv_table.parquet."""
     OUT_FACES.mkdir(parents=True, exist_ok=True)
-    df = pl.read_parquet(XCV_TABLE).select(
+    df = pl.read_parquet(CCV_TABLE).select(
         ["pff_player_id", "player_name", "team_name"]
     ).unique()
     rows = []

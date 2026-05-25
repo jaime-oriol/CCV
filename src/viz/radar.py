@@ -1,8 +1,8 @@
-"""radar - Radar geometrico del xCV (Expected Clutch Value).
+"""radar - Radar geometrico del CCV (Causal Clutch Value).
 
 Variantes:
-  - 8 ejes  (XCV_METRICS / XCV_TITLES):    4 canales x 2 contextos (tras GA, tras GF)
-  - 12 ejes (XCV_METRICS_12 / _TITLES_12): 4 canales x 3 contextos (tras GA, tras GF, bajo presión)
+  - 8 ejes  (CCV_METRICS / CCV_TITLES):    4 canales x 2 contextos (tras GA, tras GF)
+  - 12 ejes (CCV_METRICS_12 / _TITLES_12): 4 canales x 3 contextos (tras GA, tras GF, bajo presión)
 
 Convencion polar: x=sin(angle), y=cos(angle) — angle=0 apunta al NORTE (arriba)
 y crece en sentido horario. Cada eje se dibuja desde el centro hasta el anillo
@@ -37,20 +37,20 @@ if str(_SRC) not in sys.path:
 
 from viz.common import ATT, BG, DEF, TOURNAMENT_ES, WHITE, add_logo, team_es
 
-_TABLE = _SRC.parent / "outputs" / "xcv_table.parquet"
+_TABLE = _SRC.parent / "outputs" / "ccv_table.parquet"
 
 # ----------------------------------------------------------------------------
 # 8 ejes: 4 canales x 2 contextos (tras GA + tras GF), bloque GA y bloque GF
 # ----------------------------------------------------------------------------
 # Orden: GA primero (4) + GF (4). Con reorder=True el eje i queda enfrentado al
 # i+4 → cada canal sale con su GA arriba y su GF abajo (Ataque-GA <-> Ataque-GF).
-XCV_METRICS = [
+CCV_METRICS = [
     "cate_ataque_GOAL_AGAINST_mean",  "cate_defensa_GOAL_AGAINST_mean",
     "cate_offball_GOAL_AGAINST_mean", "cate_fisico_GOAL_AGAINST_mean",
     "cate_ataque_GOAL_FOR_mean",      "cate_defensa_GOAL_FOR_mean",
     "cate_offball_GOAL_FOR_mean",     "cate_fisico_GOAL_FOR_mean",
 ]
-XCV_TITLES = [
+CCV_TITLES = [
     "Ataque\ntras GA", "Defensa\ntras GA", "Off-ball\ntras GA", "Físico\ntras GA",
     "Ataque\ntras GF", "Defensa\ntras GF", "Off-ball\ntras GF", "Físico\ntras GF",
 ]
@@ -61,13 +61,13 @@ XCV_TITLES = [
 # Agrupados POR CANAL (los 3 contextos de cada canal consecutivos) — mismo orden
 # que la tabla de radar_report. Se usa con reorder=False (horario desde arriba):
 # wedge Ataque, wedge Defensa, wedge Off-ball, wedge Físico.
-XCV_METRICS_12 = [
+CCV_METRICS_12 = [
     "cate_ataque_GOAL_AGAINST_mean",  "cate_ataque_GOAL_FOR_mean",  "cate_ataque_PRESSURE_mean",
     "cate_defensa_GOAL_AGAINST_mean", "cate_defensa_GOAL_FOR_mean", "cate_defensa_PRESSURE_mean",
     "cate_offball_GOAL_AGAINST_mean", "cate_offball_GOAL_FOR_mean", "cate_offball_PRESSURE_mean",
     "cate_fisico_GOAL_AGAINST_mean",  "cate_fisico_GOAL_FOR_mean",  "cate_fisico_PRESSURE_mean",
 ]
-XCV_TITLES_12 = [
+CCV_TITLES_12 = [
     "Ataque\ntras GA", "Ataque\ntras GF", "Ataque\nbajo presión",
     "Defensa\ntras GA", "Defensa\ntras GF", "Defensa\nbajo presión",
     "Off-ball\ntras GA", "Off-ball\ntras GF", "Off-ball\nbajo presión",
@@ -118,8 +118,8 @@ TEAM_COLORS: dict[str, tuple[str, str]] = {
 
 
 def player_radar(df: pl.DataFrame, player_id: int,
-                  metrics: list[str] = XCV_METRICS,
-                  metric_titles: list[str] = XCV_TITLES,
+                  metrics: list[str] = CCV_METRICS,
+                  metric_titles: list[str] = CCV_TITLES,
                   colors: tuple[str, str] = (ATT, DEF),
                   title: str = "", subtitle: str = "",
                   logo: bool = True, reorder: bool = True, save_path=None):

@@ -1,6 +1,6 @@
 """M08_ataque - Canal Empuje Ofensivo via Atomic-VAEP (Decroos & Davis 2020).
 
-Canal 1/4 del xCV. Valora produccion ofensiva on-ball por jugador, aislando
+Canal 1/4 del CCV. Valora produccion ofensiva on-ball por jugador, aislando
 contribucion individual (atomic VAEP es mejor que VAEP clasico para DiD
 within-player).
 

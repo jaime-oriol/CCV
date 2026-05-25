@@ -25,7 +25,7 @@ ingredientes, sin embargo, no se habían encadenado todavía al nivel
 jugador-minuto sobre un torneo de fase eliminatoria.
 
 El objetivo general de este trabajo es, en consecuencia, \textbf{proponer,
-implementar y evaluar el Expected Clutch Value (\xCV), un marco causal que
+implementar y evaluar el Causal Clutch Value (\CCV), un marco causal que
 estima el efecto del shock emocional del gol sobre el rendimiento
 individual del jugador, residualizado contra el patrón colectivo de su
 propio equipo en cada shock, sobre cuatro canales del rendimiento
@@ -121,7 +121,7 @@ mediante una previa LKJ y \emph{priors} informados por \emph{grades}
 humanos PFF pre-torneo. El modelo se samplea vía \emph{Hamiltonian
 Monte Carlo} con el \emph{sampler} No-U-Turn en cuatro cadenas. A partir
 de las posteriores se ensambla la tabla \emph{scout-facing} canónica del
-\xCV con un jugador por fila y columnas suficientes para tres índices
+\CCV con un jugador por fila y columnas suficientes para tres índices
 agregados (\emph{chasing}, \emph{protecting} y \emph{pressure response}),
 un vector resumen de cuatro canales, probabilidades posteriores
 conjuntas, \emph{tier strings} de significatividad, \emph{rankings}

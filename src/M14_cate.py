@@ -1,6 +1,6 @@
 """M14_cate - CATE jerarquico bayesiano multivariate (3 dimensiones).
 
-Capa 4 del xCV. Estima el efecto causal HETEROGENEO por jugador del shock
+Capa 4 del CCV. Estima el efecto causal HETEROGENEO por jugador del shock
 emocional sobre los 4 canales conjuntamente. Tres dimensiones (post-GA,
 post-GF, eliminacion-continuo), jerarquia 3 niveles (jugador < equipo <
 posicion), correlacion cross-canal LKJ por dimension, priors PFF grades,
@@ -35,7 +35,7 @@ Modelo (NCP completo):
 Convergencia: los 2 bloques eta_x_td estan infra-identificados con N=172
 shocks (LKJ con R-hat ~1.07). La capa fiable es eta_ga / eta_gf / eta_pressure.
 
-Indices xCV (desde eta individual, neto de equipo/posicion):
+Indices CCV (desde eta individual, neto de equipo/posicion):
     chasing_clutch_idx  = mean(eta_ga[i,atk] + eta_ga[i,off])      Remontador
     protecting_clutch_idx = mean(eta_gf[i,def] + eta_gf[i,phys])   Cerrojo
     pressure_response_idx = mean(eta_pressure[i,:])                Pressure
@@ -101,7 +101,7 @@ NUTS_NUM_CHAINS   = 4
 NUTS_NUM_WARMUP   = 1000
 NUTS_NUM_SAMPLES  = 1000
 
-# Indices xCV (propuesta §Fase 5)
+# Indices CCV (propuesta §Fase 5)
 CHASING_COMPONENTS    = (("ataque",  "GOAL_AGAINST"),
                           ("offball", "GOAL_AGAINST"))
 PROTECTING_COMPONENTS = (("defensa", "GOAL_FOR"),
@@ -723,10 +723,10 @@ def posterior_cross_canal_corr(fit: dict) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
-# ---- SECCION 6: Indices xCV + ranking within position ----
+# ---- SECCION 6: Indices CCV + ranking within position ----
 
 def compute_indices(fit: dict) -> pl.DataFrame:
-    """Indices xCV desde eta individual (neto de team/pos/grade).
+    """Indices CCV desde eta individual (neto de team/pos/grade).
 
     Indices base (sin contextualizar dirección equipo):
       chasing_clutch_idx     = mean(eta_ga[atk] + eta_ga[off])
