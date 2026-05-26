@@ -33,8 +33,8 @@ de tono del partido. El equipo ganador no siempre se cerró ni el
 perdedor siempre apretó: cada bloque respondió a cada gol de forma
 distinta, en función del minuto, de la cercanía de eliminación, del tono
 del partido hasta ese instante y de su tipología táctica. Esa
-heterogeneidad colectiva no es anecdótica, sino la regla. El patrón
-colectivo \textit{post-shock} condiciona después el rendimiento
+heterogeneidad colectiva es sistemática. El patrón colectivo
+\textit{post-shock} condiciona después el rendimiento
 individual y, por tanto, cualquier intento de medir \textit{clutch} a
 nivel jugador sin controlar por ese patrón colectivo termina mezclando
 dos señales distintas.
@@ -61,10 +61,11 @@ decide cambios al minuto 75 protegiendo un 1-0 sobre intuición y
 experiencia. El trabajo conceptualmente más cercano, \textcite{Bransen2019Choke},
 mostró en MIT Sloan que con \textit{eventing} puede ordenarse a los
 jugadores en categorías \emph{choke} o \emph{shine} dentro de
-\textit{bins} de presión definidos a priori. Su métrica es descriptiva
-y no causal, no separa al jugador del bloque, y no incorpora el tracking
-que permite ver lo que el jugador hace cuando no tiene el balón ---las
-acciones que más se transforman tras un \textit{shock} emocional---.
+\textit{bins} de presión definidos a priori. Su métrica es descriptiva,
+opera sobre \textit{eventing} sin tracking y no separa al jugador del
+patrón colectivo del equipo ---las acciones \textit{off-ball}, que son
+las que más se transforman tras un \textit{shock} emocional, quedan
+fuera del análisis.
 
 La pregunta abierta es, en consecuencia, si puede estimarse causalmente
 el rendimiento \textit{clutch} del jugador residualizado contra el patrón
@@ -127,11 +128,11 @@ similar ---uno con reputación \textit{clutch} en KO de Champions, el
 otro con perfil más estable pero sin antecedente de partidos grandes---
 toma esa decisión hoy sobre intuición y observación, sin métrica causal
 que la oriente. Lo mismo vale para la gestión de cambios en el
-banquillo: al minuto 75 protegiendo un 1-0 en cuartos de Copa, ¿entra
-el mediocentro X, que en partidos grandes ha dado siempre minutos de
-cerrojo, o el jugador Y, que tiene mejor base estadística pero nunca ha
-estado en este contexto? La decisión se sigue tomando sobre reputación,
-no sobre medida causal. El sobreprecio que paga el mercado por
+banquillo: al minuto 75 protegiendo un 1-0 en cuartos de Copa, el cuerpo
+técnico elige entre el mediocentro X ---con minutos de cerrojo en
+partidos grandes--- y el jugador Y ---con mejor base estadística pero
+sin antecedente en ese contexto--- sobre reputación, no sobre medida
+causal. El sobreprecio que paga el mercado por
 reputación \textit{clutch} indica que la propiedad se reconoce como
 existente sin que pueda cuantificarse.
 
@@ -212,65 +213,35 @@ torneo de fase eliminatoria permitirá recalibrar el \textit{pipeline}
 \section{Organización de la memoria}
 \label{sec:organizacion}
 
-El presente documento se organiza en ocho capítulos más la bibliografía y
-los anexos.
+El presente capítulo introduce la pregunta de investigación y separa el
+\textit{clutch} del bloque del \textit{clutch} del jugador relativo al
+bloque. El capítulo~2 fija el objetivo general del trabajo y los seis
+objetivos específicos asociados a las preguntas de investigación. El
+capítulo~3 sitúa el marco en el estado del arte sobre los nueve bloques
+que lo configuran ---\textit{Win Probability} bayesiana, valoración
+\emph{on-ball}, valoración defensiva individualizada, valoración
+\emph{off-ball}, métricas físicas en torneo, identificación causal con
+diferencias-en-diferencias modernas, cuasi-experimentos \emph{near-miss},
+modelos CATE bayesianos jerárquicos y antecedentes de \textit{clutch} en
+fútbol--- y cierra identificando el \emph{gap} específico que el \CCV
+cubre.
 
-El capítulo~1, esta introducción, ha presentado la pregunta de
-investigación, ha distinguido entre el clutch del bloque y el clutch del
-jugador relativo al bloque, ha justificado por qué la pregunta sigue
-abierta a fecha de hoy y por qué el dataset PFF FC del Mundial Qatar 2022
-abre la primera ventana técnica realista para responderla.
+El capítulo~4 formaliza la metodología del marco: notación de los deltas
+individual y colectivo, especificación del estimador DiD y del
+cuasi-experimento \emph{near-miss}, formulación del CATE jerárquico
+bayesiano \textit{multivariate} y protocolo experimental. El
+capítulo~5 documenta el desarrollo técnico del \textit{pipeline} de
+principio a fin, desde la extracción y el preprocesado hasta el
+ensamblaje final del \CCV en una tabla \textit{scout-facing} consolidada.
+El capítulo~6 reporta los resultados, tanto la validación interna del
+marco como los efectos a nivel poblacional e individual.
 
-El capítulo~2 define el objetivo general del trabajo y los objetivos
-específicos asociados, vinculando cada uno a la pregunta de investigación
-correspondiente.
-
-El capítulo~3 recoge el estado del arte por bloque del \emph{pipeline}.
-Cubre, en orden, la \emph{Win Probability} bayesiana en fútbol, la
-valoración causal de acciones \emph{on-ball}, la valoración defensiva
-individualizada, la valoración \emph{off-ball}, las métricas físicas en
-torneo, la identificación causal con diferencias-en-diferencias modernas,
-los cuasi-experimentos \emph{near-miss} en deporte, los modelos CATE
-bayesianos jerárquicos y los trabajos previos sobre rendimiento clutch en
-fútbol. El capítulo cierra identificando el \emph{gap} específico que el
-\CCV cubre.
-
-El capítulo~4 formaliza la metodología del marco. Presenta el
-\emph{pipeline} en cinco fases, el marco teórico (notación de los deltas
-individuales y colectivos, especificación del estimador DiD y del
-cuasi-experimento \emph{near-miss}, formulación del CATE bayesiano
-\emph{multivariate}), las herramientas y datos empleados, las métricas
-de evaluación y el protocolo experimental que rige el resto del documento.
-
-El capítulo~5 documenta el desarrollo técnico módulo a módulo. Empieza por
-las capas de extracción y preprocesado, sigue con la \emph{backbone}
-temporal (\emph{Win Probability}, \emph{leverage}, proximidad de
-eliminación), continúa con la fase de identificación de \emph{shocks} y
-\emph{near-misses}, y desarrolla los cuatro canales del rendimiento
----ofensivo, defensivo, \emph{off-ball} y físico--- con sus respectivos
-\emph{building blocks} SOTA. Cierra con la capa de identificación causal
-(DiD y AIPW sobre \emph{near-miss}), el modelo CATE bayesiano
-\emph{multivariate} y el ensamblaje final del \CCV en una tabla
-\emph{scout-facing} consolidada.
-
-El capítulo~6 reporta los resultados de validación interna del marco
----calibración del PSxG, robustez del DiD, sensibilidad temporal,
-estratificación por fase--- y los resultados sustantivos a nivel
-poblacional e individual.
-
-El capítulo~7 discute esos resultados respondiendo a tres preguntas: qué
-demuestran, qué no demuestran y dónde funciona o no funciona el \CCV.
-Incluye las implicaciones operativas para scouting, fichajes, preparación
-de partidos KO y gestión de cambios.
-
-El capítulo~8 sintetiza las conclusiones generales, declara las
-limitaciones del estudio ---de las que el lector debe ser consciente para
-no sobre-interpretar el \emph{output}--- y plantea las líneas futuras
-naturales de extensión.
-
-El capítulo~9 recoge las referencias bibliográficas en formato APA séptima
-edición. Los anexos completan el documento con el detalle metodológico
-ampliado de las limitaciones, las validaciones empíricas adicionales y
-una nota técnica sobre la inconsistencia de coordenadas
-tracking-\emph{eventos} en la prórroga de algunos partidos PFF FC y su
-corrección automática dentro del \emph{pipeline}.
+El capítulo~7 discute las implicaciones operativas para \textit{scouting},
+fichajes, preparación de partidos KO y gestión de cambios. El
+capítulo~8 cierra con las conclusiones generales, las limitaciones
+declaradas del estudio y las líneas futuras de extensión. La bibliografía
+sigue en formato APA séptima edición; los anexos amplían el detalle de
+las limitaciones, las validaciones empíricas adicionales y una nota
+técnica sobre la corrección automática de la inconsistencia de
+coordenadas tracking-\textit{eventos} en la prórroga de algunos partidos
+del corpus PFF FC.
