@@ -54,8 +54,28 @@ _AXLABEL_SZ   = 11
 _TICK_SZ      = 10
 _LEGEND_SZ    = 9.5
 _FOOTER_SZ    = 9
+# --- Logo JO (top-right) — parámetros de posicionamiento ---
+# add_logo() coloca el logo en una esquina con esta geometría (corner="tr"):
+#     x_left  = 1.0 - _LOGO_MARGIN - _LOGO_FRAC      (borde izquierdo del logo)
+#     y_bot   = 1.0 - _LOGO_MARGIN - h_frac           (borde inferior del logo)
+#     h_frac  = _LOGO_FRAC * (figW/figH) / aspect     (alto en fracción figura)
+#
+# Cómo mover el logo en código (todo en fracción [0..1] de figura):
+#   * MÁS GRANDE      → ↑ _LOGO_FRAC (e.g. 0.13). Crece ancho y alto a la vez.
+#   * MÁS PEQUEÑO     → ↓ _LOGO_FRAC (e.g. 0.07).
+#   * MÁS A LA DERECHA → ↓ _LOGO_MARGIN (pega más al borde, 0.0 = tocando).
+#   * MÁS A LA IZQ.   → ↑ _LOGO_MARGIN (lo aleja del borde derecho).
+#   * MÁS ARRIBA      → ↓ _LOGO_MARGIN (mismo parámetro: top + right comparten margen).
+#   * MÁS ABAJO       → ↑ _LOGO_MARGIN.
+#   * SUBIR/BAJAR sin cambiar lateral → cambia el corner a "br" en _logo_tr(),
+#     o usa add_logo(fig, corner="tr", ...) con margen vertical custom (requiere
+#     editar common.py para separar margin_x / margin_y, que hoy comparten valor).
+#
+# Para mover SOLO en vertical con la API actual: aumentar bbox top en el
+# tight_layout(rect=[..., top]) reduce el área del plot y desplaza el logo
+# visualmente hacia abajo respecto al título.
 _LOGO_FRAC    = 0.10    # ancho del logo en fracción de figura — borde izq ≈ 0.9
-_LOGO_MARGIN  = 0.005
+_LOGO_MARGIN  = 0.005   # separación al borde superior y derecho — 0.0 = tocando
 
 
 def _style(ax, ygrid=True, xgrid=False):
@@ -142,10 +162,10 @@ def psxg_calibration(save_path=None):
     x = np.arange(len(models))
     w = 0.35
     ax.bar(x - w/2, rel, w, color="#E5E7EB",
-           edgecolor=TEXT, linewidth=0.5, label="Reliability  (menor mejor)")
+           edgecolor=TEXT, linewidth=0.5, label="Reliability")
     ax.bar(x + w/2, res, w,
            color=[c for _, _, c in models], alpha=0.9,
-           edgecolor=TEXT, linewidth=0.5, label="Resolution  (mayor mejor)")
+           edgecolor=TEXT, linewidth=0.5, label="Resolution")
     for xi, (r, s) in enumerate(zip(rel, res)):
         ax.text(xi - w/2, r + 0.001, f"{r:.4f}", ha="center", va="bottom",
                 fontsize=8.5, color=TEXT)
@@ -232,7 +252,7 @@ def cate_heterogeneity(save_path=None):
         _style(ax)
 
     fig.suptitle(
-        "Heterogeneidad del CATE por jugador — la varianza individual es la señal",
+        "Distribución del CATE individual por canal y contexto del shock",
         fontsize=_SUPTITLE_SZ, fontweight="bold", x=0.5, ha="center", y=1.02)
     fig.text(0.5, -0.03,
              "598 jugadores · media posterior por jugador · CATE jerárquico bayesiano multivariate (NUTS HMC)",
