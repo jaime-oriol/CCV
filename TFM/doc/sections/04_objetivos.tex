@@ -7,141 +7,89 @@
 \section{Objetivo general}
 \label{sec:objetivo-general}
 
-Las métricas comerciales de rendimiento clutch en el scouting moderno han
-avanzado durante los últimos años en cuantificar quién aparece cuando
-importa, pero no en separar la contribución individual del jugador del
-patrón colectivo de su bloque. Sin esa separación la propiedad medida es
-un híbrido de calidad individual y calidad de equipo, y la decisión de
-scouting o de gestión de cambios queda anclada en reputación. La
-identificación causal moderna ofrece hoy estimadores robustos para
-tratamientos pulsados con efectos heterogéneos
-\parencite{SunAbraham2021,BorusyakJaravelSpiess2024,RambachanRoth2023};
-los datos de \emph{eventing} sincronizados con tracking a alta frecuencia
-han llegado al fútbol de élite en formato abierto sobre un torneo de fase
-eliminatoria completo \parencite{PFFFC2024Release}; y los modelos
-bayesianos jerárquicos \emph{multivariate} permiten estimar el efecto por
-jugador con cuantificación honesta de la incertidumbre. Esos tres
-ingredientes, sin embargo, no se habían encadenado todavía al nivel
-jugador-minuto sobre un torneo de fase eliminatoria.
-
-El objetivo general de este trabajo es, en consecuencia, \textbf{proponer,
-implementar y evaluar el Causal Clutch Value (\CCV), un marco causal que
-estima el efecto del shock emocional del gol sobre el rendimiento
-individual del jugador, residualizado contra el patrón colectivo de su
-propio equipo en cada shock, sobre cuatro canales del rendimiento
----ofensivo, defensivo, \emph{off-ball} y físico--- y tres contextos de
-impacto emocional ---post-gol a favor, post-gol en contra y proximidad de
-eliminación alta---, con identificación causal triangulada por
-diferencias-en-diferencias \emph{within-player} y cuasi-experimento de
-\emph{near-miss}, y con efecto heterogéneo por jugador estimado mediante
-un modelo CATE bayesiano jerárquico \emph{multivariate}}. El marco se
-aplica al Mundial Qatar 2022 con datos PFF FC como banco de pruebas
-técnico, condición que asegura la verificabilidad del trabajo sobre el
-único corpus público actualmente disponible que reúne todos los
-ingredientes que la pregunta exige.
+Proponer, implementar y evaluar el Causal Clutch Value (\CCV), un marco
+causal que estima el efecto del \textit{shock} emocional del gol sobre el
+rendimiento individual del jugador residualizado contra el patrón
+colectivo de su propio equipo, sobre cuatro canales del rendimiento
+---ofensivo, defensivo, \emph{off-ball} y físico--- y tres contextos
+emocionales ---post-gol a favor, post-gol en contra y proximidad de
+eliminación alta---. La identificación causal se triangula con
+diferencias-en-diferencias \textit{within-player} y un cuasi-experimento
+de \textit{near-miss}; el efecto heterogéneo por jugador se condensa en
+un \textit{Conditional Average Treatment Effect} (CATE) jerárquico
+bayesiano \textit{multivariate}. El marco se aplica al Mundial Qatar 2022
+con datos PFF FC como prueba técnica.
 
 
 \section{Objetivos específicos}
 \label{sec:objetivos-especificos}
 
 Cada objetivo específico responde a una pregunta de investigación (RQ)
-formulada en el anteproyecto del trabajo y se mapea sobre una capa
-concreta del \emph{pipeline} de implementación descrito en el
+formulada en el anteproyecto del trabajo y se mapea sobre un bloque
+concreto del \emph{pipeline} de implementación descrito en el
 capítulo~\ref{ch:desarrollo}.
 
-\paragraph{OE1 (RQ1).}
-Construir la \emph{backbone} temporal del marco, encargada de modular
-continuamente el contexto del shock. La capa estima la \emph{Win
-Probability} (WP) bayesiana por minuto, entrenada sobre corpus públicos
-fuera del torneo objetivo y recalibrada al Mundial Qatar 2022 vía
-\emph{temperature scaling} sobre fase de grupos. La WP se extiende a
-prórroga mediante una tasa de gol con distribución de Poisson y a tanda
-de penaltis con un modelo paramétrico. De ella derivan tanto el
-\emph{leverage} ---la sensibilidad de la probabilidad de ganar a un gol
-marginal--- como la proximidad de eliminación por equipo y minuto,
-calculada por Monte Carlo del grupo durante la fase de grupos y vía la
-propia WP en eliminatoria. Estas tres señales constituyen los moduladores
-continuos del contexto del shock que alimentan al modelo CATE.
+\paragraph{OE1 (RQ1) --- \textit{Backbone} temporal.}
+Construir la capa que modula continuamente el contexto del \textit{shock}.
+Estima la \textit{Win Probability} (WP) bayesiana por minuto sobre corpus
+fuera del torneo objetivo y recalibrada al Mundial Qatar 2022, deriva el
+\textit{leverage} ---la sensibilidad de la probabilidad de ganar a un gol
+marginal--- y la proximidad de eliminación por equipo y minuto. Estas tres
+señales son los moduladores continuos que alimentan al modelo CATE.
 
-\paragraph{OE2 (RQ2).}
-Identificar y cuantificar los shocks emocionales del torneo ---gol a
-favor y gol en contra--- y construir el corpus complementario de
-\emph{near-misses} que sirve de variación exógena para la estrategia
-causal B. Para cada shock se calcula la ventana pre/post de
-$\pm 10$\,minutos por jugador y la composición \emph{leave-one-out} del
-bloque colectivo. El corpus de \emph{near-miss} se construye en cinco
-tipos ---palo o travesaño, fuera de juego milimétrico, parada del portero
-sobre un disparo con \emph{Post-Shot} $xG$ alto, despeje en línea de gol
-y no-gol confirmado por tecnología de gol--- sobre un modelo PSxG
-entrenado fuera del WC22 y calibrado por regresión isotónica.
+\paragraph{OE2 (RQ2) --- \textit{Shocks} y \textit{near-misses}.}
+Identificar los \textit{shocks} emocionales del torneo (gol a favor y gol
+en contra), calcular las ventanas pre/post de $\pm 10$\,minutos por
+jugador y la composición \textit{leave-one-out} del bloque colectivo, y
+construir el corpus complementario de \textit{near-misses} sobre cinco
+tipologías ---palo o travesaño, fuera de juego milimétrico, parada del
+portero sobre disparo de \textit{Post-Shot}~$xG$ alto, despeje en línea
+de gol y no-gol confirmado por tecnología--- como contrafactual exógeno
+para la estrategia causal de \textit{near-miss}.
 
-\paragraph{OE3 (RQ3).}
-Implementar los cuatro canales del rendimiento sobre PFF FC WC22, cada
-uno con el estimador \emph{SOTA} real para su capa, y producir
-agregaciones por jugador-minuto y por jugador-shock-ventana con cálculo
-\emph{leave-one-out} del bloque colectivo en cada shock. El canal
-ofensivo se estima con \emph{atomic}-VAEP y un-xPass como \emph{rating}
-de decisión creativa. El canal defensivo combina tres \emph{building
-blocks}: VDEP en versión estricta (cabeza dual de \emph{recovery} y
-\emph{attacked}), exPress (probabilidad de recuperación bajo presión en
-menos de cinco segundos) y atribución \emph{Maejima} al defensor más
-cercano \emph{frame-level}. El canal \emph{off-ball} se estima con OBSO
-y su versión contrafactual C-OBSO sobre tracking 25\,Hz vectorizado. El
-canal físico aplica el protocolo Bradley con suavizado Butterworth,
-segmentación cinemática y residual bayesiano \emph{multivariate} por
-jugador.
+\paragraph{OE3 (RQ3) --- Cuatro canales del rendimiento.}
+Implementar los cuatro canales sobre PFF FC con el estimador \textit{SOTA}
+de cada capa: \textit{atomic}-VAEP y un-xPass en el canal ofensivo; VDEP
+estricto, \textit{exPress} y atribución \textit{Maejima} al defensor más
+cercano \textit{frame-level} en el canal defensivo; OBSO y C-OBSO sobre
+tracking 25\,Hz en el canal \emph{off-ball}; protocolo Bradley con residual
+bayesiano \textit{multivariate} por jugador en el canal físico. Las
+agregaciones se producen por jugador-minuto y por
+jugador-\textit{shock}-ventana con cálculo \textit{leave-one-out} del
+bloque colectivo.
 
-\paragraph{OE4 (RQ4).}
-Triangular dos estrategias causales independientes sobre el delta
-relativo al bloque. La primera es una estimación de
-diferencias-en-diferencias \emph{within-player} con efectos fijos
-contrastada contra los estimadores modernos para tratamientos pulsados
+\paragraph{OE4 (RQ4) --- Triangulación causal.}
+Estimar el efecto causal del \textit{shock} mediante dos estrategias
+independientes sobre el delta relativo al bloque. La primera es una DiD
+\textit{within-player} con efectos fijos, contrastada contra los
+estimadores modernos para tratamientos pulsados
 \parencite{SunAbraham2021,BorusyakJaravelSpiess2024} y robustecida con
-las cotas \emph{HonestDiD} de \textcite{RambachanRoth2023} frente a
-violaciones de tendencias paralelas. La estrategia se acompaña de una
-batería de validaciones ---comparación contra una línea base sin efectos
-fijos, placebo de permutación \emph{within-series} con corrección
-Benjamini-Hochberg, análisis de potencia, sensibilidad a la ventana de
-$\pm 3/5/7/10/15$\,minutos y estratificación fase de grupos frente a
-eliminatoria. La segunda estrategia es un AIPW doblemente robusto con
-\emph{cross-fitting} sobre el corpus de \emph{near-miss}, apoyado en el
-resultado de \textcite{GauriotPage2019} de que el hecho de que el balón
-entre o no, condicional en un \emph{pre-shot}~$xG$ comparable, se
-aproxima a azar. La estrategia B se compara internamente contra DML
-\emph{Partially Linear Regression}, DR-learner y RDD local-lineal sobre
-$xG$, con \emph{specification curve} sobre tres definiciones
-alternativas de \emph{near-miss}.
+las cotas \textit{HonestDiD} \parencite{RambachanRoth2023}. La segunda es
+un AIPW doblemente robusto con \textit{cross-fitting} sobre el corpus de
+\textit{near-miss} \parencite{GauriotPage2019}, comparado internamente
+contra DML \textit{Partially Linear Regression}, DR-learner y RDD
+local-lineal sobre $xG$.
 
-\paragraph{OE5 (RQ5).}
-Estimar el efecto heterogéneo por jugador con un modelo bayesiano
-jerárquico \emph{multivariate} sobre los cuatro canales conjuntamente,
-con correlaciones \emph{cross}-canal modeladas por dimensión emocional
----post-gol-a-favor, post-gol-en-contra y contexto de eliminación---
-mediante una previa LKJ y \emph{priors} informados por \emph{grades}
-humanos PFF pre-torneo. El modelo se samplea vía \emph{Hamiltonian
-Monte Carlo} con el \emph{sampler} No-U-Turn en cuatro cadenas. A partir
-de las posteriores se ensambla la tabla \emph{scout-facing} canónica del
-\CCV con un jugador por fila y columnas suficientes para tres índices
-agregados (\emph{chasing}, \emph{protecting} y \emph{pressure response}),
-un vector resumen de cuatro canales, probabilidades posteriores
-conjuntas, \emph{tier strings} de significatividad, \emph{rankings}
-global / dentro de posición / dentro de \emph{bucket} posicional, y
-\emph{flags} de incertidumbre. La tabla se acompaña de tablas auxiliares
-con los \emph{top}-10 por posición y por \emph{bucket}, el
-\emph{dual-clutch top} y la agregación por selección.
+\paragraph{OE5 (RQ5) --- CATE jerárquico y tabla \textit{scout-facing}.}
+Estimar el efecto heterogéneo por jugador con un CATE jerárquico bayesiano
+\textit{multivariate} sobre los cuatro canales conjuntamente, con
+correlaciones \textit{cross}-canal modeladas mediante una previa
+Lewandowski--Kurowicka--Joe (LKJ) y \textit{priors} informados por
+\textit{grades} humanos PFF, sampleado con \textit{Hamiltonian Monte
+Carlo} y el \textit{sampler} No-U-Turn (NUTS) en cuatro cadenas. Ensamblar
+la tabla \textit{scout-facing} canónica del \CCV con un jugador por fila,
+tres índices agregados (Remontador, Cerrojo, \textit{Pressure Response}),
+vector resumen por canal, \textit{rankings} por posición y \textit{bucket}
+posicional, y \textit{flags} de incertidumbre.
 
-\paragraph{OE6 (RQ6).}
-Validar empíricamente el marco completo desde dos ángulos
-independientes. La validación intrínseca cubre la calibración del modelo
-\emph{Post-Shot}~$xG$ ---curva isotónica, descomposición de Brier en
-\emph{reliability} y \emph{resolution}, error de calibración esperado y
-máximo, y AUC en el \emph{holdout} WC22 sagrado--- y la correlación
-entre los canales algorítmicos y los \emph{grades} humanos PFF por
-jugador-evento, que sirven como validación externa cualitativa. La
-validación causal cubre el placebo \emph{within-series} con mil
-permutaciones y corrección Benjamini-Hochberg sobre los ATE
-poblacionales, el análisis de potencia con ICC y MDE al ochenta por
-ciento, la sensibilidad de la ventana a cinco horizontes y la
-estratificación fase de grupos frente a eliminatoria, además de la
-comparación cruzada del DiD \emph{within-player} con el ATT del
-cuasi-experimento \emph{near-miss}.
+\paragraph{OE6 (RQ6) --- Validación intrínseca y causal.}
+Validar empíricamente el marco desde dos ángulos. La validación intrínseca
+cubre la calibración del modelo \textit{Post-Shot}~$xG$ ---curva isotónica,
+descomposición de Brier, ECE/MCE y AUC en \textit{holdout} WC22--- y la
+correlación entre los canales algorítmicos y los \textit{grades} humanos
+PFF por jugador-evento. La validación causal cubre el placebo
+\textit{within-series} con corrección Benjamini-Hochberg, el análisis de
+potencia, la sensibilidad de la ventana a cinco horizontes, la
+estratificación fase de grupos frente a eliminatoria y la comparación
+cruzada del DiD \textit{within-player} con el ATT del cuasi-experimento
+\textit{near-miss}.
