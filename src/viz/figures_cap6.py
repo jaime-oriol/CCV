@@ -74,8 +74,8 @@ _FOOTER_SZ    = 9
 # Para mover SOLO en vertical con la API actual: aumentar bbox top en el
 # tight_layout(rect=[..., top]) reduce el área del plot y desplaza el logo
 # visualmente hacia abajo respecto al título.
-_LOGO_FRAC    = 0.10    # ancho del logo en fracción de figura — borde izq ≈ 0.9
-_LOGO_MARGIN  = 0.005   # separación al borde superior y derecho — 0.0 = tocando
+_LOGO_FRAC    = 0.125    # ancho del logo en fracción de figura — borde izq ≈ 0.9
+_LOGO_MARGIN  = 0.0075   # separación al borde superior y derecho — 0.0 = tocando
 
 
 def _style(ax, ygrid=True, xgrid=False):
