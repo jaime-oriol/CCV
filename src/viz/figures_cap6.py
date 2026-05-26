@@ -54,8 +54,8 @@ _AXLABEL_SZ   = 11
 _TICK_SZ      = 10
 _LEGEND_SZ    = 9.5
 _FOOTER_SZ    = 9
-_LOGO_FRAC    = 0.065   # ancho del logo en fracción de figura
-_LOGO_MARGIN  = 0.012
+_LOGO_FRAC    = 0.10    # ancho del logo en fracción de figura — borde izq ≈ 0.9
+_LOGO_MARGIN  = 0.005
 
 
 def _style(ax, ygrid=True, xgrid=False):
