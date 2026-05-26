@@ -65,10 +65,12 @@ independientes sobre el delta relativo al bloque. La primera es una DiD
 estimadores modernos para tratamientos pulsados
 \parencite{SunAbraham2021,BorusyakJaravelSpiess2024} y robustecida con
 las cotas \textit{HonestDiD} \parencite{RambachanRoth2023}. La segunda es
-un AIPW doblemente robusto con \textit{cross-fitting} sobre el corpus de
-\textit{near-miss} \parencite{GauriotPage2019}, comparado internamente
-contra DML \textit{Partially Linear Regression}, DR-learner y RDD
-local-lineal sobre $xG$.
+un AIPW (\textit{Augmented Inverse Probability Weighting}) doblemente
+robusto con \textit{cross-fitting} sobre el corpus de \textit{near-miss}
+\parencite{GauriotPage2019}, comparado internamente contra
+DML (\textit{Double/Debiased Machine Learning}) \textit{Partially Linear
+Regression}, DR-\textit{learner} y un RDD (\textit{Regression
+Discontinuity Design}) local-lineal sobre $xG$.
 
 \paragraph{OE5 (RQ5) --- CATE jerárquico y tabla \textit{scout-facing}.}
 Estimar el efecto heterogéneo por jugador con un CATE jerárquico bayesiano
@@ -91,5 +93,6 @@ PFF por jugador-evento. La validación causal cubre el placebo
 \textit{within-series} con corrección Benjamini-Hochberg, el análisis de
 potencia, la sensibilidad de la ventana a cinco horizontes, la
 estratificación fase de grupos frente a eliminatoria y la comparación
-cruzada del DiD \textit{within-player} con el ATT del cuasi-experimento
+cruzada del DiD \textit{within-player} con el ATT (\textit{Average
+Treatment effect on the Treated}) del cuasi-experimento
 \textit{near-miss}.

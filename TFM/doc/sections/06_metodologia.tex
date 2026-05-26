@@ -47,8 +47,10 @@ de ataque.
 La probabilidad de ganar el partido se estima por minuto vía un modelo
 bayesiano logit ordinal de tres clases con interceptos tiempo-variables,
 entrenado por \textit{Stochastic Variational Inference} (SVI) sobre
-los corpus externos (Wyscout 2017/18 y StatsBomb fuera del Mundial
-Qatar 2022). La recalibración al Mundial se realiza mediante
+los corpus externos
+(\textit{open dataset} Wyscout 2017/18 \parencite{Pappalardo2019Wyscout}
+y StatsBomb \textit{open data} \parencite{StatsBombOpenData} fuera del
+Mundial Qatar 2022). La recalibración al Mundial se realiza mediante
 \textit{temperature scaling} sobre la fase de grupos, ajustando un
 único parámetro escalar de temperatura por desplazamiento de
 distribución. La cobertura se extiende a prórroga mediante una tasa
@@ -76,8 +78,8 @@ en línea de gol y no-gol confirmado por la tecnología de gol--- con
 umbrales pre-registrados sobre el $xG$ pre-disparo entre 0{,}15 y
 0{,}85 para asegurar comparabilidad técnica con los goles marcados.
 El modelo PSxG que evalúa la calidad técnica del disparo se entrena
-fuera del Mundial sobre eventos StatsBomb (Euro 2020, Euro 2024 y
-Bundesliga 23/24) con \textit{features} de \textit{end-location}
+fuera del Mundial sobre eventos StatsBomb \textit{open data}
+\parencite{StatsBombOpenData} (Euro 2020, Euro 2024 y Bundesliga 23/24) con \textit{features} de \textit{end-location}
 tridimensional, presión defensiva y 360 \textit{freeze-frames}, y se
 calibra por regresión isotónica.
 
@@ -200,34 +202,51 @@ desviaciones pre-tratamiento observadas).
 
 \subsection{Cuasi-experimento \textit{near-miss}}
 
-El segundo brazo causal explota el resultado de
+El segundo brazo causal se apoya en el resultado de
 \textcite{GauriotPage2019}: condicional a un disparo con $xG$
-pre-disparo comparable, el hecho de que el balón entre o no se
-aproxima a un sorteo. Sobre el universo de disparos con $xG$
-pre-disparo en $[0{,}15, 0{,}85]$ del torneo, se forma el conjunto de
-tratamiento como los goles marcados y el conjunto de control como los
-\textit{near-misses} de las cinco tipologías ya descritas, con
-\textit{cluster} a nivel disparo \parencite{HudgensHalloran2008}. La unidad
-de análisis es el jugador en campo en el momento del disparo y el
-\textit{outcome} es la media del canal $k$ en la ventana
-$[t_s + 60, t_s + 600]$ segundos posterior. El estimador principal es
-un AIPW de doble robustez (Augmented Inverse Probability Weighting),
+pre-disparo comparable, el hecho de que el balón entre o no entre se
+aproxima a un sorteo. La idea del marco es comparar la respuesta del
+jugador después de un gol marcado con su respuesta después de un
+\textit{near-miss} técnicamente equivalente, de manera que la
+variación entre uno y otro caso quede aislada de la calidad técnica
+del disparo. Sobre el universo de disparos con $xG$ pre-disparo en
+$[0{,}15,\, 0{,}85]$ del torneo, el conjunto de tratamiento son los
+goles marcados y el conjunto de control son los \textit{near-misses}
+de las cinco tipologías ya descritas; los errores estándar se
+\textit{clusterizan} a nivel disparo, en línea con el tratamiento
+formal de la interferencia entre unidades de
+\textcite{HudgensHalloran2008}. La unidad de análisis es el jugador
+en campo en el momento del disparo y el \textit{outcome} es la media
+del canal $k$ en la ventana $[t_s + 60,\, t_s + 600]$ segundos
+posterior al evento.
+
+El estimador principal es un AIPW (\textit{Augmented Inverse
+Probability Weighting}) doblemente robusto. Su forma cerrada para el
+canal $k$ es
 
 \[
-\hat{\tau}^{\text{AIPW}}_k \;=\; \mathbb{E}\left[ \hat{\mu}_{1,k}(X) - \hat{\mu}_{0,k}(X) + \frac{D \cdot (Y - \hat{\mu}_{1,k}(X))}{\hat{e}(X)} - \frac{(1-D) \cdot (Y - \hat{\mu}_{0,k}(X))}{1 - \hat{e}(X)} \right],
+\hat{\tau}^{\text{AIPW}}_k \;=\; \mathbb{E}\left[\,\hat{\mu}_{1,k}(X) - \hat{\mu}_{0,k}(X) + \frac{D\,(Y - \hat{\mu}_{1,k}(X))}{\hat{e}(X)} - \frac{(1-D)\,(Y - \hat{\mu}_{0,k}(X))}{1 - \hat{e}(X)}\,\right],
 \]
 
-con modelos \textit{nuisance} $\hat{\mu}_{d,k}(X)$ y $\hat{e}(X)$
-estimados por LightGBM con \textit{cross-fitting} de cinco pliegues
-estratificado por partido, siguiendo el esquema de
-\textit{Double/Debiased Machine Learning} de
-\textcite{Chernozhukov2018DML}. Como comprobación complementaria se
-estiman el ATT por DML \textit{Partially Linear Regression}, por
-DR-\textit{learner} \parencite{Kennedy2023DR} y por un RDD local-lineal
-con \textit{bandwidth} óptimo robusto de
-\textcite{CalonicoCattaneoTitiunik2014} sobre la discontinuidad en
-$xG$. La sensibilidad a \textit{confounding} no observado se evalúa
-con las cotas de \textcite{CinelliHazlett2020}.
+donde $\hat{\mu}_{d,k}(X)$ es la media condicional del canal $k$
+estimada sobre los disparos del brazo $d \in \{0,1\}$ y $\hat{e}(X)$
+es el \textit{propensity score}, ambos aprendidos como modelos
+\textit{nuisance} con LightGBM y validación cruzada en cinco pliegues
+estratificada por partido. La construcción sigue el esquema de
+\textit{Double/Debiased Machine Learning} (DML) de
+\textcite{Chernozhukov2018DML}, que garantiza la doble robustez del
+estimador siempre que al menos uno de los dos modelos
+\textit{nuisance} esté correctamente especificado.
+
+Como comprobación complementaria, el efecto medio del tratamiento
+sobre los tratados (ATT, \textit{Average Treatment effect on the
+Treated}) se estima también por DML \textit{Partially Linear
+Regression}, por DR-\textit{learner} \parencite{Kennedy2023DR} y por un
+RDD (\textit{Regression Discontinuity Design}) local-lineal sobre la
+discontinuidad en $xG$, con el \textit{bandwidth} óptimo robusto de
+\textcite{CalonicoCattaneoTitiunik2014}. La sensibilidad del efecto
+estimado a \textit{confounding} no observado se evalúa con las cotas
+de \textcite{CinelliHazlett2020}.
 
 \subsection{CATE jerárquico bayesiano \textit{multivariate}}
 
