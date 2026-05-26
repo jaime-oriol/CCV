@@ -1,5 +1,5 @@
 % =============================================================================
-% ABSTRACT (English mirror of Resumen)
+% ABSTRACT (English mirror of Resumen) - EPV style: 2 paragraphs
 % =============================================================================
 \chapter*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
@@ -8,61 +8,38 @@
 Clutch performance is one of the most discussed concepts in modern football
 scouting and one of the least rigorously measured in causal terms. Public
 rankings of the player who shows up when it matters rely on pure event
-data, with no tracking, no exogenous counterfactual and no separation
-between the individual contribution and the collective pattern of the
-team. The result is a market that overpays for clutch reputation without
-an objective metric to support it. The open question is whether a player's
-clutch performance can be estimated causally, net of the collective
-pattern of their team, without presupposing that pattern a priori.
+data, without synchronized tracking or separation between the individual
+contribution and the collective pattern of the team. This work proposes
+and evaluates the Causal Clutch Value (\CCV), a causal framework that
+estimates the effect of the emotional shock of a goal on player
+performance across four channels (offensive, defensive, \textit{off-ball}
+and physical) and three contexts (after scoring, after conceding and high
+elimination proximity), residualized against the team's own delta via a
+\textit{leave-one-out} scheme at each shock. Causal identification is
+triangulated through a within-player Differences-in-Differences (DiD)
+estimate over a $\pm 10$\,minute window around each goal and a
+\textit{near-miss} quasi-experiment leveraging the conditional
+quasi-randomness of the goal given \textit{pre-shot}~$xG$; the
+heterogeneous per-player effect is condensed into a hierarchical
+multivariate Bayesian CATE with cross-channel correlations and priors
+informed by human grades. The framework is applied to the 2022 FIFA World
+Cup with PFF FC data as a technical proof of concept ---the only public
+corpus with synchronized 25\,Hz tracking and complete knockout-stage
+coverage.
 
-This work proposes and evaluates the Causal Clutch Value (\CCV), a causal
-framework that estimates the effect of the emotional shock of a goal---both
-for and against---on player performance across four channels (offensive,
-defensive, off-ball and physical) and three contexts (after scoring, after
-conceding and high elimination proximity), residualized against the team's
-own delta via a leave-one-out scheme at each shock. The central contribution
-of this work is the framework itself; its application to the 2022 FIFA
-World Cup with PFF FC data follows from it being the only elite knockout
-tournament with open synchronized event and 25\,Hz tracking data, a
-condition that enables methodological validation on the most demanding
-competitive context without commercial barriers. The output table covers
-511~players, 233 with sufficient minutes for reliable analysis
-($\geq 270$\,min), and 172 goal-shocks split between 120 from the group
-stage and 52 from the knockout rounds.
-
-Causal identification is triangulated through two independent strategies.
-The first is a within-player Differences-in-Differences (DiD) estimate over
-a $\pm 10$-minute window around each goal, contrasted against modern
-estimators for pulse treatments
-\parencite{SunAbraham2021,BorusyakJaravelSpiess2024} and with robustness
-bounds against parallel-trends violations \parencite{RambachanRoth2023}. The
-second is a near-miss quasi-experiment: conditional on comparable pre-shot
-$xG$, whether the ball goes in is, in practice, random
-\parencite{GauriotPage2019}. The player-level heterogeneous effect is
-condensed into a hierarchical multivariate Bayesian Conditional Average
-Treatment Effect (CATE) estimated via Hamiltonian Monte Carlo (HMC) with
-the No-U-Turn (NUTS) sampler across four chains, with priors informed by
-PFF grades and cross-channel correlations modeled through a
-Lewandowski--Kurowicka--Joe (LKJ) prior.
-
-The population-average effect is statistically indistinguishable from zero
-across the four channels: the shock does not move the average player. The
-clutch signal is located in individual heterogeneity and appears under high
-elimination proximity: four players exhibit a significant pressure-clutch
-effect at $P(\hat{\beta}>0\mid\text{data}) \geq 0.85$, led by Kylian Mbappé
-with a coefficient of $+0.11$ standard deviations and a posterior
-probability of $0.97$---consistent with his emergence in the closing stages
-of the Argentina-France final. At the channel-specific level, twenty-two
-players show a significant effect on the post-scoring offense cell, five
-with offensive output rising after scoring and seventeen declining. The
-Chasing and Protecting aggregates yield no significant players: the
-aggregated effect by shock direction is under-identified at $N = 172$,
-whereas the response conditional on the elimination-imminence context is
-identifiable. To the best of the present bibliographic review, \CCV stands
-as the first framework triangulating within-player DiD with a near-miss
-quasi-experiment over a knockout tournament at the player level, across
+The population-average effect is statistically indistinguishable from
+zero across the four channels: the shock does not move the average
+player. The clutch signal is located in individual heterogeneity and
+appears under high elimination proximity, with four significant players
+led by Kylian Mbappé (coefficient $+0.11$ standard deviations, posterior
+probability $0.97$). At the channel-specific level, twenty-two players
+show a significant effect in the post-scoring offense cell ---five rising
+and seventeen declining---, while the Chasing and Protecting aggregates
+are under-identified at $N=172$ shocks. \CCV stands as the first framework
+triangulating within-player DiD with a \textit{near-miss}
+quasi-experiment at the player level over a knockout tournament, across
 four channels and residualized against the team block, with honest
-quantification of per-player uncertainty.
+per-player uncertainty quantification.
 
 \vspace{1em}
 \noindent\textbf{Keywords:} Football $\cdot$ Causal inference $\cdot$
