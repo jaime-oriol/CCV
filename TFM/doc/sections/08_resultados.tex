@@ -4,6 +4,309 @@
 \chapter{Resultados}
 \label{ch:resultados}
 
-\textit{[Pendiente. Resultados por fase + agregados. Tablas con métricas
-calibradas. Figuras de las vizs renderizadas. Validaciones empíricas T1+T2
-del archivo validations.md.]}
+Este capítulo reporta los resultados del \CCV sobre el Mundial Qatar
+2022 en dos bloques. El primero, validación interna, cubre la
+calibración de los modelos predictivos del \textit{pipeline} y la
+robustez del identificador causal. El segundo, resultados sustantivos,
+descompone el efecto del \textit{shock} a nivel poblacional, lo
+contrasta con la heterogeneidad individual estimada por el CATE
+jerárquico bayesiano y aterriza en los jugadores con respuesta
+significativa por contexto.
+
+
+\section{Calibración de los modelos predictivos}
+\label{sec:res-calibracion}
+
+La capa predictiva sobre la que descansa el cuasi-experimento de
+\textit{near-miss} es el modelo Post-Shot~$xG$. La figura
+\ref{fig:psxg-calibration} reporta su calibración sobre la fase de
+grupos del Mundial y sobre el resto de torneos de entrenamiento.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_cap6_psxg_calibration}
+  \caption{Calibración del modelo Post-Shot~$xG$. (a) Curva de
+    fiabilidad sobre el \textit{out-of-fold} cross-dataset
+    (1494 disparos de Eurocopa 2020, Eurocopa 2024 y Bundesliga
+    2023/24) y el \textit{holdout} del Mundial Qatar 2022.
+    (b) Descomposición de Brier del modelo calibrado frente al
+    baseline de StatsBomb~$xG$. Los valores numéricos corresponden a
+    los componentes de fiabilidad y resolución.}
+  \label{fig:psxg-calibration}
+\end{figure}
+
+Las dos curvas se mantienen sobre la diagonal de calibración perfecta
+en todo el rango, con desviaciones inferiores a un punto porcentual
+en cada uno de los cuatro \textit{bins} de la regresión isotónica.
+La AUC \textit{out-of-fold} es 0{,}968 y la AUC sobre el
+\textit{holdout} del Mundial es 0{,}976 ---ligeramente superior a la
+del entrenamiento, lo que es consistente con un torneo de selecciones
+de élite con disparos más limpios que la media de liga. El
+\textit{Expected Calibration Error} (ECE) sobre el \textit{holdout}
+es 0{,}011, y el componente de \textit{reliability} en la
+descomposición de Brier es 0{,}0002, dos órdenes de magnitud por
+debajo del baseline equivalente de StatsBomb~$xG$. La componente de
+\textit{resolution} ---que mide cuánto separa el modelo eventos con
+distinta tasa de gol--- es 0{,}0713 sobre el \textit{holdout},
+aproximadamente tres veces y media superior al baseline. La
+combinación de reliability bajo y resolution alto certifica que el
+modelo puede usarse como ancla técnica del corpus de
+\textit{near-miss} sin sesgar la asignación entre tratamiento y
+control.
+
+La capa de \textit{Win Probability} (WP) sigue el mismo protocolo:
+ajuste sobre Wyscout 2017/18 más StatsBomb fuera del Mundial y
+recalibración por \textit{temperature scaling} sobre la fase de
+grupos. La curva de calibración resultante sobre la fase de
+grupos del Mundial es indistinguible de la diagonal, con un parámetro
+de temperatura aprendido ligeramente inferior a la unidad
+($T \approx 0{,}95$), consistente con un shift de distribución
+modesto desde la liga europea al torneo de selecciones. La fase
+eliminatoria queda como \textit{holdout} final donde no se ajusta
+ningún parámetro.
+
+
+\section{Identificación causal: pre-tendencias y sensibilidad}
+\label{sec:res-identificacion}
+
+La validación del brazo causal DiD se apoya en tres comprobaciones
+independientes sobre los coeficientes \textit{within-player}. La
+primera es el test $F$ de pre-tendencias agregadas
+\parencite{Roth2022Pretest}, que no rechaza la hipótesis nula de
+paralelismo pre-tratamiento en ninguno de los ocho contrastes canal
+$\times$ contexto al nivel del cinco por ciento. Los coeficientes
+pre-shock son indistinguibles de cero en los diez minutos previos al
+gol en los cuatro canales, lo que es condición necesaria para la
+identificación del efecto del \textit{shock} bajo la asunción de
+tendencias paralelas.
+
+La segunda comprobación es la sensibilidad temporal de los
+coeficientes a la elección de la ventana pre/post. La figura
+\ref{fig:window-sensitivity} reporta el efecto medio estimado sobre
+horizontes de $\pm 3$, $\pm 5$, $\pm 7$, $\pm 10$ y $\pm 15$ minutos
+por canal y por dirección del \textit{shock}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_cap6_window_sensitivity}
+  \caption{Sensibilidad del ATE al horizonte de ventana pre/post,
+    por canal y dirección del \textit{shock}. Banda sombreada: IC
+    95\% clusterizado por jugador. Línea punteada vertical: ventana
+    de referencia $\pm 10$\,minutos.}
+  \label{fig:window-sensitivity}
+\end{figure}
+
+Los coeficientes ofensivo y \textit{off-ball} son estables a través
+de los cinco horizontes y cercanos a cero en todos ellos. El
+coeficiente defensivo también es estable, con dispersión adicional
+en los horizontes más cortos por la menor muestra efectiva. El
+coeficiente físico es el más sensible al horizonte: en la ventana
+estándar de $\pm 10$\,minutos los efectos son indistinguibles de
+cero, pero al extender a $\pm 15$\,minutos aparecen efectos
+estadísticamente significativos al cinco por ciento ---positivos
+post-marcar ($+0{,}053$\,desviaciones estándar, $p = 0{,}0002$) y
+modestos post-encajar ($+0{,}032$, $p = 0{,}047$). El patrón es
+consistente con una respuesta física diferida que no se manifiesta
+en la ventana inmediata pero sí en una ventana extendida; la
+elección de $\pm 10$\,minutos como horizonte de referencia es
+deliberada y se discute en el capítulo siguiente.
+
+La tercera comprobación es la sensibilidad a violaciones de
+tendencias paralelas mediante las cotas \textit{HonestDiD}
+\parencite{RambachanRoth2023}, reportadas en el
+anexo~\ref{anexo:validaciones}. Para todos los canales y direcciones,
+las cotas robustecidas correspondientes a los tres niveles
+$M \in \{0{,}5,\, 1,\, 2\}$ contienen el cero, lo que indica que los
+coeficientes nulos del ATE poblacional son estables incluso si la
+asunción de tendencias paralelas se relaja hasta el doble de la
+máxima desviación pre-tratamiento observada.
+
+
+\section{Efecto poblacional medio del shock}
+\label{sec:res-ate-poblacional}
+
+El \textit{Average Treatment Effect} (ATE) poblacional del
+\textit{shock} sobre el delta relativo al bloque del propio equipo,
+estimado por DiD \textit{within-player} con errores estándar
+\textit{cluster-robust} a nivel jugador, se reporta en la
+tabla~\ref{tab:ate-poblacional}.
+
+\begin{table}[h]
+  \centering
+  \small
+  \caption{Efecto medio del \textit{shock} sobre el delta relativo al
+    bloque, por canal y dirección. Estimador TWFE \textit{within-player}
+    con errores estándar \textit{cluster-robust} a nivel jugador
+    (CRV1). Cifras en desviaciones estándar del canal residualizadas.}
+  \label{tab:ate-poblacional}
+  \begin{tabular}{llrrrrr}
+    \toprule
+    Canal & Contexto & ATE & SE & IC$_{95\%}$ inf. & IC$_{95\%}$ sup. & $n$ shocks \\
+    \midrule
+    Ofensivo   & Tras encajar &  $+0{,}0000$ & $0{,}0003$ & $-0{,}0005$ & $+0{,}0005$ & 50 \\
+    Ofensivo   & Tras marcar  &  $-0{,}0001$ & $0{,}0004$ & $-0{,}0008$ & $+0{,}0007$ & 50 \\
+    Defensivo  & Tras encajar &  $+0{,}0013$ & $0{,}0063$ & $-0{,}0110$ & $+0{,}0137$ & 50 \\
+    Defensivo  & Tras marcar  &  $+0{,}0004$ & $0{,}0070$ & $-0{,}0133$ & $+0{,}0142$ & 50 \\
+    Off-ball   & Tras encajar &  $+0{,}0000$ & $0{,}0001$ & $-0{,}0002$ & $+0{,}0002$ & 50 \\
+    Off-ball   & Tras marcar  &  $-0{,}0000$ & $0{,}0001$ & $-0{,}0002$ & $+0{,}0002$ & 50 \\
+    Físico     & Tras encajar &  $-0{,}0094$ & $0{,}0125$ & $-0{,}0339$ & $+0{,}0151$ & 50 \\
+    Físico     & Tras marcar  &  $-0{,}0007$ & $0{,}0117$ & $-0{,}0237$ & $+0{,}0223$ & 50 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Los ocho coeficientes son indistinguibles de cero al nivel del cinco
+por ciento, con intervalos de confianza al 95\% que contienen el
+origen en todas las celdas. La corrección de Benjamini-Hochberg
+sobre los doce contrastes principales no produce ningún rechazo. La
+lectura sustantiva es clara: el \textit{shock} emocional del gol no
+mueve, en promedio, el rendimiento del jugador relativo al patrón
+colectivo de su bloque. El análisis de potencia ex-ante sobre el
+panel jugador-\textit{shock}-minuto indica que el \textit{Minimum
+Detectable Effect} (MDE) efectivo al ochenta por ciento de potencia
+oscila entre $0{,}0003$ desviaciones estándar para el canal
+\textit{off-ball} y $0{,}036$ para el canal físico, lo que sitúa el
+listón mínimo de detección de los coeficientes nulos en magnitudes
+muy pequeñas. La conclusión metodológica es que el promedio
+poblacional, con $N=172$ \textit{shocks} efectivos en el torneo, no
+es el canal por el que se espera que aparezca la señal \textit{clutch}.
+
+
+\section{Heterogeneidad individual: el CATE jerárquico}
+\label{sec:res-cate}
+
+El ATE poblacional indistinguible de cero no implica ausencia de
+efecto. La estimación del efecto heterogéneo por jugador mediante el
+CATE jerárquico bayesiano \textit{multivariate} sobre los 598
+jugadores con muestra suficiente reporta un panorama muy distinto.
+La figura \ref{fig:cate-heterogeneity} muestra la distribución del
+CATE individual por canal y dirección del \textit{shock}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_cap6_cate_heterogeneity}
+  \caption{Distribución del CATE individual sobre los 598 jugadores
+    con muestra suficiente, por canal y contexto del \textit{shock}.
+    Cada panel reporta la densidad de la media posterior por jugador
+    para tres direcciones del \textit{shock}: tras encajar
+    (\textit{GOAL\_AGAINST}), tras marcar (\textit{GOAL\_FOR}) y bajo
+    proximidad de eliminación alta (\textit{PRESSURE}). En cada panel
+    se reporta la desviación estándar $\sigma$ de los efectos
+    individuales en las dos direcciones principales.}
+  \label{fig:cate-heterogeneity}
+\end{figure}
+
+El canal ofensivo presenta la mayor varianza individual entre las
+celdas: tras marcar, la desviación estándar de los CATE individuales
+es $\sigma = 0{,}086$ desviaciones estándar del canal, con efectos
+individuales que se extienden desde $-0{,}49$ hasta $+0{,}37$. El
+canal físico también presenta varianza relevante, con
+$\sigma = 0{,}032$ tras encajar. Los canales defensivo y
+\textit{off-ball} presentan dispersión menor pero también
+sustantivamente distinta de cero. El contraste con el ATE
+poblacional reportado en la sección anterior es directo: el efecto
+promedio es cero porque los efectos individuales se cancelan al
+agregarlos, pero los efectos individuales en sí no son cero. La
+varianza individual es la señal que el promedio esconde, y es la
+cantidad sobre la que opera la lectura \textit{scout-facing} del
+trabajo.
+
+
+\section{Jugadores con respuesta significativa por contexto}
+\label{sec:res-scout-facing}
+
+Los jugadores con efecto significativo en el contexto de proximidad
+de eliminación alta ---el indicador \textit{pressure-clutch} del
+\CCV--- se reportan en la tabla~\ref{tab:pressure-clutch}. La
+significatividad se define sobre la probabilidad posterior
+$P(\beta > 0 \mid \text{datos}) \geq 0{,}85$ para el efecto positivo
+o $P(\beta > 0 \mid \text{datos}) \leq 0{,}15$ para el efecto
+negativo.
+
+\begin{table}[h]
+  \centering
+  \small
+  \caption{Jugadores con efecto significativo \textit{pressure-clutch}
+    bajo proximidad de eliminación alta. Media posterior y IC 80\%
+    sobre la respuesta individual al \textit{shock} de eliminación,
+    medida en desviaciones estándar del canal residualizado.}
+  \label{tab:pressure-clutch}
+  \begin{tabular}{llrrrl}
+    \toprule
+    Jugador & Selección & Media post. & IC$_{80\%}$ inf. & IC$_{80\%}$ sup. & $P(\beta>0)$ \\
+    \midrule
+    Kylian Mbappé   & Francia    & $+0{,}110$ & $+0{,}029$ & $+0{,}193$ & $0{,}97$ \\
+    Marcus Rashford & Inglaterra & $+0{,}050$ & $-0{,}003$ & $+0{,}110$ & $0{,}89$ \\
+    Bukayo Saka     & Inglaterra & $+0{,}051$ & $-0{,}009$ & $+0{,}116$ & $0{,}86$ \\
+    \midrule
+    Mohammed Muntari & Qatar     & $-0{,}055$ & $-0{,}120$ & $+0{,}004$ & $0{,}12$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Los tres jugadores con efecto positivo significativo están liderados
+por Kylian Mbappé, con un coeficiente de $+0{,}110$ desviaciones
+estándar y probabilidad posterior $0{,}97$. La identificación es
+consistente con la observación cualitativa de su irrupción en el
+cierre de la final Argentina-Francia, donde concentró cuatro de los
+seis goles del partido en una ventana corta de máxima presión por
+eliminación. Marcus Rashford y Bukayo Saka, ambos por Inglaterra,
+completan el grupo positivo con magnitudes equivalentes en torno a
+$+0{,}050$ desviaciones estándar y probabilidades posteriores
+respectivamente $0{,}89$ y $0{,}86$. El caso negativo significativo
+corresponde a Mohammed Muntari, cuyo coeficiente cae por debajo de
+cero con probabilidad posterior del descenso $0{,}88$.
+
+A nivel canal-específico, la celda ofensivo-tras-marcar concentra la
+mayor cantidad de efectos individuales significativos: veintidós
+jugadores presentan respuesta significativa al \textit{shock} de
+marcar sobre su producción ofensiva inmediata, cinco con coeficiente
+positivo y diecisiete con coeficiente negativo. Los cinco con efecto
+positivo son Eric Maxim Choupo-Moting, Dušan Vlahović, Raheem
+Sterling, Harry Kane y Cristiano Ronaldo, en orden decreciente de
+probabilidad posterior. La narrativa de cada caso ---celebración
+seguida de involucración mayor en jugadas posteriores, búsqueda
+activa de un segundo gol--- es consistente con los grades humanos
+PFF para esos mismos jugadores en los partidos del torneo. Los
+diecisiete con efecto negativo incluyen al propio Mbappé, cuyo CATE
+ofensivo-tras-marcar es significativamente negativo
+($P(\beta > 0) = 0{,}004$): tras anotar, su producción ofensiva
+inmediata cae respecto al patrón colectivo de Francia. La
+combinación es coherente: Mbappé responde fuertemente bajo presión
+de eliminación pero relaja su intensidad ofensiva en la ventana
+inmediata después de marcar, dejando momentáneamente que el bloque
+recupere el control del partido.
+
+En los agregados de la tabla \textit{scout-facing} ---el Remontador
+post-encajar y el Cerrojo post-marcar--- no se identifican jugadores
+significativos a nivel poblacional. El motivo es matemático: cada
+agregado es la suma de cuatro celdas canal-por-contexto cuyos
+efectos individuales tienden a no estar correlacionados en signo,
+lo que reduce la señal individual al promediarlos. La respuesta
+condicional al contexto de eliminación inminente, en cambio, es
+identificable porque opera sobre un eje único de modulación.
+
+
+\section{Validación cualitativa contra los \textit{grades} humanos PFF}
+\label{sec:res-validacion-pff}
+
+Como verificación externa cualitativa, se calcula la correlación de
+Spearman entre los CATE individuales del \CCV y los \textit{grades}
+humanos PFF para los jugadores con muestra suficiente. La
+correlación, calculada por canal sobre la pareja CATE-\textit{grade}
+correspondiente (canal ofensivo vs.\ \textit{grade} \textit{dabGrade},
+canal defensivo vs.\ \textit{closingDownGrade}, canal
+\textit{off-ball} vs.\ \textit{movementGrade}, canal físico
+descartado por ausencia de \textit{grade} análogo), es positiva en
+los tres canales con \textit{grade} comparable y oscila entre
+$0{,}18$ y $0{,}24$. Estos coeficientes son modestos en magnitud
+pero estadísticamente distintos de cero al uno por ciento sobre la
+muestra de 233 jugadores con $\geq 270$ minutos. La interpretación es
+prudente: los algoritmos del \CCV y los \textit{grades} humanos
+miden propiedades parcialmente solapadas pero no idénticas. Los
+canales del \CCV son métricas \textit{event-level} agregadas y
+residualizadas contra el bloque, mientras que los \textit{grades}
+humanos son evaluaciones holísticas del rendimiento global del
+jugador en el partido. Una correlación moderada y positiva valida
+que el marco recoge una propiedad real reconocible por evaluadores
+expertos, sin reducir el rendimiento humano a una sola dimensión.
