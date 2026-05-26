@@ -4,19 +4,17 @@
 \chapter{Metodología}
 \label{ch:metodologia}
 
-Este capítulo formaliza la metodología del \CCV. La sección
-\ref{sec:marco-metodologico} describe el \textit{pipeline} en cinco
-fases conceptualmente ordenadas y los outputs intermedios que cada
-fase deposita en disco. La sección \ref{sec:marco-teorico} introduce
-la notación de los deltas individual y colectivo, las especificaciones
-formales de los dos estimadores causales y el modelo CATE jerárquico
-bayesiano \textit{multivariate}. La sección \ref{sec:datos} declara
-los tres corpus utilizados y el régimen de separación entre datos de
-entrenamiento y datos de evaluación. La sección \ref{sec:herramientas}
-documenta la pila tecnológica. La sección \ref{sec:metricas-evaluacion}
-detalla las métricas con las que se evalúa cada capa. La sección
-\ref{sec:protocolo} cierra con el protocolo experimental que rige la
-producción de los resultados del capítulo siguiente.
+Este capítulo formaliza la metodología del \CCV en seis bloques: el
+\textit{pipeline} en cinco fases (§\ref{sec:marco-metodologico}), la
+notación de los deltas individual y colectivo y las especificaciones
+formales de los dos estimadores causales y del modelo CATE jerárquico
+bayesiano \textit{multivariate} (§\ref{sec:marco-teorico}), los tres
+corpus utilizados y el régimen de separación entre entrenamiento y
+evaluación (§\ref{sec:datos}), la pila tecnológica
+(§\ref{sec:herramientas}), las métricas con las que se evalúa cada
+capa (§\ref{sec:metricas-evaluacion}) y el protocolo experimental
+que rige la producción de los resultados del capítulo siguiente
+(§\ref{sec:protocolo}).
 
 
 \section{Marco metodológico}
@@ -209,7 +207,7 @@ aproxima a un sorteo. Sobre el universo de disparos con $xG$
 pre-disparo en $[0{,}15, 0{,}85]$ del torneo, se forma el conjunto de
 tratamiento como los goles marcados y el conjunto de control como los
 \textit{near-misses} de las cinco tipologías ya descritas, con
-\textit{cluster} a nivel disparo (Hudgens-Halloran 2008). La unidad
+\textit{cluster} a nivel disparo \parencite{HudgensHalloran2008}. La unidad
 de análisis es el jugador en campo en el momento del disparo y el
 \textit{outcome} es la media del canal $k$ en la ventana
 $[t_s + 60, t_s + 600]$ segundos posterior. El estimador principal es
@@ -225,10 +223,11 @@ estratificado por partido, siguiendo el esquema de
 \textit{Double/Debiased Machine Learning} de
 \textcite{Chernozhukov2018DML}. Como comprobación complementaria se
 estiman el ATT por DML \textit{Partially Linear Regression}, por
-DR-\textit{learner} (Kennedy 2023) y por un RDD local-lineal con
-\textit{bandwidth} óptimo de Calonico, Cattaneo y Titiunik (2014)
-sobre la discontinuidad en $xG$. La sensibilidad a \textit{confounding}
-no observado se evalúa con las cotas de Cinelli y Hazlett (2020).
+DR-\textit{learner} \parencite{Kennedy2023DR} y por un RDD local-lineal
+con \textit{bandwidth} óptimo robusto de
+\textcite{CalonicoCattaneoTitiunik2014} sobre la discontinuidad en
+$xG$. La sensibilidad a \textit{confounding} no observado se evalúa
+con las cotas de \textcite{CinelliHazlett2020}.
 
 \subsection{CATE jerárquico bayesiano \textit{multivariate}}
 
@@ -276,8 +275,8 @@ $\gamma_k$:
 \]
 
 La parametrización está \textit{non-centered} en todos los efectos
-aleatorios para evitar la geometría de embudo (Betancourt-Girolami
-2015). El muestreo se realiza con \textit{Hamiltonian Monte Carlo}
+aleatorios para evitar la geometría de embudo
+\parencite{BetancourtGirolami2015}. El muestreo se realiza con \textit{Hamiltonian Monte Carlo}
 (HMC) usando el \textit{sampler} No-U-Turn (NUTS) sobre cuatro
 cadenas independientes con \texttt{target\_accept\_prob} de 0{,}95
 para acomodar la geometría LKJ y la estructura jerárquica.
@@ -396,7 +395,8 @@ La calibración de los modelos probabilísticos ---\textit{Win
 Probability}, Post-Shot $xG$ y las cabezas defensivas de probabilidad
 de recuperación y de ser atacado--- se reporta con la curva de
 calibración tras regresión isotónica, la descomposición de Brier en
-\textit{reliability} y \textit{resolution} (Murphy 1973), el
+\textit{reliability} y \textit{resolution} \parencite{Murphy1973Brier},
+el
 \textit{Expected Calibration Error} (ECE) y el \textit{Maximum
 Calibration Error} (MCE) sobre diez \textit{bins} equispaciados, y la
 AUC en el \textit{holdout} sagrado del Mundial Qatar 2022. La
@@ -412,13 +412,13 @@ contrafactual de \citeauthor{BorusyakJaravelSpiess2024} como
 verificaciones independientes, las cotas \textit{HonestDiD} de
 \citeauthor{RambachanRoth2023} para tres niveles de relajación de
 tendencias paralelas, y el test $F$ de pre-tendencias agregadas
-(Roth 2022) como verificación adicional. La identificación causal
+\parencite{Roth2022Pretest} como verificación adicional. La identificación causal
 por AIPW se reporta con el ATT estimado por DoubleMLIRM con
 \textit{cross-fitting} de cinco pliegues por partido, el ATT por
 DoubleMLPLR como sanity-check, el DR-\textit{learner} como
 verificación complementaria y el RDD local-lineal sobre la
 discontinuidad en $xG$. La sensibilidad a \textit{confounding} no
-observado se evalúa con las cotas de Cinelli y Hazlett (2020) sobre
+observado se evalúa con las cotas de \textcite{CinelliHazlett2020} sobre
 el \textit{robustness value} y los \textit{impact parameters}.
 
 La convergencia bayesiana del modelo CATE se diagnostica con el
