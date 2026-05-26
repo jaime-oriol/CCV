@@ -55,27 +55,21 @@ _TICK_SZ      = 10
 _LEGEND_SZ    = 9.5
 _FOOTER_SZ    = 9
 # --- Logo JO (top-right) — parámetros de posicionamiento ---
-# add_logo() coloca el logo en una esquina con esta geometría (corner="tr"):
-#     x_left  = 1.0 - _LOGO_MARGIN - _LOGO_FRAC      (borde izquierdo del logo)
-#     y_bot   = 1.0 - _LOGO_MARGIN - h_frac           (borde inferior del logo)
-#     h_frac  = _LOGO_FRAC * (figW/figH) / aspect     (alto en fracción figura)
+# Geometría (todo en fracción [0..1] de figura, esquina top-right):
+#     x_left = 1.0 - _LOGO_MARGIN_X - _LOGO_FRAC     (borde izq del logo)
+#     y_bot  = 1.0 - _LOGO_MARGIN_Y - h_frac          (borde inf del logo)
+#     h_frac = _LOGO_FRAC * (figW/figH) / aspect_logo (alto en fracción figura)
 #
-# Cómo mover el logo en código (todo en fracción [0..1] de figura):
-#   * MÁS GRANDE      → ↑ _LOGO_FRAC (e.g. 0.13). Crece ancho y alto a la vez.
-#   * MÁS PEQUEÑO     → ↓ _LOGO_FRAC (e.g. 0.07).
-#   * MÁS A LA DERECHA → ↓ _LOGO_MARGIN (pega más al borde, 0.0 = tocando).
-#   * MÁS A LA IZQ.   → ↑ _LOGO_MARGIN (lo aleja del borde derecho).
-#   * MÁS ARRIBA      → ↓ _LOGO_MARGIN (mismo parámetro: top + right comparten margen).
-#   * MÁS ABAJO       → ↑ _LOGO_MARGIN.
-#   * SUBIR/BAJAR sin cambiar lateral → cambia el corner a "br" en _logo_tr(),
-#     o usa add_logo(fig, corner="tr", ...) con margen vertical custom (requiere
-#     editar common.py para separar margin_x / margin_y, que hoy comparten valor).
-#
-# Para mover SOLO en vertical con la API actual: aumentar bbox top en el
-# tight_layout(rect=[..., top]) reduce el área del plot y desplaza el logo
-# visualmente hacia abajo respecto al título.
-_LOGO_FRAC    = 0.125    # ancho del logo en fracción de figura — borde izq ≈ 0.9
-_LOGO_MARGIN  = 0.0075   # separación al borde superior y derecho — 0.0 = tocando
+# Cómo mover el logo (separados X / Y, no comparten margen):
+#   * MÁS GRANDE       → ↑ _LOGO_FRAC (e.g. 0.14). Crece ancho y alto a la vez.
+#   * MÁS PEQUEÑO      → ↓ _LOGO_FRAC (e.g. 0.07).
+#   * MÁS A LA DERECHA → ↓ _LOGO_MARGIN_X (0.0 = pegado al borde derecho).
+#   * MÁS A LA IZQUIERDA → ↑ _LOGO_MARGIN_X (lo aleja del borde derecho).
+#   * MÁS ARRIBA       → ↓ _LOGO_MARGIN_Y (0.0 = pegado al borde superior).
+#   * MÁS ABAJO        → ↑ _LOGO_MARGIN_Y (lo aleja del borde superior).
+_LOGO_FRAC      = 0.125    # ancho del logo en fracción de figura
+_LOGO_MARGIN_X  = 0.02     # separación al borde derecho — ↑ = más a la izq
+_LOGO_MARGIN_Y  = 0.0      # separación al borde superior — 0.0 = pegado arriba
 
 
 def _style(ax, ygrid=True, xgrid=False):
@@ -94,8 +88,27 @@ def _style(ax, ygrid=True, xgrid=False):
 
 
 def _logo_tr(fig):
-    """Logo JO en top-right de la figura."""
-    add_logo(fig, width_frac=_LOGO_FRAC, margin=_LOGO_MARGIN, corner="tr")
+    """Logo JO en top-right con márgenes X / Y independientes.
+
+    Implementación local que no usa add_logo() de common.py porque aquella
+    comparte un único `margin` para X e Y; aquí queremos separarlos para
+    ajustar finamente la posición sobre el título sin tocar el lateral.
+    """
+    from viz.common import _LOGO_PATH                                   # path al PNG del logo JO
+    if not _LOGO_PATH.exists():
+        return                                                          # silencioso si falta el asset
+    try:
+        img = plt.imread(str(_LOGO_PATH))
+        logo_aspect = img.shape[1] / img.shape[0]                       # ratio ancho/alto del PNG
+        figW, figH = fig.get_size_inches()
+        h_frac = _LOGO_FRAC * (figW / figH) / logo_aspect               # alto en fracción de figura
+        x = 1.0 - _LOGO_MARGIN_X - _LOGO_FRAC                           # borde izq del logo
+        y = 1.0 - _LOGO_MARGIN_Y - h_frac                               # borde inf del logo
+        ax_logo = fig.add_axes([x, y, _LOGO_FRAC, h_frac])              # axes dedicado al logo
+        ax_logo.imshow(img)
+        ax_logo.axis("off")
+    except Exception:
+        pass                                                            # PNG corrupto/raro → no pinta
 
 
 def _savefig(fig, path):
