@@ -4,6 +4,264 @@
 \chapter{Discusión}
 \label{ch:discusion}
 
-\textit{[Pendiente. Que demuestran / que no demuestran / donde funciona y donde
-no funciona el \CCV. Implicaciones para scouting, preparacion de partidos KO,
-gestion de cambios.]}
+Este capítulo discute los resultados del capítulo~\ref{ch:resultados}
+desde tres ángulos sucesivos: qué demuestran los datos del Mundial
+Qatar 2022 sobre la pregunta de investigación; qué no demuestran y
+por qué la lectura debe ser cautelosa en varios frentes; y dónde el
+\CCV funciona como herramienta de medida y dónde su poder es
+insuficiente. El capítulo cierra con las implicaciones operativas
+para \textit{scouting}, mercado de fichajes, preparación de partidos
+de fase eliminatoria y gestión de cambios desde el banquillo.
+
+
+\section{Qué demuestran los resultados}
+\label{sec:disc-demuestran}
+
+El primer hallazgo es que la señal \textit{clutch} a nivel individual
+es identificable causalmente sobre un corpus relativamente pequeño
+---ciento setenta y dos \textit{shocks} de gol en un torneo
+eliminatorio--- cuando la identificación se hace condicional al
+contexto adecuado. La dimensión sobre la que la identificación es
+estable es la respuesta a la proximidad de eliminación: tres
+jugadores muestran efecto positivo significativo a probabilidad
+posterior $\geq 0{,}85$ ---Mbappé, Rashford y Saka--- y uno muestra
+efecto negativo significativo ---Muntari---, todos consistentes con
+la narrativa cualitativa de sus partidos en el torneo. La magnitud
+del efecto de Mbappé ($+0{,}110$ desviaciones estándar del canal con
+probabilidad posterior $0{,}97$) sobre la final Argentina-Francia se
+alinea con la observación pública de su irrupción concentrada en los
+últimos veinte minutos de regulación y la prórroga. El marco recupera
+ese caso como una propiedad medida del jugador, no como una
+intuición \textit{post hoc} del observador.
+
+El segundo hallazgo es que la heterogeneidad individual del CATE es
+sustantivamente distinta de cero, incluso cuando el promedio
+poblacional lo es. La distribución del CATE individual sobre los 598
+jugadores presenta desviación estándar de $0{,}086$ en el canal
+ofensivo tras marcar, con efectos individuales que se extienden desde
+$-0{,}49$ hasta $+0{,}37$ desviaciones estándar del canal
+residualizado. El contraste con el ATE poblacional ---ocho celdas
+canal-por-contexto, todas indistinguibles de cero al cinco por
+ciento--- es directo y metodológicamente coherente: el efecto medio
+es cero porque los efectos individuales se cancelan al agregarlos,
+no porque esos efectos individuales no existan. Esta observación
+recoge la intuición clásica del \textit{clutch} en deporte
+\parencite{Otten2009Clutch}: el mismo \textit{shock} produce
+respuestas opuestas en jugadores distintos, y el promedio enmascara
+exactamente la variabilidad que la pregunta investiga.
+
+El tercer hallazgo es la coherencia entre los hallazgos algorítmicos
+y la valoración humana experta. La correlación de Spearman entre los
+CATE del \CCV y los \textit{grades} humanos PFF, calculada por canal
+sobre los 233 jugadores con muestra fiable, es positiva en los tres
+canales con \textit{grade} análogo y oscila entre $0{,}18$ y $0{,}24$,
+estadísticamente distinta de cero al uno por ciento en todos los
+casos. La correlación es moderada en magnitud, lo que es esperable
+para dos sistemas de medida que cubren propiedades parcialmente
+solapadas pero no idénticas. El signo positivo es lo importante: el
+marco recoge una propiedad real reconocible por evaluadores humanos
+expertos, lo que valida la elección de los canales y de la
+residualización contra el bloque.
+
+El cuarto hallazgo es metodológico. La triangulación causal entre
+diferencias-en-diferencias \textit{within-player} y el
+cuasi-experimento de \textit{near-miss}, en la medida en que la
+muestra del segundo permite ejecutarse, converge cualitativamente con
+el primero en los signos del ATE poblacional. El test $F$ de
+pre-tendencias agregadas \parencite{Roth2022Pretest} no rechaza la
+hipótesis de paralelismo en ninguno de los ocho contrastes, y las
+cotas \textit{HonestDiD} \parencite{RambachanRoth2023} para los tres
+niveles de relajación contienen el cero en todos los casos. Estos
+diagnósticos sostienen que los coeficientes nulos del ATE no son un
+artefacto de violación de identificación, sino una propiedad genuina
+del corpus.
+
+
+\section{Qué no demuestran los resultados}
+\label{sec:disc-no-demuestran}
+
+El primer punto de cautela es la interpretación del ATE poblacional.
+Que los ocho coeficientes canal-por-contexto sean indistinguibles de
+cero al cinco por ciento no es prueba de que el \textit{shock} no
+mueva al jugador promedio. Es prueba de que, con el tamaño de muestra
+disponible ---en torno a cincuenta \textit{shocks} efectivos por
+celda tras filtros de ventana y disponibilidad---, el efecto promedio
+no es detectable por encima del nivel de ruido. El análisis de
+potencia ex-ante sitúa el \textit{Minimum Detectable Effect} (MDE) al
+ochenta por ciento de potencia entre $0{,}0003$ desviaciones estándar
+para el canal \textit{off-ball} y $0{,}036$ para el canal físico. Si
+el verdadero efecto poblacional existe en una magnitud por debajo de
+esos umbrales, el marco no lo recupera con $N = 172$ \textit{shocks};
+la conclusión correcta es que el efecto promedio no es \textit{lo
+bastante grande para ser estadísticamente discernible sobre este
+corpus}, no que sea cero. La elección de la presentación en el
+capítulo previo ---reportar el ATE con su IC y declarar la
+indistinguibilidad de cero, no afirmar la nulidad--- es deliberada.
+
+El segundo punto es la generalización fuera del torneo. La aplicación
+del \CCV se restringe al Mundial Qatar 2022 porque es el único corpus
+público que combina los cuatro ingredientes que el marco exige
+simultáneamente: \textit{eventing} sincronizado, tracking a alta
+frecuencia, cobertura completa de fase eliminatoria y
+\textit{grades} humanos por evento. Las propiedades individuales
+identificadas para los cuatro jugadores con efecto significativo
+\textit{pressure-clutch} corresponden a su comportamiento en este
+torneo concreto; no son una predicción de su comportamiento en otros
+contextos competitivos ni una validación de su perfil ``\textit{clutch}''
+como rasgo estable. Replicar el marco sobre la Eurocopa 2024, sobre
+los partidos de eliminatoria de la \textit{Champions League} o sobre
+cualquier otro torneo abierto futuro permitiría empezar a hablar de
+la estabilidad temporal de la propiedad; el corpus actual solo
+permite observar su existencia en un único torneo.
+
+El tercer punto es la limitación del brazo del cuasi-experimento de
+\textit{near-miss}. El corpus de \textit{near-misses} de las cinco
+tipologías sobre el torneo es reducido, lo que limita la potencia
+del estimador AIPW para detectar efectos a nivel individual. La
+triangulación entre DiD y \textit{near-miss} se reporta a nivel
+agregado y muestra coincidencia cualitativa en signo, pero la
+divergencia eventual entre los dos brazos a nivel individual no se
+puede testar con suficiente poder estadístico sobre este corpus. La
+estrategia conservadora del trabajo es priorizar el DiD
+\textit{within-player} como brazo principal y reportar el AIPW como
+verificación complementaria, dejando la triangulación rigurosa por
+jugador como una línea futura cuando los corpus disponibles permitan
+ejecutarla con poder suficiente.
+
+El cuarto punto es la correlación con los \textit{grades} humanos
+PFF. Los coeficientes entre $0{,}18$ y $0{,}24$ son
+estadísticamente significativos y direccionalmente correctos, pero
+están lejos de la unidad. La interpretación adecuada no es que los
+CATE del \CCV midan ``lo mismo'' que el ojo humano experto: miden una
+propiedad parcialmente relacionada pero distinta. Los CATE son
+estimaciones causales del efecto del \textit{shock} sobre la
+trayectoria del rendimiento de cada jugador residualizada contra el
+bloque; los \textit{grades} son evaluaciones globales del partido del
+jugador. Que la correlación sea positiva valida el alineamiento
+direccional; que sea modesta es esperable y deseable, porque ambas
+medidas capturan dimensiones distintas del rendimiento.
+
+
+\section{Dónde funciona y dónde no funciona el \CCV}
+\label{sec:disc-donde-funciona}
+
+El \CCV funciona como herramienta de medida en tres frentes
+identificados sobre el corpus. El primero es la dimensión
+\textit{pressure-clutch}: la modulación continua del CATE por la
+proximidad de eliminación produce efectos individuales estables y
+medibles con la muestra disponible. Cuatro jugadores cruzan el
+umbral de significatividad a probabilidad posterior $\geq 0{,}85$,
+todos con narrativa cualitativa coherente con sus partidos en el
+torneo. El segundo es la celda canal-específica
+ataque-tras-marcar: veintidós jugadores presentan efecto
+significativo, repartidos entre cinco con respuesta positiva y
+diecisiete con respuesta negativa. La presencia de Mbappé en ambos
+grupos ---positivo en \textit{pressure-clutch} y negativo en
+ataque-tras-marcar--- es informativa: el marco distingue, sobre el
+mismo jugador, propiedades contextualmente diferenciadas que un único
+agregado escondería. El tercer frente es la lectura
+\textit{scout-facing}: la tabla canónica del \CCV, con un jugador por
+fila y los tres índices condensados, es operativa para uso de
+\textit{scouting} sobre el corpus.
+
+El marco no funciona, sobre este corpus, en los agregados Remontador
+y Cerrojo. La razón es estructural y no metodológica. Cada agregado
+es la suma ponderada de cuatro celdas canal-por-contexto cuyas
+posteriores no están correlacionadas en signo entre canales, de
+modo que el efecto agregado se suaviza al promediarlas. Con $N = 172$
+\textit{shocks} repartidos entre 120 de fase de grupos y 52 de
+eliminatoria, el agregado por dirección queda infra-identificado
+incluso para los jugadores con la respuesta individual más fuerte.
+La identificación condicional al contexto de eliminación
+inminente, en cambio, opera sobre un eje único de modulación y
+permite que el efecto individual emerja sobre el ruido.
+
+El marco tampoco funciona, sobre este corpus, en el canal físico a
+nivel de ventana $\pm 10$\,minutos. Los coeficientes son
+indistinguibles de cero a ese horizonte, pero aparecen como
+estadísticamente significativos al ampliar la ventana a
+$\pm 15$\,minutos: $+0{,}053$ desviaciones estándar tras marcar con
+$p = 0{,}0002$, y $+0{,}032$ tras encajar con $p = 0{,}047$. El
+patrón es consistente con una respuesta física diferida que no se
+manifiesta en la ventana inmediata posterior al gol pero sí en un
+horizonte más amplio. La elección del trabajo de mantener
+$\pm 10$\,minutos como horizonte de referencia ---justificada por su
+correspondencia con la duración del \textit{shock} emocional en
+sport psychology--- es deliberada y deja la lectura del canal físico
+a una ventana extendida como una línea futura.
+
+Una frontera adicional, no resuelta sobre este corpus, es la
+estabilidad cross-torneo de la propiedad. Si Mbappé es identificado
+como \textit{pressure-clutch} en el Mundial 2022, ¿lo sería también
+en la Eurocopa 2024, en los partidos de eliminatoria de
+\textit{Champions} o en el siguiente Mundial? La pregunta es nuclear
+para el uso aplicado del marco en mercado de fichajes, y la
+respuesta requiere replicar el \textit{pipeline} sobre corpus
+adicionales con la misma estructura ---algo factible con futuras
+liberaciones abiertas de \textit{eventing} + tracking pero fuera del
+alcance del presente trabajo.
+
+
+\section{Implicaciones operativas}
+\label{sec:disc-implicaciones}
+
+\paragraph{Scouting y mercado de fichajes.}
+El \CCV produce una tabla \textit{scout-facing} con un jugador por
+fila y tres índices ---Remontador, Cerrojo y \textit{Pressure
+Response}--- acompañados de la media posterior, el intervalo de
+credibilidad y la probabilidad posterior por jugador, además de los
+\textit{rankings} dentro de su posición granular y dentro de su
+\textit{bucket} posicional. Esa estructura permite separar, para un
+fichaje concreto, la prima clutch atribuible al jugador de la
+atribuible al bloque del equipo en el que ha rendido históricamente.
+Un director deportivo que valora a un jugador con reputación
+\textit{clutch} adquirida en un equipo grande puede inspeccionar el
+delta relativo al bloque LOO sobre el corpus disponible y comprobar
+si la propiedad sobrevive al control por el patrón colectivo de su
+equipo en cada \textit{shock}. La interpretación recomendada es
+cautelosa: el marco no produce una decisión, produce una métrica
+informada por evidencia causal que se combina con el conocimiento
+táctico y económico del propio departamento.
+
+\paragraph{Preparación de partidos de fase eliminatoria.}
+La identificación de \textit{pressure-clutch} a nivel individual
+sobre el contexto de eliminación inminente tiene implicaciones
+directas para la preparación de partidos KO. Los jugadores con
+efecto positivo significativo bajo proximidad de eliminación alta
+son candidatos naturales a recibir más minutos en los partidos de
+mayor presión, mientras que los jugadores con efecto negativo
+significativo son candidatos a ser rotados antes de los tramos
+críticos del calendario. La decisión sigue siendo del cuerpo
+técnico; el marco proporciona una métrica con identificación causal
+sobre la respuesta histórica del jugador a este contexto concreto,
+no una predicción individual sobre el siguiente partido.
+
+\paragraph{Gestión de cambios y rotación.}
+La celda ataque-tras-marcar muestra que diecisiete jugadores
+presentan caída significativa en su producción ofensiva inmediata
+después de anotar, incluido Mbappé. La lectura operativa es que
+algunos perfiles ofensivos relajan su intensidad en los minutos
+posteriores al gol, momento en el que el equipo es más vulnerable a
+un contragolpe inmediato. Para esos perfiles concretos, una
+rotación o un ajuste táctico en la ventana post-marcador puede ser
+operativamente relevante. La identificación de los cinco jugadores
+con respuesta positiva en la misma celda ---Choupo-Moting, Vlahović,
+Sterling, Kane y Cristiano Ronaldo--- complementa la lectura: para
+ellos, mantener el peso ofensivo después del gol potencia la
+búsqueda de un segundo tanto.
+
+\paragraph{Lectura general y cuándo no usar el marco.}
+La regla general derivada del trabajo es que el \CCV es una
+herramienta de medida bajo supuestos identificables, no un oráculo
+sobre la propiedad \textit{clutch} de un jugador. El marco produce
+estimaciones con intervalo de credibilidad y probabilidad posterior;
+la decisión última siempre incorpora información adicional ---táctica,
+psicológica, médica, contextual del partido siguiente--- que el
+marco no observa. Los usos en los que el marco no debe sustituir al
+juicio experto son la valoración de jugadores con muestra
+\textit{low\_sample} (marcados explícitamente en la tabla), la
+proyección de la propiedad a contextos competitivos no observados y
+la atribución \textit{post hoc} del resultado de un partido concreto
+a un \textit{shock} concreto. Para todos esos usos el marco es
+informativo pero no concluyente, y el reporte sigue siendo la media
+posterior con su intervalo, no un valor puntual.
