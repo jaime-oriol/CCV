@@ -1,14 +1,26 @@
 % =============================================================================
 % PORTADA TFM
-% Estilo RITMO (titulo ES + titulo EN + datos academicos)
+% Estilo RITMO (logos cabecera + titulo ES + titulo EN + datos academicos)
 % =============================================================================
 \begin{titlepage}
 \thispagestyle{empty}
+
+% --- Cabecera: logo Sports Data Campus (izq) + logo autor (der) ---
+\noindent
+\begin{minipage}[c]{0.45\textwidth}
+  \raggedright
+  \includegraphics[height=2.2cm]{sdc_logo}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.45\textwidth}
+  \raggedleft
+  \includegraphics[height=2.2cm]{logo}
+\end{minipage}
+
+\vspace*{0.33\textheight}
+
 \centering
 
-\vspace*{1cm}
-
-% --- Titulo en espanol (3 lineas balanceadas ~48/31/30 chars) ---
+% --- Titulo en espanol (3 lineas balanceadas) ---
 {\Large\bfseries
 Un marco causal para medir el rendimiento clutch\\[0.25em]
 del jugador en fútbol de élite:\\[0.25em]
@@ -16,7 +28,7 @@ el Causal Clutch Value (CCV)\par}
 
 \vspace{1.5cm}
 
-% --- Titulo en ingles (3 lineas balanceadas ~32/44/31 chars) ---
+% --- Titulo en ingles (3 lineas balanceadas) ---
 {\large\itshape
 A Causal Framework for Measuring\\[0.2em]
 Clutch Player Performance in Elite Football:\\[0.2em]
