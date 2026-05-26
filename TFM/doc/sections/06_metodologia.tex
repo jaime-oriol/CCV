@@ -2,29 +2,494 @@
 % CAPITULO 4 - METODOLOGIA
 % =============================================================================
 \chapter{Metodología}
-\label{ch:metodología}
+\label{ch:metodologia}
 
-\section{Marco métodologico}
+Este capítulo formaliza la metodología del \CCV. La sección
+\ref{sec:marco-metodologico} describe el \textit{pipeline} en cinco
+fases conceptualmente ordenadas y los outputs intermedios que cada
+fase deposita en disco. La sección \ref{sec:marco-teorico} introduce
+la notación de los deltas individual y colectivo, las especificaciones
+formales de los dos estimadores causales y el modelo CATE jerárquico
+bayesiano \textit{multivariate}. La sección \ref{sec:datos} declara
+los tres corpus utilizados y el régimen de separación entre datos de
+entrenamiento y datos de evaluación. La sección \ref{sec:herramientas}
+documenta la pila tecnológica. La sección \ref{sec:metricas-evaluacion}
+detalla las métricas con las que se evalúa cada capa. La sección
+\ref{sec:protocolo} cierra con el protocolo experimental que rige la
+producción de los resultados del capítulo siguiente.
+
+
+\section{Marco metodológico}
 \label{sec:marco-metodologico}
-\textit{[Pendiente. Pipeline en 5 fases.]}
+
+El \textit{pipeline} se ejecuta como un grafo dirigido acíclico de cinco
+fases. Cada fase consume el cache de la anterior y deposita un cache
+intermedio que las fases posteriores reutilizan, lo que permite
+recomputar cualquier capa sin reejecutar las anteriores y garantiza la
+reproducibilidad de los resultados.
+
+\paragraph{Fase 1. Extracción y preprocesado.}
+Los eventos PFF FC en formato JSON y el tracking a 25\,Hz en formato
+\textit{JSON Lines} comprimido se extraen a parquet con tipos anidados
+\textit{lossless}. Sobre ese cache se calculan tres normalizaciones
+nucleares que el resto del \textit{pipeline} asume: la dirección de
+ataque de cada equipo por período (para normalizar coordenadas de
+tracking respecto al sentido del ataque), la línea temporal de goles
+válidos (excluyendo goles anulados y tantos de la tanda de penaltis) y
+los minutos jugados por jugador y partido. Una corrección técnica
+relevante: en algunos partidos PFF FC entrega el frame de tracking
+rotado 180º respecto al frame del \textit{eventing} en los períodos de
+prórroga; el preprocesado detecta esta inconsistencia comparando la
+dirección de ataque registrada con la posición del portero en
+tracking y des-rota cuando procede. La corrección se aplica de forma
+transparente en cualquier consulta que mezcle coordenadas con dirección
+de ataque.
+
+\paragraph{Fase 2. \textit{Backbone} temporal.}
+La probabilidad de ganar el partido se estima por minuto vía un modelo
+bayesiano logit ordinal de tres clases con interceptos tiempo-variables,
+entrenado por \textit{Stochastic Variational Inference} (SVI) sobre
+los corpus externos (Wyscout 2017/18 y StatsBomb fuera del Mundial
+Qatar 2022). La recalibración al Mundial se realiza mediante
+\textit{temperature scaling} sobre la fase de grupos, ajustando un
+único parámetro escalar de temperatura por desplazamiento de
+distribución. La cobertura se extiende a prórroga mediante una tasa
+de gol con distribución de Poisson estimada sobre prórrogas históricas
+y a tanda de penaltis mediante un modelo paramétrico. De la WP se
+derivan dos moduladores continuos: el \textit{leverage}, definido
+como la sensibilidad de la probabilidad de ganar a un gol marginal,
+y la proximidad de eliminación por equipo y minuto. En la fase de
+grupos, la proximidad de eliminación se calcula por simulación Monte
+Carlo del grupo completo dado el partido actual y los partidos
+restantes; en la fase eliminatoria, coincide con la propia WP
+desplazada según la perspectiva del equipo.
+
+\paragraph{Fase 3. \textit{Shocks} y \textit{near-misses}.}
+Cada gol válido del torneo se etiqueta como \textit{shock} emocional
+con dos perspectivas ---GOAL\_FOR para el equipo que marca y
+GOAL\_AGAINST para el equipo que encaja--- y se calcula la ventana
+pre/post de $\pm 10$ minutos por jugador en campo, con \textit{flags}
+explícitos de truncamiento por inicio o fin de partido, solapamiento
+con otro \textit{shock}, sustitución dentro de la ventana y \textit{shock}
+en tiempo extra. El corpus complementario de \textit{near-miss} se
+construye sobre cinco tipologías ---palo o travesaño, fuera de juego
+milimétrico, parada del portero sobre disparo de PSxG alto, despeje
+en línea de gol y no-gol confirmado por la tecnología de gol--- con
+umbrales pre-registrados sobre el $xG$ pre-disparo entre 0{,}15 y
+0{,}85 para asegurar comparabilidad técnica con los goles marcados.
+El modelo PSxG que evalúa la calidad técnica del disparo se entrena
+fuera del Mundial sobre eventos StatsBomb (Euro 2020, Euro 2024 y
+Bundesliga 23/24) con \textit{features} de \textit{end-location}
+tridimensional, presión defensiva y 360 \textit{freeze-frames}, y se
+calibra por regresión isotónica.
+
+\paragraph{Fase 4. Cuantificación del rendimiento en cuatro canales.}
+Cada canal se estima con el \textit{building block} de referencia
+descrito en el capítulo \ref{ch:estado-arte}. El canal ofensivo
+combina \textit{atomic}-VAEP, entrenado con CatBoost sobre la
+representación \textit{atomic}-SPADL de los eventos, y \textit{un-xPass}
+como \textit{rating} de creatividad en la decisión de pase. El canal
+defensivo combina VDEP estricto (cabeza dedicada de probabilidad de
+recuperación y de ser atacado en las próximas acciones SPADL),
+\textit{exPress} como probabilidad de recuperación en cinco segundos
+post-presión y atribución Maejima al defensor más cercano al balón
+\textit{frame-level}. El canal \textit{off-ball} aplica OBSO y C-OBSO
+sobre tracking a 25\,Hz con cálculo vectorizado del \textit{pitch
+control}. El canal físico aplica el protocolo Bradley sobre velocidades
+suavizadas con filtro Butterworth de fase cero, cap a 11\,m/s
+preservando dirección, y residualiza la respuesta del jugador contra
+una línea base personal modulada por la curva temporal del minuto
+mediante un modelo bayesiano jerárquico estimado por SVI. Cada canal
+produce dos agregaciones: por jugador-minuto (panel para DiD) y por
+jugador-\textit{shock}-ventana con cálculo \textit{leave-one-out} del
+bloque colectivo del propio equipo (panel para AIPW y CATE).
+
+\paragraph{Fase 5. Identificación causal, CATE y ensamblaje.}
+El efecto causal del \textit{shock} se estima mediante dos estrategias
+independientes. La primera es una diferencias-en-diferencias
+\textit{within-player} con efectos fijos por jugador-\textit{shock} y
+por minuto relativo al \textit{shock}, contrastada contra los
+estimadores de \textcite{SunAbraham2021} y
+\textcite{BorusyakJaravelSpiess2024} y robustecida con las cotas
+\textit{HonestDiD} de \textcite{RambachanRoth2023}. La segunda es un
+AIPW doblemente robusto con \textit{cross-fitting} sobre el corpus de
+\textit{near-miss}, complementado con \textit{Partially Linear
+Regression} (PLR), DR-\textit{learner} y un RDD local-lineal sobre la
+discontinuidad en $xG$. El efecto heterogéneo por jugador se condensa
+en un CATE jerárquico bayesiano \textit{multivariate} sobre los cuatro
+canales conjuntamente, con correlaciones \textit{cross}-canal por
+dirección del \textit{shock} y \textit{priors} informados por los
+\textit{grades} humanos PFF pre-torneo. La capa final ensambla la
+tabla \textit{scout-facing} canónica con un jugador por fila, tres
+índices agregados (Remontador post-GA, Cerrojo post-GF y
+\textit{Pressure Response} continuo), vector resumen por canal,
+\textit{rankings} por posición y \textit{bucket} posicional, y
+\textit{flags} de incertidumbre.
+
 
 \section{Marco teórico}
 \label{sec:marco-teorico}
-\textit{[Pendiente. Notacion \CCV, $\dplayer$, $\dteam$, $\drel$; DiD;
-near-miss; CATE bayesiano multivariate.]}
+
+\subsection{Notación de los deltas individual, colectivo y relativo}
+
+Sea $i$ un jugador, $s$ un \textit{shock} ocurrido en el minuto $t_s$
+del partido y $k$ un canal del rendimiento. Para cada par
+$(i, s)$ con $i$ en campo en el instante $t_s$, se define la media
+del canal $k$ en la ventana posterior y en la ventana anterior al
+\textit{shock} como
+
+\[
+\bar{Y}^{\text{post}}_{i,s,k} = \frac{1}{|\mathcal{W}^{\text{post}}|} \sum_{t \in \mathcal{W}^{\text{post}}} Y_{i,t,k},
+\qquad
+\bar{Y}^{\text{pre}}_{i,s,k} = \frac{1}{|\mathcal{W}^{\text{pre}}|} \sum_{t \in \mathcal{W}^{\text{pre}}} Y_{i,t,k},
+\]
+
+donde $\mathcal{W}^{\text{pre}} = [t_s - 600, t_s)$ y
+$\mathcal{W}^{\text{post}} = (t_s, t_s + 600]$ son las ventanas de
+$\pm 10$ minutos respecto al \textit{shock}, expresadas en segundos
+de reloj de juego. El cambio en el rendimiento del jugador es
+
+\[
+\Delta^{\text{player}}_{i,s,k} \;=\; \bar{Y}^{\text{post}}_{i,s,k} - \bar{Y}^{\text{pre}}_{i,s,k}.
+\]
+
+Sea $\mathcal{T}_{i,s}$ el conjunto de compañeros de equipo del
+jugador $i$ en campo en el instante del \textit{shock} $s$. El cambio
+colectivo del bloque, evaluado por \textit{leave-one-out} para
+mantener la independencia formal entre el jugador y su grupo de
+referencia, es
+
+\[
+\Delta^{\text{team}}_{i,s,k} \;=\; \frac{1}{|\mathcal{T}_{i,s}| - 1} \sum_{j \in \mathcal{T}_{i,s} \setminus \{i\}} \left( \bar{Y}^{\text{post}}_{j,s,k} - \bar{Y}^{\text{pre}}_{j,s,k} \right).
+\]
+
+El delta relativo, que es la cantidad que el \CCV estima
+causalmente, es
+
+\[
+\Delta^{\text{rel}}_{i,s,k} \;=\; \Delta^{\text{player}}_{i,s,k} - \Delta^{\text{team}}_{i,s,k}.
+\]
+
+Esta cantidad recoge la respuesta individual del jugador, neta del
+movimiento colectivo de su bloque, en el canal $k$ tras el
+\textit{shock} $s$.
+
+\subsection{Diferencias-en-diferencias \textit{within-player}}
+
+Sobre el panel de jugador-\textit{shock}-minuto, se especifica el
+modelo de efectos fijos bidireccionales
+
+\[
+Y_{i,s,t,k} \;=\; \alpha_{i,s,k} + \gamma_{(t-t_s),k} + \tau_k \cdot \mathbf{1}[t > t_s] + \varepsilon_{i,s,t,k},
+\]
+
+donde $\alpha_{i,s,k}$ son los efectos fijos por par
+jugador-\textit{shock}, $\gamma_{(t-t_s),k}$ son los efectos fijos por
+minuto relativo al \textit{shock}, $\mathbf{1}[t > t_s]$ es el
+indicador del tratamiento (post-\textit{shock}) y $\tau_k$ es el
+efecto medio del tratamiento sobre el canal $k$. Los errores estándar
+se calculan \textit{cluster-robust} a nivel jugador (CRV1), opción
+robusta para tratamientos de nivel jugador con tasas heterogéneas de
+\textit{shock} entre individuos. La estimación se contrasta contra el
+\textit{event-study} de \citeauthor{SunAbraham2021} ---que evita la
+contaminación entre cohortes--- y contra la imputación contrafactual
+de \citeauthor{BorusyakJaravelSpiess2024} ---eficiente bajo paneles
+desbalanceados. La sensibilidad a violaciones de tendencias paralelas
+se evalúa con las cotas \textit{HonestDiD} de
+\citeauthor{RambachanRoth2023} para tres niveles de relajación de la
+asunción ($M \in \{0{,}5, 1, 2\}$ respecto a la magnitud de las
+desviaciones pre-tratamiento observadas).
+
+\subsection{Cuasi-experimento \textit{near-miss}}
+
+El segundo brazo causal explota el resultado de
+\textcite{GauriotPage2019}: condicional a un disparo con $xG$
+pre-disparo comparable, el hecho de que el balón entre o no se
+aproxima a un sorteo. Sobre el universo de disparos con $xG$
+pre-disparo en $[0{,}15, 0{,}85]$ del torneo, se forma el conjunto de
+tratamiento como los goles marcados y el conjunto de control como los
+\textit{near-misses} de las cinco tipologías ya descritas, con
+\textit{cluster} a nivel disparo (Hudgens-Halloran 2008). La unidad
+de análisis es el jugador en campo en el momento del disparo y el
+\textit{outcome} es la media del canal $k$ en la ventana
+$[t_s + 60, t_s + 600]$ segundos posterior. El estimador principal es
+un AIPW de doble robustez (Augmented Inverse Probability Weighting),
+
+\[
+\hat{\tau}^{\text{AIPW}}_k \;=\; \mathbb{E}\left[ \hat{\mu}_{1,k}(X) - \hat{\mu}_{0,k}(X) + \frac{D \cdot (Y - \hat{\mu}_{1,k}(X))}{\hat{e}(X)} - \frac{(1-D) \cdot (Y - \hat{\mu}_{0,k}(X))}{1 - \hat{e}(X)} \right],
+\]
+
+con modelos \textit{nuisance} $\hat{\mu}_{d,k}(X)$ y $\hat{e}(X)$
+estimados por LightGBM con \textit{cross-fitting} de cinco pliegues
+estratificado por partido, siguiendo el esquema de
+\textit{Double/Debiased Machine Learning} de
+\textcite{Chernozhukov2018DML}. Como comprobación complementaria se
+estiman el ATT por DML \textit{Partially Linear Regression}, por
+DR-\textit{learner} (Kennedy 2023) y por un RDD local-lineal con
+\textit{bandwidth} óptimo de Calonico, Cattaneo y Titiunik (2014)
+sobre la discontinuidad en $xG$. La sensibilidad a \textit{confounding}
+no observado se evalúa con las cotas de Cinelli y Hazlett (2020).
+
+\subsection{CATE jerárquico bayesiano \textit{multivariate}}
+
+El efecto heterogéneo por jugador se condensa en un CATE jerárquico
+bayesiano \textit{multivariate} sobre los cuatro canales conjuntamente.
+Sea $\delta_{i,s,k} \equiv \Delta^{\text{rel}}_{i,s,k}$ el delta
+relativo observado para el jugador $i$, el \textit{shock} $s$ y el
+canal $k \in \{1, 2, 3, 4\}$. El modelo es
+
+\[
+\delta_{i,s,k} \;\sim\; \mathcal{N}\left( \mu_{s,k} + \mathbf{x}_{i,s}^{\top} \boldsymbol{\beta}_k + \eta_{i,s,k} + \eta_{i,k}^{\text{pres}} \cdot z_{i,s}^{\text{elim}},\; \sigma_k \right),
+\]
+
+donde $\mu_{s,k}$ es el efecto poblacional medio por dirección de
+\textit{shock} y canal; $\mathbf{x}_{i,s}$ es el vector de moduladores
+continuos del contexto (minuto normalizado, diferencia de marcador
+post-\textit{shock}, índice de fase, \textit{leverage} y proximidad
+de eliminación), todos estandarizados; $\eta_{i,s,k}$ es el efecto
+aleatorio individual por jugador y dirección del \textit{shock};
+$\eta_{i,k}^{\text{pres}}$ es el efecto aleatorio individual de
+respuesta a presión (modulado por $z_{i,s}^{\text{elim}}$, la
+proximidad de eliminación estandarizada); y $\sigma_k$ es la
+desviación estándar residual por canal.
+
+Las correlaciones \textit{cross}-canal del efecto individual se
+modelan mediante una previa Lewandowski--Kurowicka--Joe (LKJ) sobre
+la matriz de correlación entre los cuatro canales, por dirección del
+\textit{shock}:
+
+\[
+\boldsymbol{\eta}_{i,s} \;\sim\; \mathcal{N}(\boldsymbol{0}, \boldsymbol{\Sigma}_s),
+\qquad
+\boldsymbol{\Sigma}_s = \mathbf{D}_s \mathbf{R}_s \mathbf{D}_s,
+\qquad
+\mathbf{R}_s \sim \text{LKJ}(\nu).
+\]
+
+Los \textit{priors} sobre la media del efecto individual están
+informados por los \textit{grades} humanos PFF pre-torneo,
+$g^{\text{PFF}}_{i,k}$, mediante un factor de escala aprendido
+$\gamma_k$:
+
+\[
+\mathbb{E}[\eta_{i,s,k}] \;=\; \gamma_k \cdot g^{\text{PFF}}_{i,k}.
+\]
+
+La parametrización está \textit{non-centered} en todos los efectos
+aleatorios para evitar la geometría de embudo (Betancourt-Girolami
+2015). El muestreo se realiza con \textit{Hamiltonian Monte Carlo}
+(HMC) usando el \textit{sampler} No-U-Turn (NUTS) sobre cuatro
+cadenas independientes con \texttt{target\_accept\_prob} de 0{,}95
+para acomodar la geometría LKJ y la estructura jerárquica.
+
 
 \section{Datos}
 \label{sec:datos}
-\textit{[Pendiente. PFF FC WC22 + Wyscout + StatsBomb.]}
+
+El trabajo utiliza tres fuentes de datos, todas extraídas a parquet
+con tipos anidados y verificación \textit{round-trip lossless} antes
+de cualquier análisis. La separación entre datos de entrenamiento y
+datos de evaluación del Mundial Qatar 2022 es la condición fundamental
+de validez metodológica del trabajo y se aplica sin excepciones en
+todo el \textit{pipeline}.
+
+El corpus objetivo es el Mundial Qatar 2022 con datos PFF FC
+\parencite{PFFFC2024Release}, liberado en abierto en septiembre de
+2024. Contiene los sesenta y cuatro partidos del torneo con eventos
+en formato JSON, tracking a 25\,Hz sincronizado con los eventos
+mediante el campo \texttt{game\_event.start\_frame}, presión
+individual etiquetada, \textit{grades} humanos por evento sobre
+cuatro dimensiones tácticas (\textit{closing-down}, \textit{movement},
+\textit{position} y decisión con balón) y metadatos posicionales.
+Tras el preprocesado, el corpus cubre quinientos once jugadores con
+al menos un minuto en campo, doscientos treinta y tres jugadores con
+minutos suficientes para análisis fiable ($\geq 270$\,min) y ciento
+setenta y dos goles-\textit{shock} repartidos entre ciento veinte de
+la fase de grupos y cincuenta y dos de la fase eliminatoria.
+
+El corpus de entrenamiento de la espina dorsal temporal es Wyscout
+2017/18 \textit{open dataset}, con 1941 partidos sobre las cinco
+grandes ligas europeas ---\textit{Premier League}, La Liga,
+\textit{Serie A}, \textit{Bundesliga} y \textit{Ligue 1}--- más la
+Copa del Mundo 2018 y la Eurocopa 2016. Su volumen es suficiente para
+que el modelo bayesiano de \textit{Win Probability} converja sobre
+los \textit{bins} de minuto.
+
+El corpus de entrenamiento del Post-Shot $xG$, del \textit{atomic}-VAEP
+y de las cabezas defensivas es StatsBomb \textit{open data} filtrado,
+con ciento treinta y seis partidos sobre Eurocopa 2020, Eurocopa 2024
+y \textit{Bundesliga} 23/24, además del propio Mundial Qatar 2022
+---que se mantiene como \textit{holdout} sagrado y no se utiliza en
+ningún entrenamiento. Los partidos StatsBomb incluyen los 360
+\textit{freeze-frames}, indispensables para el cálculo del Post-Shot
+$xG$ a partir de la posición tridimensional final del balón, de la
+configuración de defensores en cono y de la ubicación del portero.
+
+La única exposición controlada del Mundial Qatar 2022 al
+\textit{pipeline} de entrenamiento es la recalibración por
+\textit{temperature scaling} sobre la fase de grupos, que ajusta un
+único parámetro escalar de temperatura para corregir el desplazamiento
+de distribución del torneo respecto a las ligas de entrenamiento. La
+fase eliminatoria queda como \textit{holdout} final donde se evalúan
+todos los efectos causales reportados en el capítulo de resultados.
+
 
 \section{Herramientas y tecnologías}
 \label{sec:herramientas}
-\textit{[Pendiente. polars, socceraction, numpyro, doubleml, etc.]}
+
+La pila tecnológica está organizada en capas. La capa de datos opera
+sobre \texttt{polars} para procesamiento \textit{lazy} y
+\textit{streaming} sobre parquet con tipos anidados, \texttt{pyarrow}
+como infraestructura de serialización y \texttt{pandas} como
+interfaz secundaria a librerías de \textit{machine learning} que aún
+asumen el contrato pandas. La capa de modelado supervisado utiliza
+CatBoost para \textit{atomic}-VAEP (su tratamiento nativo de variables
+categóricas simplifica el preprocesado sobre la representación
+\textit{atomic}-SPADL), LightGBM para Post-Shot $xG$ con búsqueda
+hiperparamétrica mediante \texttt{optuna} (sesenta iteraciones con
+AUC \textit{out-of-fold}) y calibración isotónica posterior, y
+\texttt{scikit-learn} como envoltorio común para validación cruzada
+y métricas. La librería \texttt{socceraction} en su versión 1.5.3
+provee la representación \textit{atomic}-SPADL y la familia de
+modelos VAEP modular utilizada en el canal ofensivo.
+
+La capa de identificación causal en panel utiliza \texttt{pyfixest}
+para los estimadores con efectos fijos ---ATE \textit{Two-Way Fixed
+Effects} (TWFE), \citeauthor{SunAbraham2021} y
+\citeauthor{BorusyakJaravelSpiess2024}--- con errores estándar
+\textit{cluster-robust} CRV1, y \texttt{doubleml} para el AIPW de
+doble robustez con \textit{cross-fitting} sobre el corpus de
+\textit{near-miss}, que es la implementación de referencia de la
+familia \textit{Double/Debiased Machine Learning} de
+\textcite{Chernozhukov2018DML}.
+
+La capa bayesiana se construye sobre \texttt{numpyro} ---compilado
+sobre JAX--- para SVI rápido en CPU en los modelos de
+\textit{Win Probability} y residualización física del canal físico,
+y para muestreo NUTS HMC en el modelo CATE \textit{multivariate} con
+aceleración GPU. La parametrización \textit{non-centered} y la
+geometría LKJ exigen \texttt{target\_accept\_prob} de 0{,}95 para
+mantener tasas de aceptación estables sin transiciones divergentes.
+
+La capa de visualización utiliza \texttt{mplsoccer} para superficies
+sobre el campo, \texttt{matplotlib} y \texttt{seaborn} para
+estadística descriptiva y \texttt{adjustText} para gestión de
+etiquetas sobre \textit{scatter plots} con \textit{overplotting}
+denso. Las figuras se producen con un estilo consistente ---fondo
+claro, tipografía técnica Chakra Petch, marcador de cabecera con el
+escudo de la selección y el logo del autor--- que se aplica a todas
+las salidas del trabajo.
+
+La capa de redacción del documento se apoya en TeX Live \textit{full}
+con \texttt{latexmk} como orquestador de compilación, \texttt{biber}
+como motor de bibliografía y \texttt{biblatex} con estilo APA séptima
+edición. Cada cita incluida en el documento se ha verificado contra
+su DOI antes de su inclusión.
+
 
 \section{Métricas de evaluación}
 \label{sec:metricas-evaluacion}
-\textit{[Pendiente.]}
+
+Las métricas se agrupan en cuatro familias según la capa que evalúan.
+
+La calibración de los modelos probabilísticos ---\textit{Win
+Probability}, Post-Shot $xG$ y las cabezas defensivas de probabilidad
+de recuperación y de ser atacado--- se reporta con la curva de
+calibración tras regresión isotónica, la descomposición de Brier en
+\textit{reliability} y \textit{resolution} (Murphy 1973), el
+\textit{Expected Calibration Error} (ECE) y el \textit{Maximum
+Calibration Error} (MCE) sobre diez \textit{bins} equispaciados, y la
+AUC en el \textit{holdout} sagrado del Mundial Qatar 2022. La
+validación cruzada se aplica por partido (\textit{5-fold stratified
+by match}) para evitar fuga entre eventos del mismo encuentro; la
+búsqueda hiperparamétrica de \texttt{optuna} se realiza sobre la AUC
+\textit{out-of-fold}.
+
+La identificación causal por DiD se reporta con el ATE estimado por
+TWFE con \textit{cluster} CRV1 a nivel jugador, los estimadores
+\textit{event-study} de \citeauthor{SunAbraham2021} y la imputación
+contrafactual de \citeauthor{BorusyakJaravelSpiess2024} como
+verificaciones independientes, las cotas \textit{HonestDiD} de
+\citeauthor{RambachanRoth2023} para tres niveles de relajación de
+tendencias paralelas, y el test $F$ de pre-tendencias agregadas
+(Roth 2022) como verificación adicional. La identificación causal
+por AIPW se reporta con el ATT estimado por DoubleMLIRM con
+\textit{cross-fitting} de cinco pliegues por partido, el ATT por
+DoubleMLPLR como sanity-check, el DR-\textit{learner} como
+verificación complementaria y el RDD local-lineal sobre la
+discontinuidad en $xG$. La sensibilidad a \textit{confounding} no
+observado se evalúa con las cotas de Cinelli y Hazlett (2020) sobre
+el \textit{robustness value} y los \textit{impact parameters}.
+
+La convergencia bayesiana del modelo CATE se diagnostica con el
+estadístico R-hat (umbral de aceptación inferior a 1{,}05), el
+\textit{Effective Sample Size} en \textit{bulk} (umbral superior a
+400), la ausencia de transiciones divergentes y de saturación de
+profundidad de árbol. Para cada efecto individual estimado se reportan
+la media posterior, el intervalo de credibilidad del 95\% y la
+probabilidad posterior $P(\hat{\beta} > 0 \mid \text{datos})$ ---o
+$P(\hat{\beta} < 0 \mid \text{datos})$ según la dirección esperada
+del efecto. Los \textit{tiers} de significatividad sobre la posterior
+se definen en dos umbrales: \textit{Sig} a partir de 0{,}85 y
+\textit{Sig-strong} a partir de 0{,}95.
+
+La correlación entre los canales algorítmicos del \CCV y los
+\textit{grades} humanos PFF se reporta como validación externa
+cualitativa, a nivel jugador-evento, con coeficiente de correlación
+de Spearman e intervalo de confianza por \textit{bootstrap}.
+
 
 \section{Protocolo experimental}
 \label{sec:protocolo}
-\textit{[Pendiente.]}
+
+El protocolo asegura la separación entre datos de entrenamiento y
+datos de evaluación, controla la inflación de error en comparaciones
+múltiples y declara explícitamente el rango de potencia estadística
+que el corpus permite. Los resultados del capítulo siguiente se
+producen sin excepciones bajo este protocolo.
+
+\paragraph{Separación entrenamiento-evaluación.}
+Ningún modelo predictivo del \textit{pipeline} ve un partido del
+Mundial Qatar 2022 durante el entrenamiento. La única exposición
+controlada al torneo objetivo es la recalibración por
+\textit{temperature scaling} sobre la fase de grupos, con un único
+parámetro escalar ajustado para corregir el desplazamiento de
+distribución. La fase eliminatoria, con cincuenta y dos
+\textit{shocks}, queda como \textit{holdout} final donde se evalúa
+el efecto causal del \textit{shock} sin haber sido tocada por
+ningún paso de ajuste.
+
+\paragraph{Comparaciones múltiples.}
+El placebo \textit{within-series} se ejecuta con mil permutaciones
+sobre los doce contrastes principales (cuatro canales por tres
+contextos) y se acompaña de corrección Benjamini-Hochberg para
+controlar la tasa de descubrimiento falsa sobre los ATE poblacionales.
+Las celdas significativas se reportan tanto con $p$ crudo como con
+$q$ corregido.
+
+\paragraph{Potencia estadística.}
+El análisis de potencia se realiza ex-ante sobre el panel
+jugador-\textit{shock}-minuto con simulación Monte Carlo del
+\textit{Intraclass Correlation Coefficient} (ICC) y del
+\textit{Minimum Detectable Effect} (MDE) al ochenta por ciento. Para
+cada canal y contexto se reporta explícitamente el efecto mínimo
+detectable dado el tamaño de muestra y la dispersión observada en el
+corpus.
+
+\paragraph{Robustez temporal.}
+La sensibilidad a la ventana de análisis se evalúa sobre cinco
+horizontes pre/post ---$\pm 3$, $\pm 5$, $\pm 7$, $\pm 10$ y
+$\pm 15$ minutos--- y se reportan las desviaciones del efecto
+estimado respecto al horizonte de referencia. Los resultados se
+estratifican adicionalmente por fase de grupos y fase eliminatoria
+para identificar posible heterogeneidad por contexto de torneo.
+
+\paragraph{Identificabilidad por jugador.}
+La tabla \textit{scout-facing} final se restringe a jugadores con al
+menos dos \textit{shocks} observados ---umbral mínimo para que el
+efecto aleatorio bayesiano por jugador sea identificable--- y al
+menos noventa minutos jugados en el torneo. Un \textit{flag} explícito
+de \texttt{low\_sample} marca a los jugadores con menos de ocho
+\textit{shocks} o menos de doscientos setenta minutos jugados, cuyos
+intervalos de credibilidad son por construcción más anchos y cuyas
+estimaciones requieren lectura cautelosa.
