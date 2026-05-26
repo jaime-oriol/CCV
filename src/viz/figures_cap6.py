@@ -69,7 +69,7 @@ _FOOTER_SZ    = 9
 #   * MÁS ABAJO        → ↑ _LOGO_MARGIN_Y (lo aleja del borde superior).
 _LOGO_FRAC      = 0.125    # ancho del logo en fracción de figura
 _LOGO_MARGIN_X  = 0.04     # separación al borde derecho — ↑ = más a la izq
-_LOGO_MARGIN_Y  = 0.0      # separación al borde superior — 0.0 = pegado arriba
+_LOGO_MARGIN_Y  = -0.02    # separación al borde superior — negativo = logo top sube hasta nivel del título (suptitle en y=1.02)
 
 
 def _style(ax, ygrid=True, xgrid=False):
