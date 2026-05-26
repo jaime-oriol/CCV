@@ -125,7 +125,7 @@ máxima desviación pre-tratamiento observada.
 \section{Efecto poblacional medio del shock}
 \label{sec:res-ate-poblacional}
 
-El \textit{Average Treatment Effect} (ATE) poblacional del
+El ATE poblacional del
 \textit{shock} sobre el delta relativo al bloque del propio equipo,
 estimado por DiD \textit{within-player} con errores estándar
 \textit{cluster-robust} a nivel jugador, se reporta en la
@@ -291,22 +291,51 @@ identificable porque opera sobre un eje único de modulación.
 \label{sec:res-validacion-pff}
 
 Como verificación externa cualitativa, se calcula la correlación de
-Spearman entre los CATE individuales del \CCV y los \textit{grades}
-humanos PFF para los jugadores con muestra suficiente. La
-correlación, calculada por canal sobre la pareja CATE-\textit{grade}
-correspondiente (canal ofensivo vs.\ \textit{grade} \textit{dabGrade},
-canal defensivo vs.\ \textit{closingDownGrade}, canal
-\textit{off-ball} vs.\ \textit{movementGrade}, canal físico
-descartado por ausencia de \textit{grade} análogo), es positiva en
-los tres canales con \textit{grade} comparable y oscila entre
-$0{,}18$ y $0{,}24$. Estos coeficientes son modestos en magnitud
-pero estadísticamente distintos de cero al uno por ciento sobre la
-muestra de 233 jugadores con $\geq 270$ minutos. La interpretación es
-prudente: los algoritmos del \CCV y los \textit{grades} humanos
-miden propiedades parcialmente solapadas pero no idénticas. Los
-canales del \CCV son métricas \textit{event-level} agregadas y
-residualizadas contra el bloque, mientras que los \textit{grades}
-humanos son evaluaciones holísticas del rendimiento global del
-jugador en el partido. Una correlación moderada y positiva valida
-que el marco recoge una propiedad real reconocible por evaluadores
-expertos, sin reducir el rendimiento humano a una sola dimensión.
+Spearman entre las puntuaciones del \CCV por canal y por índice
+agregado y el \textit{grade} humano PFF agregado por jugador, sobre
+los 166 jugadores con al menos 270\,minutos jugados y muestra
+fiable. La tabla~\ref{tab:correlacion-pff} reporta los coeficientes.
+
+\begin{table}[h]
+  \centering
+  \small
+  \caption{Correlación de Spearman entre las puntuaciones del \CCV
+    por canal e índice y el \textit{grade} humano PFF agregado por
+    jugador. Sobre 166 jugadores con $\geq 270$\,min y
+    \texttt{low\_sample}=False. Valor $p$ a dos colas.}
+  \label{tab:correlacion-pff}
+  \begin{tabular}{lrrl}
+    \toprule
+    Métrica \CCV & $\rho$ Spearman & $p$ & Significativa \\
+    \midrule
+    Canal ofensivo (\texttt{ccv\_atk})         & $+0{,}017$ & $0{,}83$  & --- \\
+    Canal defensivo (\texttt{ccv\_def})        & $-0{,}071$ & $0{,}37$  & --- \\
+    Canal \textit{off-ball} (\texttt{ccv\_off}) & $+0{,}211$ & $0{,}006$ & 1\% \\
+    Canal físico (\texttt{ccv\_phys})          & $+0{,}090$ & $0{,}25$  & --- \\
+    \midrule
+    Índice Remontador (chasing)         & $+0{,}177$ & $0{,}022$ & 5\% \\
+    Índice Cerrojo (protecting)         & $+0{,}005$ & $0{,}94$  & --- \\
+    Índice \textit{Pressure Response}   & $-0{,}122$ & $0{,}12$  & --- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El patrón es modesto y heterogéneo. El canal \textit{off-ball} es el
+único que correlaciona de forma estadísticamente significativa al uno
+por ciento con el \textit{grade} humano agregado ($\rho = +0{,}211$),
+y el índice Remontador es significativo al cinco por ciento
+($\rho = +0{,}177$). Los demás coeficientes no se distinguen de cero
+con la muestra disponible. La interpretación es prudente y honesta.
+El \textit{grade} humano PFF disponible es un valor único agregado
+por jugador y partido que sintetiza el rendimiento global, no una
+descomposición por canal o por contexto de \textit{shock}. Los
+canales del \CCV, en cambio, son métricas \textit{event-level}
+agregadas por minuto y residualizadas contra el bloque colectivo del
+propio equipo en cada \textit{shock}. Las dos medidas cubren
+propiedades parcialmente solapadas pero no idénticas, y la
+heterogeneidad por canal en la correlación es coherente con esa
+asimetría conceptual. La validación externa no es contundente; valida
+direccionalmente que el canal \textit{off-ball} y el agregado
+Remontador recogen propiedades reconocibles por evaluadores humanos
+expertos, sin pretender que los CATE y los \textit{grades} midan lo
+mismo.

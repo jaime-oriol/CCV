@@ -24,7 +24,26 @@ El \textit{pipeline} se ejecuta como un grafo dirigido acíclico de cinco
 fases. Cada fase consume el cache de la anterior y deposita un cache
 intermedio que las fases posteriores reutilizan, lo que permite
 recomputar cualquier capa sin reejecutar las anteriores y garantiza la
-reproducibilidad de los resultados.
+reproducibilidad de los resultados. La figura~\ref{fig:pipeline-dag}
+sintetiza la composición de las cinco fases y las anotaciones
+metodológicas que conectan unas con otras.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_cap4_pipeline_dag}
+  \caption{\textit{Pipeline} del \CCV en cinco fases. La fase 1 extrae
+    los eventos y el tracking a parquet; la fase 2 construye la
+    \textit{backbone} temporal de \textit{Win Probability}; la fase 3
+    identifica los \textit{shocks} de gol con su ventana pre/post y
+    construye el corpus de \textit{near-misses}; la fase 4 cuantifica
+    el rendimiento en los cuatro canales; la fase 5 cierra con la
+    identificación causal, el CATE jerárquico bayesiano y el ensamblaje
+    de la tabla \textit{scout-facing}. La anotación
+    \textit{pre/post window} marca la transición de la fase 3 a la 4
+    y la anotación \textit{leave-one-out residualization} marca la
+    transición de la fase 4 a la 5.}
+  \label{fig:pipeline-dag}
+\end{figure}
 
 \paragraph{Fase 1. Extracción y preprocesado.}
 Los eventos PFF FC en formato JSON y el tracking a 25\,Hz en formato
@@ -403,16 +422,50 @@ Las métricas se agrupan en cuatro familias según la capa que evalúan.
 
 La calibración de los modelos probabilísticos ---\textit{Win
 Probability}, Post-Shot $xG$ y las cabezas defensivas de probabilidad
-de recuperación y de ser atacado--- se reporta con la curva de
-calibración tras regresión isotónica, la descomposición de Brier en
-\textit{reliability} y \textit{resolution} \parencite{Murphy1973Brier},
-el
-\textit{Expected Calibration Error} (ECE) y el \textit{Maximum
-Calibration Error} (MCE) sobre diez \textit{bins} equispaciados, y la
-AUC en el \textit{holdout} sagrado del Mundial Qatar 2022. La
+de recuperación y de ser atacado--- se reporta con cuatro métricas
+estándar. Sea $\{(\hat{p}_i, y_i)\}_{i=1}^N$ el conjunto de pares
+(probabilidad predicha, resultado observado) sobre el \textit{holdout},
+y sea $\{B_m\}_{m=1}^M$ una partición de los predichos en $M = 10$
+\textit{bins} equispaciados. Para cada \textit{bin}, sean
+$\bar{p}_m = \frac{1}{|B_m|}\sum_{i \in B_m} \hat{p}_i$ la
+probabilidad media predicha y
+$\bar{y}_m = \frac{1}{|B_m|}\sum_{i \in B_m} y_i$ la frecuencia
+empírica observada.
+
+El \textit{Expected Calibration Error} (ECE) es el promedio ponderado
+de las desviaciones absolutas por \textit{bin},
+
+\[
+\text{ECE} \;=\; \sum_{m=1}^M \frac{|B_m|}{N} \left| \bar{p}_m - \bar{y}_m \right|,
+\]
+
+y el \textit{Maximum Calibration Error} (MCE) toma la peor desviación,
+
+\[
+\text{MCE} \;=\; \max_{m} \left| \bar{p}_m - \bar{y}_m \right|.
+\]
+
+La descomposición de Brier de \textcite{Murphy1973Brier} separa el
+\textit{score} en tres componentes:
+
+\[
+\underbrace{\frac{1}{N}\sum_{i=1}^N (\hat{p}_i - y_i)^2}_{\text{Brier}}
+\;=\; \underbrace{\sum_{m} \tfrac{|B_m|}{N} (\bar{p}_m - \bar{y}_m)^2}_{\text{Reliability}}
+\;-\; \underbrace{\sum_{m} \tfrac{|B_m|}{N} (\bar{y}_m - \bar{y})^2}_{\text{Resolution}}
+\;+\; \underbrace{\bar{y}(1 - \bar{y})}_{\text{Uncertainty}},
+\]
+
+donde $\bar{y}$ es la tasa de evento agregada. Un modelo calibrado
+minimiza \textit{reliability} (predicciones que coinciden con las
+frecuencias observadas) y maximiza \textit{resolution} (predicciones
+que separan eventos con tasas distintas); la \textit{uncertainty} es
+intrínseca al problema y no depende del modelo.
+
+A las cuatro métricas anteriores se añade el área bajo la curva ROC
+(AUC) en el \textit{holdout} sagrado del Mundial Qatar 2022. La
 validación cruzada se aplica por partido (\textit{5-fold stratified
 by match}) para evitar fuga entre eventos del mismo encuentro; la
-búsqueda hiperparamétrica de \texttt{optuna} se realiza sobre la AUC
+búsqueda hiperparamétrica con \texttt{optuna} se realiza sobre la AUC
 \textit{out-of-fold}.
 
 La identificación causal por DiD se reporta con el ATE estimado por
@@ -431,11 +484,19 @@ discontinuidad en $xG$. La sensibilidad a \textit{confounding} no
 observado se evalúa con las cotas de \textcite{CinelliHazlett2020} sobre
 el \textit{robustness value} y los \textit{impact parameters}.
 
-La convergencia bayesiana del modelo CATE se diagnostica con el
-estadístico R-hat (umbral de aceptación inferior a 1{,}05), el
-\textit{Effective Sample Size} en \textit{bulk} (umbral superior a
-400), la ausencia de transiciones divergentes y de saturación de
-profundidad de árbol. Para cada efecto individual estimado se reportan
+La convergencia bayesiana del modelo CATE se diagnostica con cuatro
+indicadores complementarios. El estadístico potencial-scale-reduction
+de Gelman-Rubin, $\hat{R} = \sqrt{\hat{V}/W}$ ---donde $W$ es la
+varianza media intra-cadena y $\hat{V}$ es una estimación combinada
+de la varianza marginal---, debe ser inferior a $1{,}05$ en todos los
+parámetros muestreados. El \textit{Effective Sample Size} en
+\textit{bulk}, $\text{ESS}_{\text{bulk}} = MN / (1 + 2 \sum_{t=1}^{T}
+\hat{\rho}_t)$ ---con $M$ cadenas, $N$ muestras por cadena y
+$\hat{\rho}_t$ la autocorrelación muestral a \textit{lag} $t$---,
+debe superar 400 por parámetro para que la posterior se considere
+suficientemente explorada. Adicionalmente se exige ausencia de
+transiciones divergentes y ausencia de saturación de profundidad de
+árbol durante el muestreo. Para cada efecto individual estimado se reportan
 la media posterior, el intervalo de credibilidad del 95\% y la
 probabilidad posterior $P(\hat{\beta} > 0 \mid \text{datos})$ ---o
 $P(\hat{\beta} < 0 \mid \text{datos})$ según la dirección esperada
