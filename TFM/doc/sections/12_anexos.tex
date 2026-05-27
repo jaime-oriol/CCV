@@ -32,8 +32,7 @@ significatividad, se reporta por separado en la tabla canónica del
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.95\textwidth]{radar_report_1531}
-  \caption{Ficha \textit{scout-facing} de Lionel Messi. Radar de
-    doce ejes; percentil dentro de \textit{bucket} posicional.}
+  \caption{Ficha \textit{scout-facing} de Lionel Messi.}
   \label{fig:radar-messi}
 \end{figure}
 
@@ -64,16 +63,15 @@ cada jugador del bloque francés sobre el panorama agregado.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{scatter_france_remontador_cerrojo}
-  \caption{Francia sobre los dos índices agregados, destacada sobre
-    la nube del resto del torneo.}
+  \caption{Vista por equipo (Francia): Remontador frente a Cerrojo.}
   \label{fig:scatter-france-remontador-cerrojo}
 \end{figure}
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{scatter_france_ataque_marcar_encajar}
-  \caption{Francia sobre las dos celdas ofensivas (tras marcar y
-    tras encajar).}
+  \caption{Vista por equipo (Francia): ataque tras marcar frente a
+    ataque tras encajar.}
   \label{fig:scatter-france-ataque}
 \end{figure}
 
@@ -90,9 +88,7 @@ es consistente con el test $F$ de pre-tendencias agregadas
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{event_study}
-  \caption{\textit{Event-study} por minuto relativo al \textit{shock}
-    \parencite{SunAbraham2021}. Línea vertical en $t=0$: instante
-    del gol.}
+  \caption{\textit{Event-study} por minuto relativo al \textit{shock}.}
   \label{fig:event-study}
 \end{figure}
 
@@ -109,9 +105,7 @@ en el capítulo~\ref{ch:resultados}.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{fig_anexo_honestdid}
-  \caption{Cotas \textit{HonestDiD} \parencite{RambachanRoth2023}
-    sobre el ATE poblacional para tres niveles de relajación de
-    tendencias paralelas.}
+  \caption{Cotas \textit{HonestDiD} sobre el ATE poblacional.}
   \label{fig:honestdid}
 \end{figure}
 
@@ -230,10 +224,8 @@ tabla~\ref{tab:placebo} reporta el resultado.
 \begin{table}[h]
   \centering
   \small
-  \caption{Test de placebo: ATE real frente a distribución placebo
-    (\textit{shocks} recolocados aleatoriamente), 8 celdas. $p$
-    empírico a dos colas e inclusión del ATE real en el IC 95\%
-    del placebo.}
+  \caption{Test de placebo sobre las ocho celdas
+    canal-por-contexto.}
   \label{tab:placebo}
   \begin{tabular}{llrrrrl}
     \toprule
@@ -272,9 +264,7 @@ tabla~\ref{tab:power} reporta el MDE efectivo por canal y contexto.
 \begin{table}[h]
   \centering
   \small
-  \caption{Potencia ex-ante por celda: MDE al 80\% tras ajustar por
-    \textit{design effect} CRV1. La columna ATE/MDE compara el efecto
-    observado con el listón mínimo de detección.}
+  \caption{Potencia ex-ante por celda canal-por-contexto.}
   \label{tab:power}
   \begin{tabular}{llrrrr}
     \toprule
@@ -313,9 +303,7 @@ celda y por fase.
 \begin{table}[h]
   \centering
   \small
-  \caption{ATE estratificado por fase: grupos frente a eliminatoria.
-    Estimador TWFE \textit{within-player} con CRV1 ejecutado por
-    separado sobre cada fase.}
+  \caption{ATE estratificado por fase del torneo.}
   \label{tab:stage}
   \begin{tabular}{llrrrrrr}
     \toprule
@@ -359,10 +347,7 @@ Brier y su descomposición de Murphy en \textit{reliability},
 \begin{table}[h]
   \centering
   \small
-  \caption{Diagnósticos de calibración del modelo PSxG sobre
-    \textit{out-of-fold} (3545 disparos) y \textit{holdout} WC22
-    (1494). Calibrado por isotónica frente a \textit{raw} y baseline
-    StatsBomb~$xG$.}
+  \caption{Diagnósticos de calibración del modelo PSxG.}
   \label{tab:psxg-cal}
   \begin{tabular}{llrrrrrr}
     \toprule

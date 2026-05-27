@@ -25,10 +25,7 @@ grupos del Mundial y sobre el resto de torneos de entrenamiento.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{fig_cap6_psxg_calibration}
-  \caption{Calibración del modelo PSxG: curva de fiabilidad
-    (\textit{out-of-fold} cross-dataset y \textit{holdout} del Mundial
-    Qatar 2022) y descomposición de Brier frente al baseline
-    StatsBomb~$xG$.}
+  \caption{Calibración del modelo PSxG.}
   \label{fig:psxg-calibration}
 \end{figure}
 
@@ -86,10 +83,7 @@ por canal y por dirección del \textit{shock}.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{fig_cap6_window_sensitivity}
-  \caption{Sensibilidad del ATE al horizonte pre/post, por canal y
-    dirección del \textit{shock}. Banda: IC 95\% \textit{cluster-robust}
-    por jugador. Línea punteada: ventana de referencia
-    $\pm 10$\,min.}
+  \caption{Sensibilidad del ATE al horizonte pre/post.}
   \label{fig:window-sensitivity}
 \end{figure}
 
@@ -140,9 +134,7 @@ sólo cuando afecta a la ventana post.
 \begin{table}[h]
   \centering
   \small
-  \caption{Composición del corpus de \textit{shocks}: 172 goles
-    válidos sobre 64 partidos (excluye tanda de penaltis y goles
-    anulados).}
+  \caption{Composición del corpus de \textit{shocks} del torneo.}
   \label{tab:corpus-shocks}
   \begin{tabular}{llrr}
     \toprule
@@ -183,8 +175,7 @@ tabla~\ref{tab:ate-poblacional}.
   \centering
   \small
   \caption{ATE del \textit{shock} sobre el delta relativo al bloque,
-    por canal y dirección. Estimador TWFE \textit{within-player} con
-    errores \textit{cluster-robust} CRV1 a nivel jugador.}
+    por canal y dirección.}
   \label{tab:ate-poblacional}
   \begin{tabular}{llrrrrr}
     \toprule
@@ -231,9 +222,7 @@ CATE individual por canal y dirección del \textit{shock}.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{fig_cap6_cate_heterogeneity}
-  \caption{Distribución del CATE individual por canal y contexto
-    del \textit{shock} (tras encajar, tras marcar, proximidad de
-    eliminación alta), sobre 598 jugadores. $\sigma$ por panel.}
+  \caption{Distribución del CATE individual por canal y contexto.}
   \label{fig:cate-heterogeneity}
 \end{figure}
 
@@ -270,9 +259,7 @@ donde el efecto individual está dentro del ruido del estimador.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{scatter_remontador_cerrojo}
-  \caption{Panorama del torneo sobre los dos índices agregados:
-    Remontador (eje X, respuesta tras encajar) frente a Cerrojo
-    (eje Y, respuesta tras marcar). Etiquetas en los valores extremos.}
+  \caption{Panorama del torneo: Remontador frente a Cerrojo.}
   \label{fig:scatter-remontador-cerrojo}
 \end{figure}
 
@@ -293,10 +280,7 @@ capítulo~\ref{ch:discusion}.
 \begin{table}[h]
   \centering
   \small
-  \caption{Jugadores significativos por celda canal-por-contexto y
-    en el índice \textit{pressure-clutch} (tres umbrales). PRO/ANTI
-    según $P(\beta > 0 \mid \text{datos})$ cruce hacia arriba o abajo
-    del umbral.}
+  \caption{Jugadores significativos por celda y por umbral.}
   \label{tab:sig-por-celda}
   \begin{tabular}{llrrr}
     \toprule
@@ -329,9 +313,7 @@ negativo.
 \begin{table}[h]
   \centering
   \small
-  \caption{Jugadores con efecto significativo \textit{pressure-clutch}
-    bajo proximidad de eliminación alta. Media posterior, IC 80\% y
-    probabilidad posterior.}
+  \caption{Jugadores con efecto \textit{pressure-clutch} significativo.}
   \label{tab:pressure-clutch}
   \begin{tabular}{llrrrl}
     \toprule
@@ -367,9 +349,7 @@ Hakimi y Brozović.
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.95\textwidth]{radar_report_3870}
-  \caption{Ficha \textit{scout-facing} de Kylian Mbappé. Radar de
-    doce ejes (cuatro canales $\times$ tres contextos), percentiles
-    dentro de \textit{bucket} posicional.}
+  \caption{Ficha \textit{scout-facing} de Kylian Mbappé.}
   \label{fig:radar-mbappe}
 \end{figure}
 
@@ -399,9 +379,8 @@ jugador.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{scatter_ataque_marcar_encajar}
-  \caption{Distribución de los jugadores sobre las dos celdas
-    ofensivas: respuesta tras marcar (eje X) frente a tras encajar
-    (eje Y).}
+  \caption{Panorama del torneo: ataque tras marcar frente a ataque
+    tras encajar.}
   \label{fig:scatter-ataque-marcar-encajar}
 \end{figure}
 
@@ -446,9 +425,8 @@ tabla~\ref{tab:correlacion-pff} reporta los coeficientes.
 \begin{table}[h]
   \centering
   \small
-  \caption{Correlación de Spearman entre puntuaciones del \CCV
-    (canal e índice) y el \textit{grade} humano PFF, sobre 166
-    jugadores. $p$ a dos colas.}
+  \caption{Correlación de Spearman entre \CCV y \textit{grade}
+    humano PFF.}
   \label{tab:correlacion-pff}
   \begin{tabular}{lrrl}
     \toprule
