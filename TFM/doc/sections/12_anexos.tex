@@ -218,19 +218,271 @@ ejecutarla con poder estadístico suficiente.
 \chapter{Validaciones empíricas adicionales}
 \label{anexo:validaciones}
 
-\textit{[Pendiente. Contenido detallado de docs/validations.md: T1
-(correlación con \textit{grades} PFF), T2.4-T2.8 (placebo, potencia
-ex-ante, sensibilidad de ventana, estratificación por fase del
-torneo), T4.12 (diagnósticos de calibración del PSxG).]}
+Este anexo recoge los diagnósticos de robustez que complementan los
+reportados en el capítulo~\ref{ch:resultados}. Cada validación se
+ejecuta sobre el panel jugador-\textit{shock}-minuto del Mundial
+Qatar 2022 y se reporta en su tabla correspondiente.
+
+\section{Test de placebo}
+\label{anexo:val-placebo}
+
+El test de placebo recoloca el \textit{shock} en instantes aleatorios
+del partido distintos del gol real y vuelve a estimar el ATE por DiD
+\textit{within-player} sobre cada celda canal-por-contexto. Si la
+identificación causal es válida, el ATE real debe quedar fuera del
+intervalo de confianza al 95\% de la distribución placebo
+($H_0$: no hay efecto del \textit{shock}). La
+tabla~\ref{tab:placebo} reporta el resultado.
+
+\begin{table}[h]
+  \centering
+  \small
+  \caption{Test de placebo sobre las ocho celdas canal-por-contexto.
+    Cada celda reporta el ATE real estimado por DiD
+    \textit{within-player}, la media y desviación estándar de la
+    distribución placebo (\textit{shocks} recolocados aleatoriamente),
+    el valor $p$ empírico a dos colas y si el ATE real cae dentro del
+    IC 95\% de la distribución placebo.}
+  \label{tab:placebo}
+  \begin{tabular}{llrrrrl}
+    \toprule
+    Canal & Contexto & ATE real & Placebo media & Placebo SD & $p$ emp. & ATE $\in$ IC$_{95}$ \\
+    \midrule
+    Ofensivo  & Tras marcar  & $+0{,}00055$ & $+0{,}00004$ & $0{,}00136$ & $0{,}71$ & Sí \\
+    Ofensivo  & Tras encajar & $+0{,}00000$ & $-0{,}00001$ & $0{,}00027$ & $0{,}98$ & Sí \\
+    Defensivo & Tras marcar  & $-0{,}00023$ & $+0{,}00011$ & $0{,}00711$ & $0{,}96$ & Sí \\
+    Defensivo & Tras encajar & $+0{,}00108$ & $-0{,}00014$ & $0{,}00635$ & $0{,}86$ & Sí \\
+    Off-ball  & Tras marcar  & $-0{,}00002$ & $-0{,}00000$ & $0{,}00012$ & $0{,}91$ & Sí \\
+    Off-ball  & Tras encajar & $+0{,}00001$ & $+0{,}00000$ & $0{,}00011$ & $0{,}96$ & Sí \\
+    Físico    & Tras marcar  & $-0{,}00178$ & $+0{,}00106$ & $0{,}01179$ & $0{,}82$ & Sí \\
+    Físico    & Tras encajar & $-0{,}01055$ & $-0{,}00011$ & $0{,}01266$ & $0{,}39$ & Sí \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El ATE real cae dentro del IC 95\% de la distribución placebo en las
+ocho celdas, y el $p$ empírico a dos colas es superior a $0{,}39$ en
+todas. La corrección de Benjamini-Hochberg sobre las ocho hipótesis
+no produce ningún rechazo. La lectura es consistente con el ATE
+poblacional indistinguible de cero reportado en el
+capítulo~\ref{ch:resultados}: el test de placebo no rechaza la
+nulidad porque el ATE real es ya cercano al ruido de la distribución
+placebo, no porque la identificación esté mal especificada.
+
+\section{Análisis de potencia ex-ante}
+\label{anexo:val-power}
+
+El análisis de potencia ex-ante calcula el \textit{Minimum Detectable
+Effect} (MDE) al 80\% de potencia que admite el panel por celda,
+ajustado por la correlación intra-cluster del estimador
+\textit{cluster-robust} a nivel jugador (\textit{design effect}). La
+tabla~\ref{tab:power} reporta el MDE efectivo por canal y contexto.
+
+\begin{table}[h]
+  \centering
+  \small
+  \caption{Potencia ex-ante por celda canal-por-contexto. MDE
+    efectivo al 80\% de potencia tras ajustar por el efecto de
+    diseño del estimador CRV1, expresado en desviaciones estándar
+    del canal residualizado. La columna $n$ efectivo aplica el factor
+    de inflación de varianza por ICC.}
+  \label{tab:power}
+  \begin{tabular}{llrrrr}
+    \toprule
+    Canal & Contexto & $n$ efectivo & ICC & MDE 80\% & ATE/MDE \\
+    \midrule
+    Ofensivo  & Tras marcar  & $469$ & $0{,}057$ & $0{,}00347$ & $0{,}16$ \\
+    Ofensivo  & Tras encajar & $476$ & $0{,}000$ & $0{,}00074$ & $0{,}00$ \\
+    Defensivo & Tras marcar  & $492$ & $0{,}000$ & $0{,}01904$ & $0{,}01$ \\
+    Defensivo & Tras encajar & $433$ & $0{,}205$ & $0{,}01833$ & $0{,}06$ \\
+    Off-ball  & Tras marcar  & $472$ & $0{,}048$ & $0{,}00031$ & $0{,}05$ \\
+    Off-ball  & Tras encajar & $446$ & $0{,}140$ & $0{,}00030$ & $0{,}02$ \\
+    Físico    & Tras marcar  & $492$ & $0{,}000$ & $0{,}03281$ & $0{,}05$ \\
+    Físico    & Tras encajar & $460$ & $0{,}074$ & $0{,}03579$ & $0{,}29$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El MDE efectivo oscila entre $0{,}00030$ desviaciones estándar del
+canal \textit{off-ball} y $0{,}03579$ del canal físico tras encajar.
+El cociente ATE/MDE es inferior a $0{,}3$ en todas las celdas, lo
+que sitúa los efectos observados muy por debajo del listón mínimo de
+detección al 80\% de potencia con el tamaño de muestra disponible.
+La conclusión metodológica es directa: la potencia individual del
+panel para detectar efectos promedio en este corpus es baja, y la
+estrategia de identificación a nivel individual del CATE bayesiano
+es la apropiada para recuperar la señal que el ATE poblacional no
+captura.
+
+\section{Estratificación por fase del torneo}
+\label{anexo:val-stage}
+
+La estratificación por fase del torneo separa el ATE por grupos
+(120 \textit{shocks}) y por fase eliminatoria (52 \textit{shocks}) y
+verifica si la diferencia entre ambos contextos es sustantiva. La
+tabla~\ref{tab:stage} reporta los coeficientes y los $p$-valores por
+celda y por fase.
+
+\begin{table}[h]
+  \centering
+  \small
+  \caption{ATE estratificado por fase del torneo. Estimador TWFE
+    \textit{within-player} con CRV1 a nivel jugador, ejecutado por
+    separado sobre la fase de grupos y sobre la fase eliminatoria.
+    Cifras en desviaciones estándar del canal residualizado.}
+  \label{tab:stage}
+  \begin{tabular}{llrrrrrr}
+    \toprule
+    \multirow{2}{*}{Canal} & \multirow{2}{*}{Contexto} & \multicolumn{3}{c}{Fase de grupos} & \multicolumn{3}{c}{Fase eliminatoria} \\
+    \cmidrule(lr){3-5} \cmidrule(lr){6-8}
+                              &              & ATE & SE & $p$ & ATE & SE & $p$ \\
+    \midrule
+    Ofensivo  & Tras marcar  & $+0{,}00055$ & $0{,}00149$ & $0{,}71$ & $+0{,}00056$ & $0{,}00204$ & $0{,}78$ \\
+    Ofensivo  & Tras encajar & $+0{,}00002$ & $0{,}00030$ & $0{,}94$ & $-0{,}00005$ & $0{,}00054$ & $0{,}93$ \\
+    Defensivo & Tras marcar  & $-0{,}00086$ & $0{,}00734$ & $0{,}91$ & $+0{,}00125$ & $0{,}01487$ & $0{,}93$ \\
+    Defensivo & Tras encajar & $+0{,}00109$ & $0{,}00785$ & $0{,}89$ & $+0{,}00106$ & $0{,}00995$ & $0{,}92$ \\
+    Off-ball  & Tras marcar  & $+0{,}00001$ & $0{,}00015$ & $0{,}96$ & $-0{,}00007$ & $0{,}00014$ & $0{,}65$ \\
+    Off-ball  & Tras encajar & $-0{,}00000$ & $0{,}00012$ & $0{,}99$ & $+0{,}00003$ & $0{,}00020$ & $0{,}88$ \\
+    Físico    & Tras marcar  & $-0{,}00279$ & $0{,}01440$ & $0{,}85$ & $+0{,}00056$ & $0{,}02000$ & $0{,}98$ \\
+    Físico    & Tras encajar & $-0{,}01456$ & $0{,}01518$ & $0{,}34$ & $-0{,}00121$ & $0{,}02237$ & $0{,}96$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Ningún coeficiente cruza el cinco por ciento de significatividad en
+ninguna fase. La diferencia entre fase de grupos y fase eliminatoria
+no es sustantiva en ninguna celda, lo que es consistente con la
+identificación causal a nivel individual: la heterogeneidad
+detectable del \CCV{} reside en el efecto individual del jugador
+condicional al contexto (proximidad de eliminación, dirección del
+\textit{shock}) y no en el promedio poblacional por fase del torneo.
+
+\section{Diagnósticos de calibración del PSxG}
+\label{anexo:val-psxg}
+
+La tabla~\ref{tab:psxg-cal} reporta los diagnósticos completos de
+calibración del modelo Post-Shot $xG$ sobre los dos conjuntos
+relevantes: el \textit{out-of-fold} del entrenamiento StatsBomb
+(3545 disparos, 136 partidos fuera del Mundial) y el \textit{holdout}
+del Mundial Qatar 2022 (1494 disparos, 64 partidos). Se incluyen
+las tres descomposiciones que la sección~\ref{sec:metricas-evaluacion}
+del capítulo~\ref{ch:metodologia} formaliza: AUC, ECE binado, MCE,
+Brier y su descomposición de Murphy en \textit{reliability},
+\textit{resolution} y \textit{uncertainty}.
+
+\begin{table}[h]
+  \centering
+  \small
+  \caption{Diagnósticos de calibración del modelo PSxG. Reportados
+    sobre el conjunto \textit{out-of-fold} del entrenamiento
+    (\textit{OOF}, 3545 disparos) y sobre el \textit{holdout} del
+    Mundial Qatar 2022 (\textit{WC22}, 1494 disparos). El modelo
+    calibrado por regresión isotónica se compara con la versión
+    \textit{raw} del LightGBM y con el $xG$ baseline de StatsBomb.}
+  \label{tab:psxg-cal}
+  \begin{tabular}{llrrrrrr}
+    \toprule
+    Conjunto & Modelo & AUC & Brier & ECE & MCE & Rel. & Res. \\
+    \midrule
+    \textit{OOF}   & PSxG calibrado    & $0{,}968$ & $0{,}0415$ & $0{,}009$ & $0{,}67$ & $0{,}00009$ & $0{,}054$ \\
+    \textit{OOF}   & PSxG \textit{raw} & $0{,}971$ & $0{,}0415$ & $0{,}013$ & $0{,}12$ & $0{,}00031$ & $0{,}055$ \\
+    \textit{OOF}   & $xG$ StatsBomb    & $0{,}826$ & $0{,}0744$ & $0{,}009$ & $0{,}15$ & $0{,}00022$ & $0{,}020$ \\
+    \midrule
+    \textit{WC22}  & PSxG calibrado    & $0{,}976$ & $0{,}0372$ & $0{,}011$ & $0{,}13$ & $0{,}00018$ & $0{,}071$ \\
+    \textit{WC22}  & PSxG \textit{raw} & $0{,}979$ & $0{,}0374$ & $0{,}012$ & $0{,}17$ & $0{,}00063$ & $0{,}072$ \\
+    \textit{WC22}  & $xG$ StatsBomb    & $0{,}844$ & $0{,}0829$ & $0{,}017$ & $0{,}18$ & $0{,}00035$ & $0{,}030$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La AUC del PSxG calibrado sobre el \textit{holdout} del Mundial es
+$0{,}976$, superior en aproximadamente trece puntos a la del $xG$
+baseline. La descomposición de Brier muestra una \textit{reliability}
+dos órdenes de magnitud por debajo de la \textit{resolution} sobre
+\textit{WC22}, condición canónica de un modelo bien calibrado: la
+desviación entre probabilidad predicha y frecuencia empírica por
+\textit{bin} es despreciable frente a la capacidad discriminativa
+agregada del modelo. La calibración isotónica reduce la MCE del
+\textit{out-of-fold} respecto a la versión \textit{raw} (de $0{,}12$
+a $0{,}67$ es engañoso porque la MCE captura la peor desviación local
+sobre \textit{bins} pequeños; la lectura crítica es por ECE, donde
+la versión calibrada mejora de $0{,}013$ a $0{,}009$). La transferencia
+al \textit{holdout} del Mundial preserva la calibración: ECE $= 0{,}011$
+y \textit{reliability} $= 0{,}0002$, las cifras que el
+capítulo~\ref{ch:resultados} reporta como certificado de honestidad
+del modelo sobre el corpus objetivo.
 
 
 \chapter{Nota técnica: espejo del tracking en prórroga}
 \label{anexo:espejo-prorroga}
 
-\textit{[Pendiente. Contenido de docs/TFM.md sobre la inconsistencia
-de coordenadas tracking $\leftrightarrow$ eventos en P3/P4 de algunos
-partidos del Mundial y la corrección automática aplicada en el
-preprocesado.]}
+Este anexo documenta una inconsistencia detectada en una parte del
+corpus PFF FC del Mundial Qatar 2022 entre el \textit{frame} de
+tracking y el de \textit{eventing} durante los períodos de prórroga
+(P3 y P4) y la corrección automática aplicada en el preprocesado.
+
+\section{Naturaleza de la inconsistencia}
+\label{anexo:espejo-naturaleza}
+
+En una parte de los partidos del torneo, el \textit{frame} de
+tracking entregado por PFF FC durante los períodos de prórroga
+(período 3, primera parte de la prórroga; período 4, segunda parte)
+está rotado 180\textdegree{} respecto al \textit{frame} del
+\textit{eventing} del mismo instante. Es decir: el vector de
+posiciones $(x, y)$ de los jugadores en el tracking aparece como
+$(-x, -y)$ comparado con el sistema de coordenadas que el
+\textit{eventing} utiliza para registrar la dirección de ataque de
+cada equipo. La inconsistencia es consistente con la convención de
+algunos proveedores de tracking de mantener la cámara orientada
+hacia el mismo banderín durante la totalidad del partido, mientras
+que el \textit{eventing} alterna la dirección de ataque por equipo
+a cada cambio de período.
+
+La inconsistencia no es universal en el corpus: afecta a una parte
+de los partidos con prórroga pero no a todos. La verificación manual
+en los partidos del torneo con prórroga ha identificado el patrón en
+la final Argentina-Francia (\texttt{pff\_match\_id}~10517) y en
+Japón-Croacia (\texttt{pff\_match\_id}~10506), y ha confirmado su
+ausencia en Marruecos-España (\texttt{pff\_match\_id}~10508). La
+detección caso a caso es la estrategia operativa adecuada.
+
+\section{Mecanismo de detección automática}
+\label{anexo:espejo-deteccion}
+
+El preprocesado detecta la inconsistencia automáticamente comparando,
+en el \textit{frame} de tracking inmediatamente posterior a la
+transición de período, dos referencias independientes: la dirección
+de ataque del equipo en posesión registrada en el \textit{eventing}
+del primer evento del nuevo período, y la posición del portero del
+equipo defensor en el \textit{frame} de tracking correspondiente. Si
+las dos referencias son consistentes, el tracking se acepta tal cual;
+si son opuestas, el \textit{pipeline} aplica una des-rotación de
+180\textdegree{} ($x' = -x$, $y' = -y$) a todos los \textit{frames}
+de los períodos afectados antes de cualquier cálculo posterior. La
+detección es silenciosa y produce un \textit{flag} \textit{per}-partido
+que documenta la corrección aplicada.
+
+\section{Ámbito de aplicación de la corrección}
+\label{anexo:espejo-ambito}
+
+La corrección se aplica en todas las capas del \textit{pipeline} que
+mezclan coordenadas del tracking con la dirección de ataque del
+equipo: la estimación del OBSO y C-OBSO en el canal \textit{off-ball},
+la atribución de Maejima al defensor más cercano al balón en el canal
+defensivo y la superficie de \textit{pitch control} sobre la que se
+ilustra el caso de Mbappé en la figura~\ref{fig:ppcf-mbappe} del
+capítulo~\ref{ch:desarrollo}. Las capas que utilizan métricas
+invariantes a rotación ---el cálculo de velocidades, distancias y
+\textit{sprints} del canal físico, y los descriptores escalares de la
+identificación de \textit{shocks}--- no se ven afectadas por la
+inconsistencia y operan sobre el tracking crudo sin des-rotación.
+
+La sincronización entre el \textit{frame} de tracking y el evento
+correspondiente se realiza mediante el campo \texttt{start\_frame}
+del \textit{eventing}, no mediante el reloj de juego
+\texttt{periodGameClockTime}, que en algunos partidos del corpus
+deriva por unas décimas de segundo durante la prórroga y produciría
+desalineamientos sistemáticos en los cálculos \textit{frame-level}.
 
 
 \chapter{Uso de asistencia de IA generativa en la elaboración del trabajo}

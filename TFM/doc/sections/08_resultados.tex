@@ -125,6 +125,57 @@ máxima desviación pre-tratamiento observada.
 \section{Efecto poblacional medio del shock}
 \label{sec:res-ate-poblacional}
 
+Antes de reportar los coeficientes causales, la
+tabla~\ref{tab:corpus-shocks} describe la composición del corpus de
+\textit{shocks} sobre el que se estiman. El torneo aporta 172
+\textit{shocks} de gol únicos repartidos en 64 partidos, con sesgo
+hacia la fase de grupos por volumen ---más partidos por equipo--- y
+hacia los minutos centrales y finales de cada parte. La mitad de los
+\textit{shocks} comparten ventana con otro \textit{shock} del mismo
+partido, lo que motiva la decisión de no excluir las ventanas
+solapadas y de absorber esa contaminación dentro de los efectos fijos
+del estimador. Una quinta parte de los \textit{shocks} tiene la
+ventana pre o post recortada por el inicio o el fin del partido o por
+una transición de período, condición que el estimador DiD descarta
+sólo cuando afecta a la ventana post.
+
+\begin{table}[h]
+  \centering
+  \small
+  \caption{Composición del corpus de \textit{shocks} del Mundial Qatar
+    2022. Sobre 64 partidos, 172 \textit{shocks} únicos de gol válido
+    (excluyendo tantos de tanda de penaltis y goles anulados). Cada
+    fila reporta el conteo absoluto y el porcentaje sobre el total.}
+  \label{tab:corpus-shocks}
+  \begin{tabular}{llrr}
+    \toprule
+    Dimensión & Categoría & $n$ & \% \\
+    \midrule
+    Fase & Grupos        & 120 & 69{,}8 \\
+         & Eliminatoria  &  52 & 30{,}2 \\
+    \midrule
+    Período & P1 (regulación, 1\textsuperscript{a} parte)  &  67 & 39{,}0 \\
+            & P2 (regulación, 2\textsuperscript{a} parte)  & 101 & 58{,}7 \\
+            & P3+P4 (prórroga)                              &   4 &  2{,}3 \\
+    \midrule
+    Bucket minuto & 1--15  & 16 &  9{,}3 \\
+                  & 16--30 & 17 &  9{,}9 \\
+                  & 31--45 & 33 & 19{,}2 \\
+                  & 46--60 & 31 & 18{,}0 \\
+                  & 61--75 & 31 & 18{,}0 \\
+                  & 76--90 & 27 & 15{,}7 \\
+                  & 91--120 & 17 &  9{,}9 \\
+    \midrule
+    \textit{Flags} de ventana  & Solapamiento con otro \textit{shock} & 86 & 50{,}0 \\
+                               & Ventana pre truncada                  & 34 & 19{,}8 \\
+                               & Sustitución en ventana                & 32 & 18{,}6 \\
+                               & Ventana post truncada                 & 30 & 17{,}4 \\
+                               & Tiempo extra (\textit{flag})          &  4 &  2{,}3 \\
+                               & Gol en propia puerta                  &  3 &  1{,}7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 El ATE poblacional del
 \textit{shock} sobre el delta relativo al bloque del propio equipo,
 estimado por DiD \textit{within-player} con errores estándar
@@ -239,6 +290,52 @@ donde el efecto individual está dentro del ruido del estimador.
     individual está dentro del ruido del estimador.}
   \label{fig:scatter-remontador-cerrojo}
 \end{figure}
+
+La tabla~\ref{tab:sig-por-celda} resume el conteo de jugadores
+significativos en cada una de las ocho celdas canal-por-contexto y en
+los tres umbrales del índice \textit{pressure-clutch}. La señal
+individual se concentra en dos celdas: el canal ofensivo tras marcar
+(22 jugadores) y la respuesta a la proximidad de eliminación (entre
+4 y 10 según el umbral). Las seis celdas restantes son
+\textit{inconclusive} para todos los jugadores del corpus, lo que es
+consistente con la heterogeneidad reportada en la sección anterior:
+las celdas con $\sigma$ del CATE individual más pequeño concentran
+poca señal por jugador y, en consecuencia, no producen
+significatividad posterior individual con $N=172$ \textit{shocks}. La
+discusión operativa de esta asimetría se retoma en el
+capítulo~\ref{ch:discusion}.
+
+\begin{table}[h]
+  \centering
+  \small
+  \caption{Jugadores significativos en cada celda canal-por-contexto
+    sobre el corpus completo del \CCV (511 jugadores). La
+    significatividad se define en cada celda sobre la probabilidad
+    posterior $P(\beta > 0 \mid \text{datos})$: efecto positivo (PRO)
+    si la probabilidad cruza el umbral hacia arriba, efecto negativo
+    (ANTI) si la cruza hacia abajo. Para las celdas canal-por-contexto
+    el umbral es $0{,}85$; el índice \textit{pressure-clutch} se
+    reporta a tres niveles ($0{,}80$, $0{,}85$, $0{,}95$).}
+  \label{tab:sig-por-celda}
+  \begin{tabular}{llrrr}
+    \toprule
+    Canal & Contexto & PRO & ANTI & Total \\
+    \midrule
+    Ofensivo   & Tras encajar &  0 &  0 &  0 \\
+    Ofensivo   & Tras marcar  &  5 & 17 & 22 \\
+    Defensivo  & Tras encajar &  0 &  0 &  0 \\
+    Defensivo  & Tras marcar  &  0 &  0 &  0 \\
+    Off-ball   & Tras encajar &  0 &  0 &  0 \\
+    Off-ball   & Tras marcar  &  0 &  0 &  0 \\
+    Físico     & Tras encajar &  0 &  0 &  0 \\
+    Físico     & Tras marcar  &  0 &  0 &  0 \\
+    \midrule
+    \multicolumn{2}{l}{\textit{Pressure-clutch} (umbral $0{,}80$)}      &  6 &  4 & 10 \\
+    \multicolumn{2}{l}{\textit{Pressure-clutch} (umbral $0{,}85$)}      &  3 &  1 &  4 \\
+    \multicolumn{2}{l}{\textit{Pressure-clutch} (umbral $0{,}95$)}      &  1 &  0 &  1 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 Los jugadores con efecto significativo en el contexto de proximidad
 de eliminación alta ---el indicador \textit{pressure-clutch} del

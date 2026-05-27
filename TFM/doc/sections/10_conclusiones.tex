@@ -6,12 +6,167 @@
 
 \section{Conclusiones generales}
 \label{sec:conclusiones-generales}
-\textit{[Pendiente.]}
+
+Este trabajo se planteó la pregunta de si la respuesta del jugador a
+los \textit{shocks} emocionales del partido ---el gol a favor, el
+gol en contra y la proximidad de eliminación--- puede estimarse
+causalmente a nivel individual, residualizada contra el patrón
+colectivo de su propio equipo, sobre los cuatro canales del
+rendimiento. La memoria propone el marco \CCV{} (Causal Clutch Value),
+lo aplica al Mundial Qatar 2022 con datos PFF FC y produce una
+tabla \textit{scout-facing} por jugador, canal y contexto con
+cuantificación de la incertidumbre individual. El trabajo cierra con
+cuatro conclusiones sustantivas.
+
+La primera es que la identificación causal del efecto del
+\textit{shock} a nivel individual es viable sobre un corpus
+relativamente pequeño ---172 \textit{shocks} de gol en 64 partidos---
+cuando descansa sobre la composición de cinco capas: contraste
+temporal pre/post del mismo jugador, efectos fijos jugador-\textit{shock}
+en el DiD, residualización \textit{leave-one-out} contra el bloque,
+cuasi-experimento \textit{near-miss} como triangulación independiente
+y AIPW con \textit{cross-fitting} para confounders observables. Sin
+la combinación, el efecto agregado del equipo se confunde con el
+efecto individual del jugador; con ella, el estimador recupera la
+respuesta propia del jugador neta del empuje colectivo del bloque.
+
+La segunda es que la pregunta de investigación tiene respuesta
+empírica diferenciada según la dimensión sobre la que se proyecta.
+En la dimensión de proximidad de eliminación, cuatro jugadores cruzan
+el umbral de significatividad ---Mbappé, Rashford y Saka con efecto
+positivo, Muntari con efecto negativo--- y la identificación es
+estable con el corpus disponible. En la celda canal-específica
+ofensivo-tras-marcar, veintidós jugadores presentan respuesta
+significativa, repartidos entre cinco con efecto positivo y diecisiete
+con efecto negativo. Las seis celdas canal-por-contexto restantes son
+indistinguibles de cero a nivel individual con el tamaño de muestra
+disponible. El ATE poblacional sobre las ocho celdas es indistinguible
+de cero al cinco por ciento, lo que es metodológicamente coherente con
+la heterogeneidad individual reportada en el CATE: el efecto promedio
+es cero porque los efectos individuales de signos opuestos se cancelan
+al agregarlos, no porque esos efectos individuales no existan.
+
+La tercera es que el marco recoge una propiedad parcialmente alineada
+con la valoración humana experta. La correlación de Spearman entre
+las puntuaciones del \CCV y el \textit{grade} humano PFF agregado por
+jugador, sobre los 166 jugadores con muestra fiable, es positiva y
+estadísticamente significativa en el canal \textit{off-ball}
+($\rho = +0{,}211$, sig. al uno por ciento) y en el índice Remontador
+($\rho = +0{,}177$, sig. al cinco por ciento), y no se distingue de
+cero en el resto. La heterogeneidad por canal es coherente con la
+naturaleza asimétrica de las dos medidas: el \textit{grade} humano
+es una evaluación global del partido, mientras que los canales del
+\CCV son métricas residualizadas contra el bloque por minuto y por
+\textit{shock}.
+
+La cuarta es metodológica. El \CCV{} integra nueve bloques que la
+literatura aplicada había desarrollado por separado ---WP bayesiana,
+\textit{atomic}-VAEP, \textit{un-xPass}, VDEP estricto,
+\textit{exPress}, atribución Maejima, OBSO, C-OBSO y protocolo
+físico Bradley--- sobre una identificación causal dual con cinco
+capas conjuntas. El marco es portable a cualquier corpus que reúna
+la combinación de \textit{eventing} sincronizado con tracking a alta
+frecuencia, cobertura completa de fase eliminatoria y \textit{grades}
+humanos por evento; la aplicación al Mundial Qatar 2022 funciona
+como prueba técnica de concepto, no como objetivo en sí. La
+contribución sustantiva del trabajo no son los nombres concretos de
+los jugadores identificados ---que son una propiedad del torneo,
+no del jugador como rasgo estable--- sino la composición metodológica
+que permite estimarlos causalmente y reportarlos con cuantificación
+de la incertidumbre.
+
 
 \section{Limitaciones}
 \label{sec:limitaciones}
-\textit{[Pendiente. Absorbe contenido de docs/limitations.md.]}
+
+El trabajo está sujeto a tres limitaciones declaradas en detalle en
+el anexo~\ref{anexo:limitaciones} y discutidas en el
+capítulo~\ref{ch:discusion}.
+
+La primera es la cobertura limitada al Mundial Qatar 2022. La
+aplicación del \CCV se restringe a este corpus porque es el único
+público que combina simultáneamente \textit{eventing} sincronizado
+con tracking a 25\,Hz, cobertura completa de fase eliminatoria con
+prórroga incluida y \textit{grades} humanos por evento. Las
+propiedades individuales identificadas corresponden al comportamiento
+de los jugadores en este torneo concreto y no son una predicción de
+su comportamiento en otros contextos competitivos ni una validación
+de su perfil \textit{clutch} como rasgo estable a través de torneos.
+
+La segunda es la implementación propia de los \textit{building blocks}
+distintos a \textit{atomic}-VAEP. El canal ofensivo utiliza la
+librería oficial \texttt{socceraction} 1.5.3, mantenida por los
+autores originales y validada en la literatura aplicada. Los demás
+bloques ---PPCF, C-OBSO, VDEP estricto, \textit{exPress} y atribución
+Maejima--- son reimplementaciones propias derivadas de la lectura
+directa de los \textit{papers} originales, validadas mediante
+reproducción de cifras agregadas publicadas y comparación con
+\textit{outputs} de proveedores comerciales cuando existe solapamiento.
+El nivel de validación es razonable para un trabajo individual de
+máster, pero no equivale al grado de madurez ni de adopción
+comunitaria de una librería oficial mantenida.
+
+La tercera es la potencia limitada del brazo \textit{near-miss} para
+identificación causal a nivel individual. El corpus efectivo de
+\textit{near-misses} sobre las cinco tipologías pre-registradas
+restringe la triangulación con el DiD al nivel agregado, dejando la
+verificación cruzada rigurosa por jugador como una línea futura.
+
 
 \section{Líneas futuras}
 \label{sec:lineas-futuras}
-\textit{[Pendiente.]}
+
+El trabajo abre cinco líneas concretas de extensión.
+
+La primera es la replicación del \textit{pipeline} sobre corpus
+adicionales con la misma estructura. La liberación abierta de
+\textit{eventing} más tracking sobre la Eurocopa 2024, los partidos
+de eliminatoria de la \textit{Champions League} o el próximo Mundial
+permitiría estudiar la estabilidad temporal de la propiedad
+\textit{clutch} a nivel individual: si Mbappé es identificado como
+\textit{pressure-clutch} en el Mundial 2022, la pregunta operativa
+es si lo sería también sobre torneos posteriores. La condición
+técnica para replicar el marco es la disponibilidad de los cuatro
+ingredientes que el corpus PFF reúne; cualquier proveedor que abra
+una combinación equivalente permite recalibrar el \textit{pipeline}
+sin cambios estructurales.
+
+La segunda es la ampliación del corpus de \textit{near-miss} para
+recuperar potencia individual del brazo causal complementario. La
+estrategia conservadora del trabajo prioriza el DiD
+\textit{within-player} como brazo principal porque el corpus de
+\textit{near-misses} efectivos sobre 64 partidos es reducido. Un
+corpus multitorneo con \textit{near-misses} acumulados sobre varios
+cientos de partidos permitiría ejecutar la triangulación DiD
+$\leftrightarrow$ AIPW rigurosamente a nivel jugador, no sólo
+agregado, y reportar la coincidencia de signo y magnitud por
+jugador entre los dos brazos.
+
+La tercera es la integración del CATE con los \textit{grades}
+humanos PFF de forma más profunda que la correlación de Spearman
+reportada. Un modelo conjunto que trate los \textit{grades} como
+señal auxiliar dentro de la verosimilitud bayesiana del CATE
+---en lugar de como \textit{prior} factor de escala--- permitiría
+una calibración semi-supervisada de los efectos individuales sobre
+los canales con menor señal endógena en el tracking, especialmente
+defensivo y \textit{off-ball}.
+
+La cuarta es la extensión temporal de la ventana de análisis al
+canal físico. El presente trabajo mantiene $\pm 10$ minutos como
+horizonte de referencia por su correspondencia con la duración del
+\textit{shock} emocional descrita en la psicología del deporte. Los
+efectos físicos significativos detectados a $\pm 15$ minutos
+($+0{,}053$ desviaciones estándar tras marcar con $p = 0{,}0002$)
+sugieren una respuesta diferida que merece análisis dedicado con
+ventanas adaptativas por canal.
+
+La quinta es la portabilidad del marco a la valoración de equipos
+en lugar de jugadores. El delta colectivo del bloque ---la cantidad
+que el \textit{leave-one-out} resta de la respuesta individual--- es
+en sí mismo una métrica de interés: cuantifica cómo reacciona el
+bloque a un \textit{shock} antes de individualizar la respuesta. La
+agregación del \CCV a nivel de equipo, con la misma maquinaria
+causal aplicada al delta colectivo en lugar del idiosincrásico,
+produciría una métrica de identidad reactiva por equipo
+---``\textit{clutch} del bloque''--- que complementa de forma natural
+la lectura por jugador del trabajo actual.
