@@ -25,9 +25,8 @@ con datos PFF FC como prueba técnica.
 \label{sec:objetivos-especificos}
 
 Cada objetivo específico responde a una pregunta de investigación (RQ)
-formulada en el anteproyecto del trabajo y se mapea sobre un bloque
-concreto del \emph{pipeline} de implementación descrito en el
-capítulo~\ref{ch:desarrollo}.
+y se mapea sobre un bloque concreto del \emph{pipeline} de
+implementación descrito en el capítulo~\ref{ch:desarrollo}.
 
 \paragraph{OE1 (RQ1) --- \textit{Backbone} temporal.}
 Construir la capa que modula continuamente el contexto del \textit{shock}.
@@ -62,17 +61,15 @@ bloque colectivo.
 
 \paragraph{OE4 (RQ4) --- Triangulación causal.}
 Estimar el efecto causal del \textit{shock} mediante dos estrategias
-independientes sobre el delta relativo al bloque. La primera es una DiD
-\textit{within-player} con efectos fijos, contrastada contra los
-estimadores modernos para tratamientos pulsados
-\parencite{SunAbraham2021,BorusyakJaravelSpiess2024} y robustecida con
-las cotas \textit{HonestDiD} \parencite{RambachanRoth2023}. La segunda es
-un AIPW (\textit{Augmented Inverse Probability Weighting}) doblemente
-robusto con \textit{cross-fitting} sobre el corpus de \textit{near-miss}
-\parencite{GauriotPage2019}, comparado internamente contra
-DML (\textit{Double/Debiased Machine Learning}) \textit{Partially Linear
-Regression}, el DR-\textit{learner} (doblemente robusto) y un RDD
-(\textit{Regression Discontinuity Design}) local-lineal sobre $xG$.
+independientes sobre el delta relativo al bloque. La primera es una
+DiD \textit{within-player} con efectos fijos, contrastada contra los
+estimadores modernos para tratamientos pulsados robustos a
+heterogeneidad. La segunda es un AIPW (\textit{Augmented Inverse
+Probability Weighting}) doblemente robusto con \textit{cross-fitting}
+sobre el corpus de \textit{near-miss}, comparado internamente contra
+DML (\textit{Double/Debiased Machine Learning}) \textit{Partially
+Linear Regression}, el DR-\textit{learner} (doblemente robusto) y un
+RDD (\textit{Regression Discontinuity Design}) local-lineal sobre $xG$.
 
 \paragraph{OE5 (RQ5) --- CATE jerárquico y tabla \textit{scout-facing}.}
 Estimar el efecto heterogéneo por jugador con un CATE jerárquico bayesiano

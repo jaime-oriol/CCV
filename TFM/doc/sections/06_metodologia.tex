@@ -31,17 +31,11 @@ metodológicas que conectan unas con otras.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{fig_cap4_pipeline_dag}
-  \caption{\textit{Pipeline} del \CCV en cinco fases. La fase 1 extrae
-    los eventos y el tracking a parquet; la fase 2 construye la
-    \textit{backbone} temporal de \textit{Win Probability}; la fase 3
-    identifica los \textit{shocks} de gol con su ventana pre/post y
-    construye el corpus de \textit{near-misses}; la fase 4 cuantifica
-    el rendimiento en los cuatro canales; la fase 5 cierra con la
-    identificación causal, el CATE jerárquico bayesiano y el ensamblaje
-    de la tabla \textit{scout-facing}. La anotación
-    \textit{pre/post window} marca la transición de la fase 3 a la 4
-    y la anotación \textit{leave-one-out residualization} marca la
-    transición de la fase 4 a la 5.}
+  \caption{\textit{Pipeline} del \CCV en cinco fases: extracción,
+    \textit{backbone} temporal de WP, identificación de
+    \textit{shocks} y corpus de \textit{near-miss}, cuantificación
+    por canal, e identificación causal con CATE y ensamblaje
+    \textit{scout-facing}.}
   \label{fig:pipeline-dag}
 \end{figure}
 
@@ -49,7 +43,7 @@ metodológicas que conectan unas con otras.
 Los eventos PFF FC en formato JSON y el tracking a 25\,Hz en formato
 \textit{JSON Lines} comprimido se extraen a parquet con tipos anidados
 \textit{lossless}. Sobre ese cache se calculan tres normalizaciones
-nucleares que el resto del \textit{pipeline} asume: la dirección de
+de base que el resto del \textit{pipeline} asume: la dirección de
 ataque de cada equipo por período (para normalizar coordenadas de
 tracking respecto al sentido del ataque), la línea temporal de goles
 válidos (excluyendo goles anulados y tantos de la tanda de penaltis) y
@@ -167,11 +161,11 @@ la endogeneidad asociada a que los goles los marquen los equipos que
 ya iban dominando el partido. La quinta es el AIPW con
 \textit{cross-fitting}, que controla los \textit{confounders}
 observables ---minuto de partido, diferencia de marcador, fuerza del
-rival y fase del torneo--- bajo doble robustez. Sin la composición de
-las cinco capas, el efecto agregado del equipo se confundiría con el
-efecto individual del jugador; con ellas, lo que el estimador recupera
-es la respuesta propia del jugador al \textit{shock}, neta del patrón
-colectivo del bloque.
+rival y fase del torneo--- bajo doble robustez. Si falta cualquiera
+de las cinco capas el efecto del equipo se confunde con el del
+jugador; con las cinco juntas, lo que el estimador recupera es la
+respuesta propia del jugador, descontado el patrón colectivo del
+bloque.
 
 \subsection{Notación de los deltas individual, colectivo y relativo}
 
@@ -206,16 +200,15 @@ referencia, es
 \Delta^{\text{team}}_{i,s,k} \;=\; \frac{1}{|\mathcal{T}_{i,s}| - 1} \sum_{j \in \mathcal{T}_{i,s} \setminus \{i\}} \left( \bar{Y}^{\text{post}}_{j,s,k} - \bar{Y}^{\text{pre}}_{j,s,k} \right).
 \]
 
-El delta relativo, que es la cantidad que el \CCV estima
-causalmente, es
+El delta relativo, sobre el que el \CCV estima causalmente, es
 
 \[
 \Delta^{\text{rel}}_{i,s,k} \;=\; \Delta^{\text{player}}_{i,s,k} - \Delta^{\text{team}}_{i,s,k}.
 \]
 
-Esta cantidad recoge la respuesta individual del jugador, neta del
-movimiento colectivo de su bloque, en el canal $k$ tras el
-\textit{shock} $s$.
+Mide la respuesta individual del jugador en el canal $k$ tras el
+\textit{shock} $s$, una vez descontado el movimiento colectivo de su
+bloque.
 
 \subsection{Diferencias-en-diferencias \textit{within-player}}
 
@@ -349,10 +342,9 @@ para acomodar la geometría LKJ y la estructura jerárquica.
 
 El trabajo utiliza tres fuentes de datos, todas extraídas a parquet
 con tipos anidados y verificación \textit{round-trip lossless} antes
-de cualquier análisis. La separación entre datos de entrenamiento y
-datos de evaluación del Mundial Qatar 2022 es la condición fundamental
-de validez metodológica del trabajo y se aplica sin excepciones en
-todo el \textit{pipeline}.
+de cualquier análisis. Ningún partido del Mundial Qatar 2022 entra
+en el entrenamiento de ningún modelo predictivo, sin excepciones a lo
+largo del \textit{pipeline}.
 
 El corpus objetivo es el Mundial Qatar 2022 con datos PFF FC
 \parencite{PFFFC2024Release}, liberado en abierto en septiembre de
@@ -586,5 +578,5 @@ efecto aleatorio bayesiano por jugador sea identificable--- y al
 menos noventa minutos jugados en el torneo. Un \textit{flag} explícito
 de \texttt{low\_sample} marca a los jugadores con menos de ocho
 \textit{shocks} o menos de doscientos setenta minutos jugados, cuyos
-intervalos de credibilidad son por construcción más anchos y cuyas
+intervalos de credibilidad son inevitablemente más anchos y cuyas
 estimaciones requieren lectura cautelosa.

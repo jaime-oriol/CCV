@@ -210,9 +210,10 @@ Sobre el mismo panel jugador-\textit{shock} se calcula la composición
 cada par $(i, s)$, el delta del bloque se evalúa promediando los
 deltas individuales de los compañeros de equipo en campo en el
 instante $t_s$, excluyendo explícitamente al jugador $i$ del cálculo.
-Este detalle es nuclear para la independencia formal del estimador
-causal: si el delta del bloque incluyera al propio jugador, el
-contraste perdería sentido por construcción.
+Si el delta del bloque incluyera al propio jugador, el contraste
+perdería sentido: el control no sería independiente del tratado, y
+ningún coeficiente posterior aislaría la respuesta individual del
+empuje colectivo.
 
 
 \section{Los cuatro canales del rendimiento}
@@ -297,15 +298,9 @@ canal \textit{off-ball} cuantifica el valor del movimiento sin balón.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{ppcf_mbappe_2_2_final}
-  \caption{Superficie de \textit{Potential Pitch Control Field} (PPCF)
-    en el instante del 2-2 que iguala la final Argentina-Francia
-    (Mundial Qatar 2022). Cada celda del campo está coloreada según
-    qué equipo tiene mayor probabilidad de controlar el balón si éste
-    apareciera en ese punto: rojo para Francia, azul para Argentina.
-    El balón aparece en la posición de disparo de Mbappé; los puntos
-    representan jugadores con su vector de velocidad. Esta superficie
-    es el factor PPCF($r, t$) del OBSO de \textcite{Spearman2018OBSO}
-    en el \textit{frame} de tracking PFF a 25\,Hz.}
+  \caption{Superficie PPCF en el 2-2 de la final Argentina-Francia,
+    instante del disparo de Mbappé. Rojo: control de Francia; azul:
+    control de Argentina. Tracking PFF a 25\,Hz.}
   \label{fig:ppcf-mbappe}
 \end{figure}
 
@@ -343,11 +338,10 @@ panel jugador-\textit{shock}-minuto. El estimador base es TWFE
 clásico con efectos fijos por par jugador-\textit{shock} y por minuto
 relativo al \textit{shock}, ajustado mediante el motor
 \texttt{pyfixest} en su variante de errores
-\textit{cluster-robust} CRV1 a nivel jugador. El cluster a nivel
-jugador es robusto y conservador frente a la opción de cluster
-bidimensional: la baja cobertura de partidos del torneo (64) hace que
-un cluster jugador-partido inflaría la varianza sin justificación
-estadística suficiente. Sobre el mismo panel se ejecutan los
+\textit{cluster-robust} CRV1 a nivel jugador. La alternativa de
+\textit{cluster} bidimensional jugador-partido inflaría la varianza
+con los 64 partidos del torneo sin ganancia estadística que lo
+justifique. Sobre el mismo panel se ejecutan los
 estimadores robustos a heterogeneidad de \textcite{SunAbraham2021} y
 \textcite{BorusyakJaravelSpiess2024} como verificación cruzada, y las
 cotas \textit{HonestDiD} de \textcite{RambachanRoth2023} para tres
@@ -376,18 +370,17 @@ robusto de \textcite{CalonicoCattaneoTitiunik2014}. La sensibilidad
 a \textit{confounding} no observado se reporta con las cotas de
 \textcite{CinelliHazlett2020} sobre el \textit{robustness value} y los
 \textit{impact parameters}. La triangulación entre el brazo DiD y el
-brazo \textit{near-miss} es el punto de robustez central del trabajo:
-si los dos coeficientes coinciden en signo y magnitud, el efecto
-causal se considera identificado; si divergen, la divergencia se
-reporta como cota superior del \textit{confounding} no controlado.
+brazo \textit{near-miss} sostiene el resultado: si los dos coeficientes
+coinciden en signo y magnitud, el efecto se considera identificado;
+si divergen, esa divergencia acota el \textit{confounding} no
+controlado por arriba.
 
 
 \section{CATE jerárquico bayesiano \textit{multivariate}}
 \label{sec:cate}
 
-La estimación del efecto heterogéneo por jugador es la capa que
-recoge la varianza individual que el ATE poblacional, indistinguible
-de cero, no captura. El modelo CATE jerárquico bayesiano
+La estimación del efecto heterogéneo por jugador captura la varianza
+individual que el ATE poblacional, indistinguible de cero, esconde. El modelo CATE jerárquico bayesiano
 \textit{multivariate} formalizado en la sección~\ref{sec:marco-teorico}
 se implementa en \texttt{numpyro} sobre JAX y se muestrea por NUTS
 HMC sobre cuatro cadenas independientes. La parametrización es
@@ -453,7 +446,7 @@ global del jugador en cada índice, su posición dentro de su
 \textit{bucket} posicional y un \textit{flag} \texttt{low\_sample}
 que marca explícitamente a los jugadores con menos de ocho
 \textit{shocks} observados o menos de doscientos setenta minutos
-jugados, cuyos intervalos son por construcción más anchos.
+jugados, cuyos intervalos son inevitablemente más anchos.
 
 Los filtros de identificabilidad se aplican como restricción de las
 filas elegibles para los \textit{rankings} y para las tablas

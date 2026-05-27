@@ -35,8 +35,8 @@ medir la parte táctica y técnica del rendimiento ---valor de cada
 pase, expectativa de gol por disparo, control de espacio en cada
 \textit{frame}--- pero la dimensión emocional del juego, pese a su
 peso en la narrativa y en la decisión, sigue siendo una de las menos
-medidas por los marcos analíticos disponibles. Este trabajo se sitúa
-exactamente en ese hueco.
+medidas por los marcos analíticos disponibles. Es ese hueco el que
+motiva el trabajo.
 
 Cada uno de esos seis goles es un \textit{shock} emocional con respuesta
 colectiva propia y no derivable del marcador. El 1-0 apenas movió el
@@ -45,20 +45,19 @@ campeona; el 2-1 de Mbappé condensó en menos de dos minutos un cambio
 de tono del partido. El equipo ganador no siempre se cerró ni el
 perdedor siempre apretó: cada bloque respondió a cada gol de forma
 distinta, en función del minuto, de la cercanía de eliminación, del tono
-del partido hasta ese instante y de su tipología táctica. Esa
-heterogeneidad colectiva es sistemática. El patrón colectivo
-\textit{post-shock} condiciona después el rendimiento
-individual y, por tanto, cualquier intento de medir \textit{clutch} a
-nivel jugador sin controlar por ese patrón colectivo termina mezclando
-dos señales distintas.
+del partido hasta ese instante y de su tipología táctica. La respuesta
+colectiva al gol cambia de un equipo a otro y de un momento a otro del
+mismo partido, y condiciona después el rendimiento individual: cualquier
+intento de medir \textit{clutch} a nivel jugador sin controlar por ese
+patrón colectivo termina mezclando dos señales distintas.
 
-Esa heterogeneidad colectiva obliga a separar dos preguntas
-\textit{clutch} distintas. La primera es una pregunta de equipo: cómo
-reacciona el bloque tras un gol, a favor o en contra ---si cierra atrás,
-sube líneas, presiona alto o se hunde---. La segunda es una pregunta de
-jugador: dentro de esa reacción colectiva, quién destaca individualmente
-por encima del bloque, quién queda por debajo y quién acompaña la
-inercia. El \textit{scouting} moderno y el mercado de fichajes se han
+Esa diferencia de reacción entre bloques obliga a separar dos
+preguntas \textit{clutch} distintas. La primera es una pregunta de
+equipo: cómo reacciona el bloque tras un gol, a favor o en contra
+---si cierra atrás, sube líneas, presiona alto o se hunde---. La
+segunda es una pregunta de jugador: dentro de esa reacción colectiva,
+quién destaca individualmente por encima del bloque, quién queda por
+debajo y quién acompaña la inercia. El \textit{scouting} moderno y el mercado de fichajes se han
 concentrado en la segunda mientras la median sin controlar la primera.
 Cuando un jugador rinde bien en partidos grandes, no es trivial separar
 si destaca él o si acompaña a un equipo que destaca.
@@ -80,13 +79,14 @@ patrón colectivo del equipo ---las acciones \textit{off-ball}, que son
 las que más se transforman tras un \textit{shock} emocional, quedan
 fuera del análisis.
 
-La pregunta abierta es, en consecuencia, si puede estimarse causalmente
-el rendimiento \textit{clutch} del jugador residualizado contra el patrón
+La pregunta abierta, por tanto, es si puede estimarse causalmente el
+rendimiento \textit{clutch} del jugador residualizado contra el patrón
 colectivo de su bloque, sobre los cuatro canales del rendimiento
 ---ofensivo, defensivo, \emph{off-ball} y físico--- y diferenciando
 entre los tres contextos de impacto emocional ---post-gol a favor,
-post-gol en contra y cercanía de eliminación alta. Este trabajo defiende
-que sí, propone el marco para hacerlo y lo aplica al Mundial Qatar 2022.
+post-gol en contra y cercanía de eliminación alta. Este trabajo
+defiende que sí, propone el marco para hacerlo y lo aplica al Mundial
+Qatar 2022.
 
 
 \section{Fundamento: el gol como shock emocional}
@@ -103,15 +103,14 @@ lo que permite definir sin ambigüedad la ventana anterior y posterior.
 La tercera es el carácter discreto del cambio que introduce: a diferencia
 de tiros, ocasiones o paradas, que el bloque atraviesa de forma gradual,
 el gol mueve el marcador en un instante puntual y con dirección conocida.
-Estas tres propiedades convergen en una cuarta más sustantiva: el gol
-es el único evento del fútbol que, por sí solo, cambia la inercia del
-partido de forma observable. El equipo que marca se siente respaldado
-y el equipo que encaja se reorganiza, y ese ajuste se traduce en
-patrones medibles ---más presión, líneas más altas o más bajas,
-cambios de ritmo--- en los minutos inmediatamente posteriores. Es esa
-cuarta propiedad la que convierte al gol en una unidad natural de
-tratamiento causal sobre la respuesta del equipo y, dentro de ella,
-del jugador.
+A las tres se suma una cuarta más sustantiva: el gol es el único
+evento del fútbol que, por sí solo, cambia la inercia del partido de
+forma observable. El equipo que marca se siente respaldado y el equipo
+que encaja se reorganiza, y ese ajuste se traduce en patrones medibles
+---más presión, líneas más altas o más bajas, cambios de ritmo--- en
+los minutos inmediatamente posteriores. Por eso el gol funciona como
+unidad natural de tratamiento causal sobre la respuesta del equipo y,
+dentro de ella, del jugador.
 
 Esta unidad cubre dos de los tres contextos sobre los que el \CCV mide
 respuesta individual ---post-gol a favor y post-gol en contra---. El
@@ -123,11 +122,10 @@ mediocampista que defiende un 1-1 en el minuto noventa de fase de
 grupos cuando los dos equipos están clasificados también está jugando
 un momento de presión competitiva ---quiere ganar el partido--- pero
 sin un \textit{shock} emocional discreto ni proximidad de eliminación
-inminente. Ese tipo de presión queda fuera del alcance del marco. La
-elección deliberada del \CCV es restringirse a momentos donde la
-emoción y la presión cruzan un umbral identificable a nivel de evento
-o de contexto, condición sin la cual la identificación causal a nivel
-individual no es viable.
+inminente. Ese tipo de presión queda fuera del alcance del marco. El
+\CCV se restringe a momentos donde la emoción y la presión cruzan un
+umbral identificable a nivel de evento o de contexto; sin ese umbral,
+la identificación causal a nivel individual no es viable.
 
 El efecto del gol sobre el comportamiento colectivo del equipo está
 documentado empíricamente. \textcite{Konefal2024}, sobre 278 partidos
@@ -140,32 +138,31 @@ es a nivel de equipo y no responde si ese ajuste se reparte de forma
 homogénea entre los jugadores del bloque o si se concentra en una parte
 de ellos.
 
-A nivel individual, la respuesta al gol es heterogénea: dos jugadores
+A nivel individual la respuesta al gol es heterogénea: dos jugadores
 con perfiles agregados similares pueden reaccionar en direcciones
-opuestas al mismo \textit{shock}, fenómeno que es lugar común en la
-observación táctica y en el análisis post-partido. La cuantificación
-analítica disponible de esta heterogeneidad ---discutida en
-§\ref{sec:motivacion}--- es descriptiva, no causal, y opera sobre
-\textit{eventing} puro sin tracking ni separación entre el jugador y el
-patrón colectivo del equipo.
+opuestas al mismo \textit{shock}, algo que cualquier analista
+reconoce en la observación táctica y en el análisis post-partido. La
+cuantificación analítica disponible de esa heterogeneidad ---discutida
+en §\ref{sec:motivacion}--- es descriptiva, no causal, y opera sobre
+\textit{eventing} puro sin tracking ni separación entre el jugador y
+el patrón colectivo del equipo.
 
-El shock del gol es por tanto un fenómeno medido a nivel de equipo y
-visible en su efecto sobre el comportamiento colectivo, pero del que no
-existe en la literatura aplicada una estimación causal a nivel jugador
+El \textit{shock} del gol queda así medido a nivel de equipo y visible
+en su efecto colectivo, pero sin estimación causal a nivel jugador
 residualizada contra el bloque del propio equipo. La sección siguiente
 detalla por qué ese hueco metodológico es accesible hoy con los datos
-abiertos disponibles; los capítulos posteriores formalizan el marco que
-lo aborda.
+abiertos disponibles; los capítulos posteriores formalizan el marco
+que lo aborda.
 
 
 \section{Motivación}
 \label{sec:motivacion}
 
-La asimetría que justifica este trabajo es directa. El fútbol
-profesional genera hoy millones de eventos \textit{tagged} por
-temporada ---cada pase, cada disparo, cada recuperación--- y
-decenas de modelos analíticos consolidados que los explotan para
-medir la dimensión técnica y táctica del rendimiento. La
+La asimetría que justifica este trabajo es sencilla de plantear. El
+fútbol profesional genera hoy millones de eventos \textit{tagged} por
+temporada ---cada pase, cada disparo, cada recuperación--- y decenas
+de modelos analíticos consolidados que los explotan para medir la
+dimensión técnica y táctica del rendimiento. La
 respuesta emocional del jugador a los \textit{shocks} del partido,
 en cambio, sigue sin medirse causalmente a nivel individual sobre
 ningún corpus público. La propiedad existe ---basta ver una final
@@ -190,19 +187,17 @@ cuantificarse.
 La literatura analítica reciente ha avanzado en cada pieza del problema
 por separado, pero no en su composición sobre un mismo marco. La
 valoración causal de acciones \emph{on-ball} está madura desde el marco
-\textit{Valuing Actions by Estimating Probabilities} (VAEP) de
-\textcite{Decroos2019VAEP} y su familia ---\textit{atomic}-VAEP,
-\textit{Expected Threat} ($xT$), y el \textit{Expected Possession Value}
-(EPV) de \textcite{Fernandez2021EPV}. La valoración defensiva individualizada se ha
+\textit{Valuing Actions by Estimating Probabilities} (VAEP) y su familia
+---\textit{atomic}-VAEP, \textit{Expected Threat} ($xT$), y el
+\textit{Expected Possession Value} (EPV). La valoración defensiva individualizada se ha
 desarrollado con estimadores específicos en los últimos cinco años. La
 valoración \emph{off-ball} cuenta con modelos de control de espacio y
 peligro contrafactual ya consolidados. La capa física es trazable a
 nivel jugador desde los protocolos sobre tracking \emph{broadcast} en
 torneo. La identificación causal moderna se ha enriquecido con
 estimadores robustos para tratamientos pulsados con efectos heterogéneos
-\parencite{SunAbraham2021,BorusyakJaravelSpiess2024} y con cotas de
-sensibilidad frente a violaciones de tendencias paralelas
-\parencite{RambachanRoth2023}.
+y con cotas de sensibilidad frente a violaciones de tendencias
+paralelas.
 
 Ninguna de esas piezas se había encadenado al nivel jugador-minuto sobre
 un torneo eliminatorio, con identificación causal dual y residualizado
@@ -212,38 +207,50 @@ físico. \textcite{Morgans2025} operan por mitades de partido sobre
 estados de marcador agregados en Premier League, sobre treinta y tres
 jugadores y dos temporadas, también con métricas físicas únicamente.
 \textcite{Bransen2019Choke}, también ya citado, trabaja sobre
-\textit{eventing} sin tracking ni condicionamiento causal. Ninguno de los
-tres separa al jugador del patrón colectivo, triangula con un
-contrafactual exógeno ni cubre los cuatro canales conjuntamente sobre un
-torneo eliminatorio con prórroga.
+\textit{eventing} sin tracking ni condicionamiento causal. Ninguno separa al jugador del patrón colectivo, triangula con un
+contrafactual exógeno ni cubre los cuatro canales conjuntamente sobre
+un torneo eliminatorio con prórroga.
 
-El punto técnico que abre la posibilidad de hacerlo es la liberación del
-dataset PFF FC del Mundial Qatar 2022. En septiembre de 2024, PFF FC
-publicó en abierto los sesenta y cuatro partidos del torneo con
-\textit{eventing}, tracking a 25\,Hz sincronizado con los eventos,
-presión individual etiquetada y \textit{grades} humanos por evento
-\parencite{PFFFC2024Release}. Es el único corpus público que combina los
-cuatro ingredientes que la pregunta exige simultáneamente: tracking de
-alta frecuencia, sincronización con el \textit{eventing}, cobertura
-completa de fase eliminatoria con prórroga incluida y \textit{grades}
-humanos por evento utilizables como \textit{prior} informativo para los
-modelos jerárquicos. Sin esa combinación, la pregunta es metodológicamente
-abordable pero empíricamente intratable. La elección del Mundial Qatar
-2022 como banco de pruebas obedece a esa condición y no a una preferencia
-por el torneo en sí: la contribución metodológica del trabajo es portable
-a cualquier corpus que reúna los mismos ingredientes.
+Lo que abre la puerta técnica a hacerlo es la liberación del dataset
+PFF FC del Mundial Qatar 2022 \parencite{PFFFC2024Release}.
+En septiembre de 2024, PFF FC publicó en abierto los sesenta y cuatro
+partidos del torneo con \textit{eventing}, tracking a 25\,Hz
+sincronizado con los eventos, presión individual etiquetada y
+\textit{grades} humanos por evento. Es el único corpus público que
+combina los cuatro ingredientes que la pregunta exige simultáneamente:
+tracking de alta frecuencia, sincronización con el \textit{eventing},
+cobertura completa de fase eliminatoria con prórroga incluida y
+\textit{grades} humanos por evento utilizables como \textit{prior}
+informativo para los modelos jerárquicos.
+
+Más allá de la disponibilidad de datos, el Mundial es además el
+escenario con la mayor exigencia emocional posible en el fútbol. La
+representación nacional, la eliminación a partido único sin ida y
+vuelta, las semanas concentradas en un país distinto al propio y la
+frecuencia cuatrienal del torneo concentran sobre cada acción una
+carga competitiva que ningún corpus de liga reproduce con la misma
+intensidad. Esta convergencia ---disponibilidad técnica más intensidad
+emocional máxima--- explica que el Mundial sea el banco de pruebas
+del trabajo y no una elección oportunista. La portabilidad del marco a
+otros corpus con estructura equivalente ---ligas domésticas con
+clasificación europea o descenso en juego, eliminatorias de
+\textit{Champions League} con ida y vuelta--- queda como dimensión
+de extensión y se desarrolla en el capítulo de líneas futuras.
 
 Junto a la disponibilidad de datos, la maquinaria causal moderna está
 también madura para abordar la pregunta. La identificación del efecto
 del \textit{shock} requiere triangulación, dado que una sola estrategia
-es vulnerable a sesgos no observados: la lectura crítica de la literatura
-demanda que dos estrategias independientes coincidan en signo y magnitud.
+es vulnerable a sesgos no observados; para que el resultado se sostenga
+hace falta que dos estrategias independientes coincidan en signo y
+magnitud.
 La primera es una estimación de diferencias-en-diferencias (DiD)
 \textit{within-player} sobre la ventana de $\pm 10$\,minutos respecto al
-gol, robustecida con los estimadores modernos para tratamientos pulsados. La segunda es un
-cuasi-experimento de \textit{near-miss}: dentro de los disparos con
-\textit{pre-shot}~$xG$ comparable, el hecho de que el balón entre o no
-se aproxima a azar \parencite{GauriotPage2019}; el contraste entre la
+gol, robustecida con los estimadores modernos para tratamientos
+pulsados. La segunda es un cuasi-experimento de \textit{near-miss}:
+dentro de los disparos con $xG$ pre-disparo comparable (la calidad
+técnica conocida \textit{antes} de ver dónde acaba el balón, distinta
+del Post-Shot~$xG$ que evalúa la trayectoria final), el hecho de que el
+balón entre o no entre se aproxima a azar; el contraste entre la
 respuesta post-gol y la respuesta post-\textit{near-miss} aísla el
 efecto del \textit{shock} del rendimiento intrínseco del bloque que
 generó el disparo. Si las dos estrategias coinciden, el efecto causal
@@ -268,33 +275,36 @@ torneo de fase eliminatoria permitirá recalibrar el \textit{pipeline}
 
 El presente capítulo introduce la pregunta de investigación y separa el
 \textit{clutch} del bloque del \textit{clutch} del jugador relativo al
-bloque. El capítulo~2 fija el objetivo general del trabajo y los seis
-objetivos específicos asociados a las preguntas de investigación. El
-capítulo~3 sitúa el marco en el estado del arte sobre los nueve bloques
-que lo configuran ---\textit{Win Probability} bayesiana, valoración
-\emph{on-ball}, valoración defensiva individualizada, valoración
-\emph{off-ball}, métricas físicas en torneo, identificación causal con
-diferencias-en-diferencias modernas, cuasi-experimentos \emph{near-miss},
-modelos del \textit{Conditional Average Treatment Effect} (CATE)
-bayesianos jerárquicos y antecedentes de \textit{clutch} en fútbol---
-y cierra identificando el \emph{gap} específico que el \CCV cubre.
+bloque.
 
-El capítulo~4 formaliza la metodología del marco: notación de los deltas
+El capítulo~2 fija el objetivo general y los seis objetivos específicos
+del trabajo.
+
+El capítulo~3 sitúa el marco en el estado del arte sobre los nueve
+bloques que lo configuran y cierra identificando el \emph{gap}
+específico que el \CCV cubre.
+
+El capítulo~4 formaliza la metodología: notación de los deltas
 individual y colectivo, especificación del estimador DiD y del
 cuasi-experimento \emph{near-miss}, formulación del CATE jerárquico
-bayesiano \textit{multivariate} y protocolo experimental. El
-capítulo~5 documenta el desarrollo técnico del \textit{pipeline} de
-principio a fin, desde la extracción y el preprocesado hasta el
-ensamblaje final del \CCV en una tabla \textit{scout-facing} consolidada.
-El capítulo~6 reporta los resultados, tanto la validación interna del
-marco como los efectos a nivel poblacional e individual.
+bayesiano \textit{multivariate} y protocolo experimental.
 
-El capítulo~7 discute las implicaciones operativas para \textit{scouting},
-fichajes, preparación de partidos KO y gestión de cambios. El
-capítulo~8 cierra con las conclusiones generales, las limitaciones
-declaradas del estudio y las líneas futuras de extensión. La bibliografía
-sigue en formato APA séptima edición; los anexos amplían el detalle de
-las limitaciones, las validaciones empíricas adicionales y una nota
-técnica sobre la corrección automática de la inconsistencia de
-coordenadas tracking-\textit{eventos} en la prórroga de algunos partidos
-del corpus PFF FC.
+El capítulo~5 documenta el desarrollo técnico del \textit{pipeline}
+de principio a fin, desde la extracción de los datos hasta el
+ensamblaje final del \CCV en una tabla \textit{scout-facing}.
+
+El capítulo~6 reporta los resultados: validación interna del marco
+y efectos a nivel poblacional e individual sobre el corpus.
+
+El capítulo~7 discute qué demuestran y qué no demuestran los datos,
+dónde funciona el marco y dónde no, y las implicaciones operativas
+para \textit{scouting}, fichajes, preparación de partidos
+eliminatorios y gestión de cambios.
+
+El capítulo~8 cierra con las conclusiones generales, las limitaciones
+declaradas y las líneas futuras de extensión. La bibliografía sigue
+en formato APA séptima edición y los anexos amplían el detalle de
+limitaciones, validaciones empíricas adicionales, visualizaciones
+complementarias, una nota técnica sobre el espejo del tracking en
+prórroga y el uso de asistencia de IA generativa en la elaboración
+del trabajo.

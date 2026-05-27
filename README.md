@@ -1,8 +1,17 @@
-# CCV: Causal Clutch Value
+<p align="center">
+  <img src="outputs/assets/logo.png" alt="JO" width="140"/>
+</p>
 
-TFM Master Big Data Aplicado al Scouting Deportivo (Sport Data Campus).
+<h1 align="center">CCV — Causal Clutch Value</h1>
 
-Estimacion causal del efecto del shock emocional (gol a favor / gol en contra) sobre el comportamiento del jugador en ventanas pre vs post de ±10 min, medido en cuatro canales (Empuje Ofensivo, Solidez Defensiva, Inteligencia Espacial Off-ball, Pulso Fisico) sobre PFF FC World Cup Qatar 2022.
+<p align="center">
+  <em>TFM · Máster en Big Data Aplicado al Scouting Deportivo · Sports Data Campus</em><br/>
+  <em>Jaime Oriol Goicoechea</em>
+</p>
+
+---
+
+Estimación causal del efecto del shock emocional (gol a favor / gol en contra / proximidad de eliminación) sobre el comportamiento del jugador en ventanas pre vs post de ±10 min, medido en cuatro canales (Empuje Ofensivo, Solidez Defensiva, Inteligencia Espacial Off-ball, Pulso Físico) sobre PFF FC World Cup Qatar 2022.
 
 Output: ranking tridimensional de jugadores clutch (Indice Remontador post GA + Indice Cerrojo post GF + Pressure Response continuo en elim_prox) con intervalos de credibilidad bayesianos, agregado por bucket posicional (DEF/MED/ATA) y posicion granular (16 PFF labels).
 
@@ -29,7 +38,7 @@ TFM/
 │   ├── M04_wp.py                                  # Win Probability bayesiana (numpyro SVI ordered logistic)
 │   │                                              #   + leverage + ET Poisson + tanda parametrica + MC group elim_prox
 │   ├── M05_psxg.py                                # Post shot xG (LightGBM + Optuna 60 + isotonic + freeze 360)
-│   │                                              #   AUC OOF 0.974, holdout WC22 0.976 (vs SB 0.844)
+│   │                                              #   AUC OOF 0.968, holdout WC22 0.976 (vs SB 0.844)
 │   ├── M05B_calibration.py                        # PSxG calibration (curve, ECE/MCE, Brier Murphy 1973)
 │   ├── M06_nearmiss.py                            # Near miss 5 tipos (palo, offside 360, PSxG save, GLC, GLT)
 │   ├── M07_shocks.py                              # 172 shocks gol + ventanas ±10min + LOO team_members
@@ -49,7 +58,7 @@ TFM/
 │   ├── Z02_pitch_control.py                       # PPCF Spearman 2018 vectorizado
 │   ├── Z03_xpress.py                              # exPress Lee 2025 P(recovery<5s|press)
 │   ├── Z04_vdep.py                                # VDEP strict Toda 2022 (recovery + attacked)
-│   ├── Z05_maejima.py                             # Maejima 2024 nearest defender frame level
+│   ├── Z05_maejima.py                             # Atribución frame-level al defensor más cercano
 │   ├── Z06_unxpass.py                             # un xPass Robberechts 2023 creative decision
 │   └── viz/                                       # capa de visualizacion LIGHT OPTA (BG blanco, Chakra Petch)
 │       ├── common.py                              # paleta, cmaps, draw_pitch, draw_header, add_logo
@@ -92,14 +101,14 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 |--------|-------------------------------------------------------------|----------------------------------------------------------------|
 | M03    | preprocess/events_enriched/{match_id}.parquet × 64          | 144,541 filas, 172 goles SB ground truth                       |
 | M04    | wp/per_minute.parquet                                       | 5,910 filas (64 partidos, minuto 1-120 con ET)                 |
-| M05    | psxg/{shots,model/psxg_lgb.pkl}                             | AUC OOF 0.974, holdout WC22 0.976 (vs SB 0.844)                |
+| M05    | psxg/{shots,model/psxg_lgb.pkl}                             | AUC OOF 0.968, holdout WC22 0.976 (vs SB 0.844)                |
 | M05B   | psxg/calibration/{curve,brier,metrics,iso}.parquet          | ECE 0.011, Brier 0.037 (vs SB 0.083)                           |
 | M06    | nearmiss/nearmiss_table.parquet                             | 70 near miss (12 woodw + 5 offs + 42 save + 2 GLC + 9 GLT)     |
 | M07    | shocks/{shocks_table,shocks_team_members}.parquet           | 172 shocks x ~22 jug = 3,788 filas                             |
 | M08    | ataque/{per_minute,per_shock_window,model}                  | atomic VAEP + un xPass; per_minute 57,520 filas                |
 | Z03    | defensa/xpress/per_minute.parquet                           | exPress Lee 2025; AUC 0.6174 (+24% baseline)                   |
 | Z04    | defensa/vdep_strict/per_minute.parquet                      | VDEP Toda 2022; AUC rec 0.7950 / att 0.8308                    |
-| Z05    | defensa/maejima/per_minute.parquet                          | Maejima nearest defender; 38,005 filas                         |
+| Z05    | defensa/maejima/per_minute.parquet                          | Atribución defensor más cercano; 38.005 filas                  |
 | Z06    | ataque/unxpass/per_minute.parquet                           | un xPass Robberechts 2023; AUC 0.8309                          |
 | M09    | defensa/{per_minute,per_shock_window,press_value,ctx}       | score_def_v4 = vdep + xpress + maejima; 57,466 filas           |
 | M10    | offball/{per_minute,per_shock_window,xg_grid}               | OBSO + C OBSO; 105,214 filas; 64 partidos a 25 Hz full         |

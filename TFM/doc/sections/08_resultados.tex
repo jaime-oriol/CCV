@@ -25,20 +25,17 @@ grupos del Mundial y sobre el resto de torneos de entrenamiento.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{fig_cap6_psxg_calibration}
-  \caption{Calibración del modelo Post-Shot~$xG$. (a) Curva de
-    fiabilidad sobre el \textit{out-of-fold} cross-dataset
-    (1494 disparos de Eurocopa 2020, Eurocopa 2024 y Bundesliga
-    2023/24) y el \textit{holdout} del Mundial Qatar 2022.
-    (b) Descomposición de Brier del modelo calibrado frente al
-    baseline de StatsBomb~$xG$. Los valores numéricos corresponden a
-    los componentes de fiabilidad y resolución.}
+  \caption{Calibración del modelo PSxG: curva de fiabilidad
+    (\textit{out-of-fold} cross-dataset y \textit{holdout} del Mundial
+    Qatar 2022) y descomposición de Brier frente al baseline
+    StatsBomb~$xG$.}
   \label{fig:psxg-calibration}
 \end{figure}
 
 Las dos curvas se mantienen sobre la diagonal de calibración perfecta
 en todo el rango, con desviaciones inferiores a un punto porcentual
 en cada uno de los cuatro \textit{bins} de la regresión isotónica.
-La AUC \textit{out-of-fold} es 0{,}968 y la AUC sobre el
+La AUC \textit{out-of-fold} (OOF) es 0{,}968 y la AUC sobre el
 \textit{holdout} del Mundial es 0{,}976 ---ligeramente superior a la
 del entrenamiento, lo que es consistente con un torneo de selecciones
 de élite con disparos más limpios que la media de liga. El
@@ -89,10 +86,10 @@ por canal y por dirección del \textit{shock}.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{fig_cap6_window_sensitivity}
-  \caption{Sensibilidad del ATE al horizonte de ventana pre/post,
-    por canal y dirección del \textit{shock}. Banda sombreada: IC
-    95\% clusterizado por jugador. Línea punteada vertical: ventana
-    de referencia $\pm 10$\,minutos.}
+  \caption{Sensibilidad del ATE al horizonte pre/post, por canal y
+    dirección del \textit{shock}. Banda: IC 95\% \textit{cluster-robust}
+    por jugador. Línea punteada: ventana de referencia
+    $\pm 10$\,min.}
   \label{fig:window-sensitivity}
 \end{figure}
 
@@ -133,7 +130,8 @@ hacia la fase de grupos por volumen ---más partidos por equipo--- y
 hacia los minutos centrales y finales de cada parte. La mitad de los
 \textit{shocks} comparten ventana con otro \textit{shock} del mismo
 partido, lo que motiva la decisión de no excluir las ventanas
-solapadas y de absorber esa contaminación dentro de los efectos fijos
+solapadas y de absorber el cruce entre ventanas dentro de los efectos
+fijos
 del estimador. Una quinta parte de los \textit{shocks} tiene la
 ventana pre o post recortada por el inicio o el fin del partido o por
 una transición de período, condición que el estimador DiD descarta
@@ -142,10 +140,9 @@ sólo cuando afecta a la ventana post.
 \begin{table}[h]
   \centering
   \small
-  \caption{Composición del corpus de \textit{shocks} del Mundial Qatar
-    2022. Sobre 64 partidos, 172 \textit{shocks} únicos de gol válido
-    (excluyendo tantos de tanda de penaltis y goles anulados). Cada
-    fila reporta el conteo absoluto y el porcentaje sobre el total.}
+  \caption{Composición del corpus de \textit{shocks}: 172 goles
+    válidos sobre 64 partidos (excluye tanda de penaltis y goles
+    anulados).}
   \label{tab:corpus-shocks}
   \begin{tabular}{llrr}
     \toprule
@@ -185,10 +182,9 @@ tabla~\ref{tab:ate-poblacional}.
 \begin{table}[h]
   \centering
   \small
-  \caption{Efecto medio del \textit{shock} sobre el delta relativo al
-    bloque, por canal y dirección. Estimador TWFE \textit{within-player}
-    con errores estándar \textit{cluster-robust} a nivel jugador
-    (CRV1). Cifras en desviaciones estándar del canal residualizadas.}
+  \caption{ATE del \textit{shock} sobre el delta relativo al bloque,
+    por canal y dirección. Estimador TWFE \textit{within-player} con
+    errores \textit{cluster-robust} CRV1 a nivel jugador.}
   \label{tab:ate-poblacional}
   \begin{tabular}{llrrrrr}
     \toprule
@@ -209,18 +205,17 @@ tabla~\ref{tab:ate-poblacional}.
 Los ocho coeficientes son indistinguibles de cero al nivel del cinco
 por ciento, con intervalos de confianza al 95\% que contienen el
 origen en todas las celdas. La corrección de Benjamini-Hochberg
-sobre los doce contrastes principales no produce ningún rechazo. La
-lectura sustantiva es clara: el \textit{shock} emocional del gol no
-mueve, en promedio, el rendimiento del jugador relativo al patrón
-colectivo de su bloque. El análisis de potencia ex-ante sobre el
+sobre los doce contrastes principales no produce ningún rechazo. El
+\textit{shock} emocional del gol no mueve, en promedio, el rendimiento
+del jugador relativo al patrón colectivo de su bloque. El análisis de potencia ex-ante sobre el
 panel jugador-\textit{shock}-minuto indica que el \textit{Minimum
 Detectable Effect} (MDE) efectivo al ochenta por ciento de potencia
 oscila entre $0{,}0003$ desviaciones estándar para el canal
 \textit{off-ball} y $0{,}036$ para el canal físico, lo que sitúa el
 listón mínimo de detección de los coeficientes nulos en magnitudes
-muy pequeñas. La conclusión metodológica es que el promedio
-poblacional, con $N=172$ \textit{shocks} efectivos en el torneo, no
-es el canal por el que se espera que aparezca la señal \textit{clutch}.
+muy pequeñas. Con $N=172$ \textit{shocks} efectivos en el torneo, el
+promedio poblacional no es el canal por el que se espera que aparezca
+la señal \textit{clutch}.
 
 
 \section{Heterogeneidad individual: el CATE jerárquico}
@@ -236,14 +231,9 @@ CATE individual por canal y dirección del \textit{shock}.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{fig_cap6_cate_heterogeneity}
-  \caption{Distribución del CATE individual sobre los 598 jugadores
-    con muestra suficiente, por canal y contexto del \textit{shock}.
-    Cada panel reporta la densidad de la media posterior por jugador
-    para tres direcciones del \textit{shock}: tras encajar
-    (\textit{GOAL\_AGAINST}), tras marcar (\textit{GOAL\_FOR}) y bajo
-    proximidad de eliminación alta (\textit{PRESSURE}). En cada panel
-    se reporta la desviación estándar $\sigma$ de los efectos
-    individuales en las dos direcciones principales.}
+  \caption{Distribución del CATE individual por canal y contexto
+    del \textit{shock} (tras encajar, tras marcar, proximidad de
+    eliminación alta), sobre 598 jugadores. $\sigma$ por panel.}
   \label{fig:cate-heterogeneity}
 \end{figure}
 
@@ -280,14 +270,9 @@ donde el efecto individual está dentro del ruido del estimador.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{scatter_remontador_cerrojo}
-  \caption{Mapa del torneo sobre los dos índices agregados del \CCV:
-    eje horizontal, Remontador (respuesta tras encajar); eje vertical,
-    Cerrojo (respuesta tras marcar). Cada punto es un jugador con
-    muestra suficiente. Los nombres etiquetados corresponden a los
-    jugadores con valores extremos en al menos uno de los dos ejes.
-    La densidad de la nube central refleja que la mayoría de
-    jugadores se concentran cerca del origen, donde el efecto
-    individual está dentro del ruido del estimador.}
+  \caption{Panorama del torneo sobre los dos índices agregados:
+    Remontador (eje X, respuesta tras encajar) frente a Cerrojo
+    (eje Y, respuesta tras marcar). Etiquetas en los valores extremos.}
   \label{fig:scatter-remontador-cerrojo}
 \end{figure}
 
@@ -297,25 +282,21 @@ los tres umbrales del índice \textit{pressure-clutch}. La señal
 individual se concentra en dos celdas: el canal ofensivo tras marcar
 (22 jugadores) y la respuesta a la proximidad de eliminación (entre
 4 y 10 según el umbral). Las seis celdas restantes son
-\textit{inconclusive} para todos los jugadores del corpus, lo que es
-consistente con la heterogeneidad reportada en la sección anterior:
-las celdas con $\sigma$ del CATE individual más pequeño concentran
-poca señal por jugador y, en consecuencia, no producen
-significatividad posterior individual con $N=172$ \textit{shocks}. La
+\textit{inconclusive} para todos los jugadores del corpus, lo que
+encaja con la heterogeneidad reportada en la sección anterior: las
+celdas con $\sigma$ del CATE individual más pequeño concentran poca
+señal por jugador y no producen significatividad posterior individual
+con $N=172$ \textit{shocks}. La
 discusión operativa de esta asimetría se retoma en el
 capítulo~\ref{ch:discusion}.
 
 \begin{table}[h]
   \centering
   \small
-  \caption{Jugadores significativos en cada celda canal-por-contexto
-    sobre el corpus completo del \CCV (511 jugadores). La
-    significatividad se define en cada celda sobre la probabilidad
-    posterior $P(\beta > 0 \mid \text{datos})$: efecto positivo (PRO)
-    si la probabilidad cruza el umbral hacia arriba, efecto negativo
-    (ANTI) si la cruza hacia abajo. Para las celdas canal-por-contexto
-    el umbral es $0{,}85$; el índice \textit{pressure-clutch} se
-    reporta a tres niveles ($0{,}80$, $0{,}85$, $0{,}95$).}
+  \caption{Jugadores significativos por celda canal-por-contexto y
+    en el índice \textit{pressure-clutch} (tres umbrales). PRO/ANTI
+    según $P(\beta > 0 \mid \text{datos})$ cruce hacia arriba o abajo
+    del umbral.}
   \label{tab:sig-por-celda}
   \begin{tabular}{llrrr}
     \toprule
@@ -349,9 +330,8 @@ negativo.
   \centering
   \small
   \caption{Jugadores con efecto significativo \textit{pressure-clutch}
-    bajo proximidad de eliminación alta. Media posterior y IC 80\%
-    sobre la respuesta individual al \textit{shock} de eliminación,
-    medida en desviaciones estándar del canal residualizado.}
+    bajo proximidad de eliminación alta. Media posterior, IC 80\% y
+    probabilidad posterior.}
   \label{tab:pressure-clutch}
   \begin{tabular}{llrrrl}
     \toprule
@@ -388,13 +368,8 @@ Hakimi y Brozović.
   \centering
   \includegraphics[width=0.95\textwidth]{radar_report_3870}
   \caption{Ficha \textit{scout-facing} de Kylian Mbappé. Radar de
-    doce ejes que cruzan los cuatro canales (ofensivo, defensivo,
-    \textit{off-ball}, físico) con los tres contextos del
-    \textit{shock} (tras encajar, tras marcar y bajo proximidad de
-    eliminación alta). Cada eje reporta el percentil del jugador
-    dentro de su \textit{bucket} posicional sobre el corpus del
-    Mundial. La tabla inferior reporta los percentiles agregados por
-    canal e índice.}
+    doce ejes (cuatro canales $\times$ tres contextos), percentiles
+    dentro de \textit{bucket} posicional.}
   \label{fig:radar-mbappe}
 \end{figure}
 
@@ -424,12 +399,9 @@ jugador.
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{scatter_ataque_marcar_encajar}
-  \caption{Distribución de los jugadores del torneo sobre las dos
-    celdas ofensivas del \CCV. Eje horizontal: respuesta del canal
-    ofensivo tras marcar. Eje vertical: respuesta del canal ofensivo
-    tras encajar. Cada punto es un jugador con muestra suficiente.
-    La cantidad de jugadores con efecto significativo positivo o
-    negativo en cualquiera de las dos celdas se reporta en el texto.}
+  \caption{Distribución de los jugadores sobre las dos celdas
+    ofensivas: respuesta tras marcar (eje X) frente a tras encajar
+    (eje Y).}
   \label{fig:scatter-ataque-marcar-encajar}
 \end{figure}
 
@@ -464,16 +436,19 @@ identificable porque opera sobre un eje único de modulación.
 Como verificación externa cualitativa, se calcula la correlación de
 Spearman entre las puntuaciones del \CCV por canal y por índice
 agregado y el \textit{grade} humano PFF agregado por jugador, sobre
-los 166 jugadores con al menos 270\,minutos jugados y muestra
-fiable. La tabla~\ref{tab:correlacion-pff} reporta los coeficientes.
+los 166 jugadores con al menos 270\,minutos jugados y muestra fiable.
+La cifra es modesta en términos absolutos ---un tercio del corpus
+total del torneo--- y conviene tenerlo presente al interpretar los
+coeficientes: la validación direccional opera sobre una muestra
+acotada, no sobre una población amplia de \textit{labels} humanos. La
+tabla~\ref{tab:correlacion-pff} reporta los coeficientes.
 
 \begin{table}[h]
   \centering
   \small
-  \caption{Correlación de Spearman entre las puntuaciones del \CCV
-    por canal e índice y el \textit{grade} humano PFF agregado por
-    jugador. Sobre 166 jugadores con $\geq 270$\,min y
-    \texttt{low\_sample}=False. Valor $p$ a dos colas.}
+  \caption{Correlación de Spearman entre puntuaciones del \CCV
+    (canal e índice) y el \textit{grade} humano PFF, sobre 166
+    jugadores. $p$ a dos colas.}
   \label{tab:correlacion-pff}
   \begin{tabular}{lrrl}
     \toprule
@@ -492,21 +467,19 @@ fiable. La tabla~\ref{tab:correlacion-pff} reporta los coeficientes.
 \end{table}
 
 El patrón es modesto y heterogéneo. El canal \textit{off-ball} es el
-único que correlaciona de forma estadísticamente significativa al uno
-por ciento con el \textit{grade} humano agregado ($\rho = +0{,}211$),
-y el índice Remontador es significativo al cinco por ciento
-($\rho = +0{,}177$). Los demás coeficientes no se distinguen de cero
-con la muestra disponible. La interpretación es prudente y honesta.
+único que correlaciona significativamente al uno por ciento con el
+\textit{grade} humano agregado ($\rho = +0{,}211$); el índice
+Remontador lo hace al cinco por ciento ($\rho = +0{,}177$). Los demás
+coeficientes no se distinguen de cero con la muestra disponible.
 El \textit{grade} humano PFF disponible es un valor único agregado
 por jugador y partido que sintetiza el rendimiento global, no una
 descomposición por canal o por contexto de \textit{shock}. Los
 canales del \CCV, en cambio, son métricas \textit{event-level}
 agregadas por minuto y residualizadas contra el bloque colectivo del
 propio equipo en cada \textit{shock}. Las dos medidas cubren
-propiedades parcialmente solapadas pero no idénticas, y la
-heterogeneidad por canal en la correlación es coherente con esa
-asimetría conceptual. La validación externa no es contundente; valida
-direccionalmente que el canal \textit{off-ball} y el agregado
-Remontador recogen propiedades reconocibles por evaluadores humanos
-expertos, sin pretender que los CATE y los \textit{grades} midan lo
-mismo.
+propiedades parcialmente solapadas pero no idénticas, y eso explica
+que la correlación varíe tanto entre canales. La validación externa
+no es contundente: valida direccionalmente que el canal
+\textit{off-ball} y el agregado Remontador recogen propiedades
+reconocibles por evaluadores humanos expertos, sin pretender que los
+CATE y los \textit{grades} midan lo mismo.

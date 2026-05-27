@@ -45,7 +45,7 @@ mercado previas al partido, los indicadores in-play
 desenlace final. La implicación operativa es que cualquier marco que
 busque detectar efectos del gol sobre el rendimiento debe superar un
 suelo de ruido alto, dado que la cuota inicial absorbe buena parte de
-la varianza posterior del partido. En consecuencia, la capa de
+la varianza posterior del partido. Por eso la capa de
 \textit{Win Probability} (WP) del \CCV no busca predecir el resultado
 mejor que el mercado: busca proporcionar moduladores continuos del
 contexto del \textit{shock} ---\textit{leverage}, definido como la
@@ -109,8 +109,9 @@ de pase.
 La valoración defensiva ha sido históricamente más difícil que la
 valoración ofensiva, en parte porque las acciones defensivas exitosas
 son escasas y dispersas en el espacio-tiempo del partido. La propuesta
-seminal sobre tracking sincronizado es VDEP, de \textcite{Toda2022VDEP}:
-una métrica análoga a VAEP que mide
+seminal sobre tracking sincronizado es VDEP (\textit{Valuing Defense
+by Estimating Probabilities}), de \textcite{Toda2022VDEP}: una métrica
+análoga a VAEP que mide
 
 \[
 \text{VDEP}(a, s) \;=\; P(\text{recuperación}_N \mid a, s) \,-\, C \cdot P(\text{ataque}_N \mid a, s),
@@ -383,15 +384,14 @@ agregado: la propiedad se ordena, pero no se estima causalmente, y la
 separación entre la contribución individual y el patrón colectivo del
 equipo es un asunto pendiente.
 
-Esta separación es exactamente la que el \CCV resuelve mediante la
-combinación de tres mecanismos que la literatura previa no había
-encadenado sobre un mismo corpus: residualización \textit{leave-one-out}
-de la respuesta individual contra el bloque del propio equipo en cada
-\textit{shock}, efectos fijos jugador-\textit{shock} en el DiD
-\textit{within-player} para absorber la heterogeneidad invariante del
-jugador, y cuasi-experimento \textit{near-miss} como triangulación
-independiente apoyada en la cuasi-aleatoriedad del gol condicional al
-$xG$ pre-disparo. La sección~\ref{sec:marco-teorico} formaliza esta
+Esa separación es la que el \CCV aborda combinando tres mecanismos
+que la literatura previa no había encadenado sobre un mismo corpus:
+residualización \textit{leave-one-out} de la respuesta individual
+contra el bloque del propio equipo en cada \textit{shock}, efectos
+fijos jugador-\textit{shock} en el DiD \textit{within-player} para
+absorber la heterogeneidad invariante del jugador, y cuasi-experimento
+\textit{near-miss} como triangulación independiente apoyada en la
+cuasi-aleatoriedad del gol condicional al $xG$ pre-disparo. La sección~\ref{sec:marco-teorico} formaliza esta
 combinación.
 
 
@@ -429,10 +429,10 @@ El \CCV ocupa el espacio definido por seis requisitos simultáneos:
         mediante intervalos de credibilidad bayesianos.
 \end{enumerate}
 
-La condición técnica para que esta composición sea empíricamente viable
-es la liberación abierta de un corpus con \textit{eventing} y tracking
-sincronizados a alta frecuencia, cobertura completa de fase
-eliminatoria y \textit{grades} humanos por evento. El Mundial Qatar
+Para que esta composición sea aplicable hace falta un corpus público
+con \textit{eventing} y tracking sincronizados a alta frecuencia,
+cobertura completa de fase eliminatoria y \textit{grades} humanos
+por evento. El Mundial Qatar
 2022 con datos PFF FC \parencite{PFFFC2024Release} es el primer corpus
 público que reúne esa combinación, y el motivo por el que el banco de
 pruebas del trabajo es ese torneo y no otro. La contribución
