@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="outputs/assets/logo.png" alt="JO" width="140"/>
+  <img src="outputs/assets/logo.png" alt="JO" width="240"/>
 </p>
 
 <h1 align="center">CCV — Causal Clutch Value</h1>
