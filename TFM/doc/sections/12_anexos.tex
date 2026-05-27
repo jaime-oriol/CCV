@@ -151,12 +151,13 @@ literatura aplicada y reproducible \textit{bit a bit} sobre el corpus
 de StatsBomb \textit{open data}. Por otro lado, las implementaciones
 de los demás \textit{building blocks} ---PPCF de
 \textcite{Spearman2018OBSO}, C-OBSO de \textcite{Teranishi2022COBSO},
-VDEP estricto de \textcite{Toda2022VDEP}, \textit{exPress} de Lee y
-colaboradores (2025) y la atribución \textit{frame-level} al defensor
-más cercano de Maejima y colaboradores (2024)--- son reimplementaciones
-propias derivadas de la lectura directa de los \textit{papers}
-originales y, en los casos en los que el código fuente público existe,
-contrastadas contra el repositorio de los autores. No son librerías
+VDEP estricto de \textcite{Toda2022VDEP}, \textit{exPress} de
+\textcite{Lee2025exPress} y la atribución \textit{frame-level} al
+defensor más cercano al balón (esquema consolidado en la literatura
+sobre tracking)--- son reimplementaciones propias derivadas de la
+lectura directa de los \textit{papers} originales y, en los casos en
+los que el código fuente público existe, contrastadas contra el
+repositorio de los autores. No son librerías
 oficiales mantenidas como \texttt{socceraction}. La validación
 disponible para estas reimplementaciones es triple: (i) reproducción
 numérica de los ejemplos y de las cifras agregadas reportadas en los
@@ -468,7 +469,7 @@ que documenta la corrección aplicada.
 La corrección se aplica en todas las capas del \textit{pipeline} que
 mezclan coordenadas del tracking con la dirección de ataque del
 equipo: la estimación del OBSO y C-OBSO en el canal \textit{off-ball},
-la atribución de Maejima al defensor más cercano al balón en el canal
+la atribución al defensor más cercano al balón en el canal
 defensivo y la superficie de \textit{pitch control} sobre la que se
 ilustra el caso de Mbappé en la figura~\ref{fig:ppcf-mbappe} del
 capítulo~\ref{ch:desarrollo}. Las capas que utilizan métricas
@@ -496,18 +497,17 @@ utilizado durante la elaboración del presente trabajo.
 \section{Alcance del uso}
 \label{anexo:uso-ia-alcance}
 
-La asistencia de IA generativa se ha limitado a dos roles operativos
-acotados durante la elaboración del trabajo. El primero es la
-asistencia en aspectos formales de la redacción de la memoria
----sintaxis castellana, claridad expositiva sobre formulaciones
-matemáticas, consistencia terminológica entre capítulos, formato
-\LaTeX, depuración de errores de compilación y verificación de
-referencias bibliográficas. El segundo es el apoyo al desarrollo del
-\textit{pipeline} de código del proyecto ---revisión de
-implementaciones contra los \textit{papers} de referencia, generación
-de comentarios explicativos sobre bloques de cálculo, identificación
-de fallos lógicos y propuesta de \textit{snippets} de validación
-empírica.
+La asistencia ha provenido del modelo Claude Sonnet 4.6 de Anthropic,
+empleado de forma acotada en dos roles operativos durante la
+elaboración del trabajo. El primero es la asistencia en aspectos
+formales de la redacción de la memoria ---sintaxis castellana, claridad
+expositiva sobre formulaciones matemáticas, consistencia terminológica
+entre capítulos, formato \LaTeX{} y depuración de errores de
+compilación. El segundo es el apoyo al desarrollo del \textit{pipeline}
+de código del proyecto ---revisión de implementaciones contra los
+\textit{papers} de referencia, generación de comentarios explicativos
+sobre bloques de cálculo, identificación de fallos lógicos y propuesta
+de \textit{snippets} de validación empírica.
 
 \section{Lo que no ha hecho la IA}
 \label{anexo:uso-ia-noha}

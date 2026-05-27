@@ -160,13 +160,14 @@ La tercera es parada del portero sobre un disparo de PSxG alto,
 definido como un disparo con $\text{PSxG} \geq 0{,}6$ o, alternativamente,
 $xG$ baseline $\geq 0{,}4$ que termina en parada. La cuarta es
 despeje en línea de gol, identificado por el \textit{marker} explícito
-de StatsBomb \textit{Saved Off Target}. La quinta es no-gol confirmado
-por la tecnología de gol, detectado cruzando la coordenada $z$ del
-balón en el tracking PFF a 25\,Hz contra la línea de gol; este caso
-es raro en el corpus pero está documentado en el partido entre Japón
-y España. El corpus final contiene varias decenas de
-\textit{near-misses} efectivos que alimentan el segundo brazo causal
-del trabajo.
+de StatsBomb \textit{Saved Off Target}. La quinta es no-gol confirmado por la tecnología de gol, detectado
+cruzando la coordenada $z$ del balón en el tracking PFF a 25\,Hz
+contra la línea de gol; este caso es raro en el corpus pero está
+documentado en el partido entre Japón y España. El corpus final
+contiene 70 \textit{near-misses} efectivos repartidos entre las
+cinco tipologías: 42 paradas del portero sobre disparo de PSxG alto,
+12 palos o travesaños, 9 no-goles confirmados por la tecnología de
+gol, 5 fueras de juego milimétricos y 2 despejes en línea de gol.
 
 
 \section{Identificación de \textit{shocks} y ventanas pre/post}
@@ -236,10 +237,10 @@ SPADL (\textit{Soccer Player Action Description Language}) y se
 valora por su efecto marginal sobre la probabilidad de marcar y la
 probabilidad de conceder un gol en las próximas $N$ acciones. El
 modelo se entrena con CatBoost sobre StatsBomb \textit{open data}
-fuera del Mundial (136 partidos, aproximadamente setenta mil acciones
-atómicas), aprovechando que CatBoost ofrece tratamiento nativo de
-variables categóricas y simplifica el preprocesado sobre la
-representación SPADL. La segunda es \textit{un-xPass}
+fuera del Mundial (136 partidos, $456\,368$ acciones atómicas en
+total, aproximadamente $3\,400$ por partido), aprovechando que
+CatBoost ofrece tratamiento nativo de variables categóricas y
+simplifica el preprocesado sobre la representación SPADL. La segunda es \textit{un-xPass}
 \parencite{Robberechts2023unxPass}, que aporta la dimensión de la
 decisión: un pase exitoso se valora más cuando se ejecuta desde un
 estado de juego en el que ese pase concreto era la elección
@@ -253,16 +254,16 @@ defensiva la probabilidad de recuperación menos un múltiplo de la
 probabilidad de ser atacado en las próximas $N$ acciones, con el
 peso entre recuperación y ataque calibrado como el cociente
 observado entre las dos tasas. El segundo es \textit{exPress},
-implementación reciente de Lee y colaboradores (2025) que estima la
+implementación de \textcite{Lee2025exPress} que estima la
 probabilidad de recuperación del balón en los cinco segundos
 posteriores a un evento de presión etiquetado por el proveedor, con
 \textit{features} de \textit{eventing} alineadas al tracking a
-25\,Hz. El tercero es la atribución de Maejima y colaboradores
-(2024) al defensor más cercano al balón \textit{frame-level}: para
-cada acción ofensiva del rival se reparte el crédito defensivo al
-defensor más próximo al balón en el \textit{frame} del evento, con
-signo negativo cuando la acción atacante es exitosa y positivo
-cuando falla. La suma de los tres bloques produce un valor defensivo
+25\,Hz. El tercero es la atribución al defensor más cercano al balón
+\textit{frame-level}, esquema consolidado en la literatura sobre
+tracking: para cada acción ofensiva del rival se reparte el crédito
+defensivo al defensor más próximo al balón en el \textit{frame} del
+evento, con signo negativo cuando la acción atacante es exitosa y
+positivo cuando falla. La suma de los tres bloques produce un valor defensivo
 agregado por minuto que captura tanto la acción defensiva explícita
 como la presencia espacial de presión sin acción registrada.
 

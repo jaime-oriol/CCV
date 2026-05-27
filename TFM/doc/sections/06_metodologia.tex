@@ -111,7 +111,7 @@ como \textit{rating} de creatividad en la decisión de pase. El canal
 defensivo combina VDEP estricto (cabeza dedicada de probabilidad de
 recuperación y de ser atacado en las próximas acciones SPADL),
 \textit{exPress} como probabilidad de recuperación en cinco segundos
-post-presión y atribución Maejima al defensor más cercano al balón
+post-presión y atribución al defensor más cercano al balón
 \textit{frame-level}. El canal \textit{off-ball} aplica OBSO y C-OBSO
 sobre tracking a 25\,Hz con cálculo vectorizado del \textit{pitch
 control}. El canal físico aplica el protocolo Bradley sobre velocidades
@@ -231,9 +231,9 @@ jugador-\textit{shock}, $\gamma_{(t-t_s),k}$ son los efectos fijos por
 minuto relativo al \textit{shock}, $\mathbf{1}[t > t_s]$ es el
 indicador del tratamiento (post-\textit{shock}) y $\tau_k$ es el
 efecto medio del tratamiento sobre el canal $k$. Los errores estándar
-se calculan \textit{cluster-robust} a nivel jugador (CRV1), opción
-robusta para tratamientos de nivel jugador con tasas heterogéneas de
-\textit{shock} entre individuos. La estimación se contrasta contra el
+se calculan \textit{cluster-robust} a nivel jugador (\textit{Cluster
+Robust Variance type 1}, CRV1), opción robusta para tratamientos de
+nivel jugador con tasas heterogéneas de \textit{shock} entre individuos. La estimación se contrasta contra el
 \textit{event-study} de \citeauthor{SunAbraham2021} ---que evita la
 contaminación entre cohortes--- y contra la imputación contrafactual
 de \citeauthor{BorusyakJaravelSpiess2024} ---eficiente bajo paneles

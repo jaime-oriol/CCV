@@ -127,24 +127,27 @@ explícita en el \textit{eventing} y la contribución de los defensores
 próximos al balón sin intervención directa registrada.
 
 Para la individualización al frame del defensor, el estado del arte
-combina dos esquemas complementarios. Maejima y colaboradores (2024)
-reparten el crédito defensivo por cada acción ofensiva del rival al
-defensor más cercano al balón en el frame del evento, con signo
-negativo cuando la acción atacante es exitosa ---el defensor más
-próximo carga con el coste--- y signo positivo cuando la acción
-atacante falla. El esquema captura la presencia espacial del defensor
-incluso en frames sin acción defensiva explícita reflejada en el
-\textit{eventing}. En paralelo, Lee y colaboradores (2025) introducen
-\textit{exPress}: una cabeza dedicada que estima la probabilidad de
-recuperación del balón en los cinco segundos siguientes a un evento de
-presión etiquetado por el proveedor, alimentada por \textit{features}
-de \textit{eventing} más alineamiento con el tracking a 25\,Hz. Es la
-versión moderna del \textit{rating} de presión a nivel jugador y
-distingue la presión efectiva de la presión performativa.
+combina dos esquemas complementarios. El primero es la atribución
+\textit{frame-level} al defensor más cercano al balón, un esquema
+consolidado en la literatura aplicada sobre tracking que reparte el
+crédito defensivo por cada acción ofensiva del rival al defensor más
+próximo en el frame del evento, con signo negativo cuando la acción
+atacante es exitosa ---el defensor más cercano carga con el coste---
+y positivo cuando falla. El esquema captura la presencia espacial del
+defensor incluso en frames sin acción defensiva explícita reflejada en
+el \textit{eventing}. El segundo es \textit{exPress}
+\parencite{Lee2025exPress}, propuesto recientemente en MIT Sloan: una
+cabeza dedicada que estima la probabilidad de recuperación del balón
+en los cinco segundos siguientes a un evento de presión etiquetado por
+el proveedor, alimentada por \textit{features} de \textit{eventing}
+alineadas al tracking a 25\,Hz. Es la versión moderna del
+\textit{rating} de presión a nivel jugador y distingue la presión
+efectiva de la presión performativa.
 
 El canal defensivo del \CCV combina los tres \textit{building blocks}
----VDEP estricto, \textit{exPress} y atribución Maejima--- sobre los
-datos PFF FC del Mundial Qatar 2022. La aportación específica del
+---VDEP estricto, \textit{exPress} y la atribución al defensor más
+cercano \textit{frame-level}--- sobre los datos PFF FC del Mundial
+Qatar 2022. La aportación específica del
 trabajo no reside en ninguno de los estimadores individuales, sino en
 su orquestación sobre ventanas pre/post-\textit{shock} con
 residualización contra el bloque colectivo del propio equipo.
@@ -209,10 +212,10 @@ total, 9\,km en Z4 y 2{,}3\,km en Z5--- son la referencia canónica de
 comparabilidad para cualquier análisis físico sobre este corpus.
 
 Sobre cómo evolucionan los patrones físicos en torno al gol,
-\textcite{Konefal2024} documentan sobre cinco temporadas de la
-Ekstraklasa polaca que la distancia recorrida, las acciones de alta
-intensidad y el número de duelos cambian de forma significativa en la
-ventana previa al gol respecto a la línea base del partido, tanto
+\textcite{Konefal2024} documentan sobre 278 partidos de la temporada
+2022/23 de la Ekstraklasa polaca que la distancia recorrida y las
+acciones de alta intensidad cambian de forma significativa en los cinco
+minutos previos al gol respecto a la línea base del partido, tanto
 cuando el equipo marca como cuando recibe. \textcite{Morgans2025},
 sobre treinta y tres jugadores y dos temporadas de la \textit{Premier
 League}, identifican variaciones análogas por mitades de partido en
@@ -407,7 +410,8 @@ El \CCV ocupa el espacio definido por seis requisitos simultáneos:
   \item Cuantificación de la respuesta del jugador en los cuatro canales
         del rendimiento con el estimador de referencia de cada capa
         ---\textit{atomic}-VAEP y \textit{un-xPass} en ofensivo, VDEP
-        con \textit{exPress} y atribución Maejima en defensivo, OBSO y
+        con \textit{exPress} y atribución al defensor más cercano
+        \textit{frame-level} en defensivo, OBSO y
         C-OBSO en \textit{off-ball}, y protocolo Bradley en físico.
   \item Residualización de la respuesta individual contra el patrón
         colectivo del propio equipo mediante un \textit{leave-one-out}

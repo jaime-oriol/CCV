@@ -18,10 +18,10 @@ desempeño del jugador en cuatro canales (ofensivo, defensivo,
 en contra y proximidad de eliminación alta), residualizado contra el
 delta del propio equipo mediante \textit{leave-one-out} en cada
 \textit{shock}. La identificación causal se triangula con una estimación
-de diferencias-en-diferencias \textit{within-player} sobre la ventana de
-$\pm 10$\,minutos respecto al gol y un cuasi-experimento de
+de diferencias-en-diferencias (DiD) \textit{within-player} sobre la
+ventana de $\pm 10$\,minutos respecto al gol y un cuasi-experimento de
 \textit{near-miss} apoyado en la cuasi-aleatoriedad del gol condicional
-al \textit{pre-shot}~$xG$; el efecto heterogéneo por jugador se condensa
+al \textit{expected goals} pre-disparo ($xG$); el efecto heterogéneo por jugador se condensa
 en un \textit{Conditional Average Treatment Effect} (CATE) jerárquico
 bayesiano \textit{multivariate} con
 correlaciones \textit{cross}-canal y \textit{priors} informados por
@@ -39,8 +39,7 @@ canal-específico, veintidós jugadores muestran efecto significativo en
 la celda ataque-tras-marcar ---cinco al alza y diecisiete a la baja---,
 mientras que los agregados Remontador y Cerrojo quedan infra-identificados
 con $N=172$ \textit{shocks}. El \CCV constituye el primer marco que
-triangula diferencias-en-diferencias (DiD) \textit{within-player} con
-cuasi-experimento
+triangula DiD \textit{within-player} con cuasi-experimento
 \textit{near-miss} a nivel jugador sobre un torneo eliminatorio, sobre
 cuatro canales y residualizado contra el bloque del equipo, con
 cuantificación de la incertidumbre por jugador.

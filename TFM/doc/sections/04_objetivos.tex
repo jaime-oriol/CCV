@@ -43,17 +43,19 @@ en contra), calcular las ventanas pre/post de $\pm 10$\,minutos por
 jugador y la composición \textit{leave-one-out} del bloque colectivo, y
 construir el corpus complementario de \textit{near-misses} sobre cinco
 tipologías ---palo o travesaño, fuera de juego milimétrico, parada del
-portero sobre disparo de \textit{Post-Shot}~$xG$ alto, despeje en línea
-de gol y no-gol confirmado por tecnología--- como contrafactual exógeno
-para la estrategia causal de \textit{near-miss}.
+portero sobre disparo de \textit{Post-Shot}~$xG$ (PSxG) alto, despeje en
+línea de gol y no-gol confirmado por tecnología--- como contrafactual
+exógeno para la estrategia causal de \textit{near-miss}.
 
 \paragraph{OE3 (RQ3) --- Cuatro canales del rendimiento.}
-Implementar los cuatro canales sobre PFF FC con el estimador \textit{SOTA}
-de cada capa: \textit{atomic}-VAEP y un-xPass en el canal ofensivo; VDEP
-estricto, \textit{exPress} y atribución \textit{Maejima} al defensor más
-cercano \textit{frame-level} en el canal defensivo; OBSO y C-OBSO sobre
-tracking 25\,Hz en el canal \emph{off-ball}; protocolo Bradley con residual
-bayesiano \textit{multivariate} por jugador en el canal físico. Las
+Implementar los cuatro canales sobre PFF FC con el estimador de
+referencia del estado del arte (\textit{State of the Art}, SOTA) de cada
+capa: \textit{atomic}-VAEP y \textit{un-xPass} en el canal ofensivo;
+VDEP estricto, \textit{exPress} y atribución al defensor más cercano
+\textit{frame-level} en el canal defensivo; OBSO y
+C-OBSO sobre tracking 25\,Hz en el canal \emph{off-ball}; protocolo
+Bradley con residual bayesiano \textit{multivariate} por jugador en el
+canal físico. Las
 agregaciones se producen por jugador-minuto y por
 jugador-\textit{shock}-ventana con cálculo \textit{leave-one-out} del
 bloque colectivo.
@@ -69,8 +71,8 @@ un AIPW (\textit{Augmented Inverse Probability Weighting}) doblemente
 robusto con \textit{cross-fitting} sobre el corpus de \textit{near-miss}
 \parencite{GauriotPage2019}, comparado internamente contra
 DML (\textit{Double/Debiased Machine Learning}) \textit{Partially Linear
-Regression}, DR-\textit{learner} y un RDD (\textit{Regression
-Discontinuity Design}) local-lineal sobre $xG$.
+Regression}, el DR-\textit{learner} (doblemente robusto) y un RDD
+(\textit{Regression Discontinuity Design}) local-lineal sobre $xG$.
 
 \paragraph{OE5 (RQ5) --- CATE jerárquico y tabla \textit{scout-facing}.}
 Estimar el efecto heterogéneo por jugador con un CATE jerárquico bayesiano
@@ -86,11 +88,11 @@ posicional, y \textit{flags} de incertidumbre.
 
 \paragraph{OE6 (RQ6) --- Validación intrínseca y causal.}
 Validar empíricamente el marco desde dos ángulos. La validación intrínseca
-cubre la calibración del modelo \textit{Post-Shot}~$xG$ ---curva isotónica,
+cubre la calibración del modelo PSxG ---curva isotónica,
 descomposición de Brier, errores de calibración esperado y máximo
 (ECE, \textit{Expected Calibration Error}; MCE, \textit{Maximum
-Calibration Error}) y área bajo la curva ROC (AUC, \textit{Area Under
-the Curve}) en \textit{holdout} WC22--- y la
+Calibration Error}) y área bajo la curva ROC (\textit{Receiver Operating
+Characteristic}, AUC) en \textit{holdout} WC22--- y la
 correlación entre los canales algorítmicos y los \textit{grades} humanos
 PFF por jugador-evento. La validación causal cubre el placebo
 \textit{within-series} con corrección Benjamini-Hochberg, el análisis de

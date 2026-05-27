@@ -62,9 +62,9 @@ es una evaluación global del partido, mientras que los canales del
 La cuarta es metodológica. El \CCV{} integra nueve bloques que la
 literatura aplicada había desarrollado por separado ---WP bayesiana,
 \textit{atomic}-VAEP, \textit{un-xPass}, VDEP estricto,
-\textit{exPress}, atribución Maejima, OBSO, C-OBSO y protocolo
-físico Bradley--- sobre una identificación causal dual con cinco
-capas conjuntas. El marco es portable a cualquier corpus que reúna
+\textit{exPress}, atribución al defensor más cercano
+\textit{frame-level}, OBSO, C-OBSO y protocolo físico Bradley---
+sobre una identificación causal dual con cinco capas conjuntas. El marco es portable a cualquier corpus que reúna
 la combinación de \textit{eventing} sincronizado con tracking a alta
 frecuencia, cobertura completa de fase eliminatoria y \textit{grades}
 humanos por evento; la aplicación al Mundial Qatar 2022 funciona
@@ -97,11 +97,12 @@ La segunda es la implementación propia de los \textit{building blocks}
 distintos a \textit{atomic}-VAEP. El canal ofensivo utiliza la
 librería oficial \texttt{socceraction} 1.5.3, mantenida por los
 autores originales y validada en la literatura aplicada. Los demás
-bloques ---PPCF, C-OBSO, VDEP estricto, \textit{exPress} y atribución
-Maejima--- son reimplementaciones propias derivadas de la lectura
-directa de los \textit{papers} originales, validadas mediante
-reproducción de cifras agregadas publicadas y comparación con
-\textit{outputs} de proveedores comerciales cuando existe solapamiento.
+bloques ---PPCF, C-OBSO, VDEP estricto, \textit{exPress} y la
+atribución al defensor más cercano \textit{frame-level}--- son
+reimplementaciones propias derivadas de la lectura directa de los
+\textit{papers} originales, validadas mediante reproducción de cifras
+agregadas publicadas y comparación con \textit{outputs} de proveedores
+comerciales cuando existe solapamiento.
 El nivel de validación es razonable para un trabajo individual de
 máster, pero no equivale al grado de madurez ni de adopción
 comunitaria de una librería oficial mantenida.
@@ -116,7 +117,7 @@ verificación cruzada rigurosa por jugador como una línea futura.
 \section{Líneas futuras}
 \label{sec:lineas-futuras}
 
-El trabajo abre cinco líneas concretas de extensión.
+El trabajo abre seis líneas concretas de extensión.
 
 La primera es la replicación del \textit{pipeline} sobre corpus
 adicionales con la misma estructura. La liberación abierta de
@@ -170,3 +171,21 @@ causal aplicada al delta colectivo en lugar del idiosincrásico,
 produciría una métrica de identidad reactiva por equipo
 ---``\textit{clutch} del bloque''--- que complementa de forma natural
 la lectura por jugador del trabajo actual.
+
+La sexta es la ampliación del catálogo de \textit{shocks} más allá
+de los tres contextos cubiertos por el presente trabajo ---post-gol
+a favor, post-gol en contra y proximidad de eliminación alta. La
+elección actual identifica momentos donde la carga emocional y la
+presión competitiva cruzan un umbral observable, pero deja fuera
+situaciones de presión genuina sin un \textit{trigger} discreto
+---por ejemplo, defender un empate en el cierre de un partido con
+ambos equipos ya clasificados, o presionar tras la entrada de un
+recambio táctico que cambia el equilibrio del bloque. Con un corpus
+mayor que el del Mundial Qatar 2022, sería posible extender el
+catálogo a tipologías condicionadas al estado del marcador combinado
+con la trascendencia clasificatoria del partido, a ventanas en torno
+a sustituciones que modifican el plan táctico o a fases de superioridad
+o inferioridad numérica. La ampliación de tipologías es complementaria
+a la primera línea futura ---más torneos--- y abre la puerta a una
+métrica de \textit{clutch} más cercana al concepto cualitativo amplio
+sin renunciar a la identificación causal a nivel individual.

@@ -113,12 +113,29 @@ cuarta propiedad la que convierte al gol en una unidad natural de
 tratamiento causal sobre la respuesta del equipo y, dentro de ella,
 del jugador.
 
+Esta unidad cubre dos de los tres contextos sobre los que el \CCV mide
+respuesta individual ---post-gol a favor y post-gol en contra---. El
+tercero es la proximidad de eliminación: cuanto más cerca está un
+equipo de quedar fuera del torneo, mayor es la carga emocional sobre
+cada acción aunque no haya un gol que la dispare. Estos tres contextos
+no agotan el concepto de \textit{clutch} en sentido amplio. Un
+mediocampista que defiende un 1-1 en el minuto noventa de fase de
+grupos cuando los dos equipos están clasificados también está jugando
+un momento de presión competitiva ---quiere ganar el partido--- pero
+sin un \textit{shock} emocional discreto ni proximidad de eliminación
+inminente. Ese tipo de presión queda fuera del alcance del marco. La
+elección deliberada del \CCV es restringirse a momentos donde la
+emoción y la presión cruzan un umbral identificable a nivel de evento
+o de contexto, condición sin la cual la identificación causal a nivel
+individual no es viable.
+
 El efecto del gol sobre el comportamiento colectivo del equipo está
-documentado empíricamente. \textcite{Konefal2024}, sobre cinco temporadas
-de la Ekstraklasa polaca, miden cambios significativos en los patrones
-físicos del equipo ---distancia recorrida y acciones de alta
-intensidad--- en la ventana próxima al gol respecto a la línea base del
-partido, tanto cuando el equipo marca como cuando recibe. El análisis
+documentado empíricamente. \textcite{Konefal2024}, sobre 278 partidos
+de la temporada 2022/23 de la Ekstraklasa polaca, miden cambios
+significativos en los patrones físicos del equipo ---distancia recorrida
+y acciones de alta intensidad--- en los cinco minutos previos al gol
+respecto a la línea base del partido, tanto cuando el equipo marca como
+cuando recibe. El análisis
 es a nivel de equipo y no responde si ese ajuste se reparte de forma
 homogénea entre los jugadores del bloque o si se concentra en una parte
 de ellos.
@@ -145,10 +162,10 @@ lo aborda.
 \label{sec:motivacion}
 
 La asimetría que justifica este trabajo es directa. El fútbol
-profesional genera hoy decenas de millones de eventos
-\textit{tagged} por temporada ---cada pase, cada disparo, cada
-recuperación--- y centenares de modelos analíticos que los explotan
-para medir la dimensión técnica y táctica del rendimiento. La
+profesional genera hoy millones de eventos \textit{tagged} por
+temporada ---cada pase, cada disparo, cada recuperación--- y
+decenas de modelos analíticos consolidados que los explotan para
+medir la dimensión técnica y táctica del rendimiento. La
 respuesta emocional del jugador a los \textit{shocks} del partido,
 en cambio, sigue sin medirse causalmente a nivel individual sobre
 ningún corpus público. La propiedad existe ---basta ver una final
@@ -161,21 +178,22 @@ La pregunta \textit{clutch} tiene además consecuencias económicas
 inmediatas. Un director deportivo que decide entre dos centrocampistas
 de precio similar ---uno con reputación \textit{clutch} en KO de
 Champions, el otro con perfil más estable pero sin antecedente de
-partidos grandes--- toma esa decisión hoy sobre intuición y
-observación, sin métrica causal que la oriente. Lo mismo vale para la gestión de cambios en el
-banquillo: al minuto 75 protegiendo un 1-0 en cuartos de Copa, el cuerpo
-técnico elige entre el mediocentro X ---con minutos de cerrojo en
-partidos grandes--- y el jugador Y ---con mejor base estadística pero
-sin antecedente en ese contexto--- sobre reputación, no sobre medida
-causal. El sobreprecio que paga el mercado por
-reputación \textit{clutch} indica que la propiedad se reconoce como
-existente sin que pueda cuantificarse.
+partidos grandes--- toma esa decisión sobre intuición y observación,
+sin métrica causal que la oriente. Lo mismo vale para la gestión de
+cambios en el banquillo: al minuto 75 protegiendo un 1-0 en cuartos
+de Copa, el cuerpo técnico elige entre el mediocentro X ---con
+minutos de cerrojo en partidos grandes--- y el jugador Y ---con mejor
+base estadística pero sin antecedente en ese contexto--- sobre la
+misma base. La propiedad se reconoce como existente sin que pueda
+cuantificarse.
 
 La literatura analítica reciente ha avanzado en cada pieza del problema
 por separado, pero no en su composición sobre un mismo marco. La
-valoración causal de acciones \emph{on-ball} está madura desde
-\textcite{Decroos2019VAEP} y su familia (atomic-VAEP, xT, EPV
-\cite{Fernandez2021EPV}). La valoración defensiva individualizada se ha
+valoración causal de acciones \emph{on-ball} está madura desde el marco
+\textit{Valuing Actions by Estimating Probabilities} (VAEP) de
+\textcite{Decroos2019VAEP} y su familia ---\textit{atomic}-VAEP,
+\textit{Expected Threat} ($xT$), y el \textit{Expected Possession Value}
+(EPV) de \textcite{Fernandez2021EPV}. La valoración defensiva individualizada se ha
 desarrollado con estimadores específicos en los últimos cinco años. La
 valoración \emph{off-ball} cuenta con modelos de control de espacio y
 peligro contrafactual ya consolidados. La capa física es trazable a
@@ -215,14 +233,14 @@ abordable pero empíricamente intratable. La elección del Mundial Qatar
 por el torneo en sí: la contribución metodológica del trabajo es portable
 a cualquier corpus que reúna los mismos ingredientes.
 
-La ventana metodológica se abre en paralelo a la técnica. La
-identificación causal del efecto del \textit{shock} requiere
-triangulación, dado que una sola estrategia es vulnerable a sesgos no
-observados y la lectura crítica de la literatura demanda que dos
-estrategias independientes coincidan en signo y magnitud. La primera es
-una estimación de diferencias-en-diferencias \textit{within-player}
-sobre la ventana de $\pm 10$\,minutos respecto al gol, robustecida con
-los estimadores modernos para tratamientos pulsados. La segunda es un
+Junto a la disponibilidad de datos, la maquinaria causal moderna está
+también madura para abordar la pregunta. La identificación del efecto
+del \textit{shock} requiere triangulación, dado que una sola estrategia
+es vulnerable a sesgos no observados: la lectura crítica de la literatura
+demanda que dos estrategias independientes coincidan en signo y magnitud.
+La primera es una estimación de diferencias-en-diferencias (DiD)
+\textit{within-player} sobre la ventana de $\pm 10$\,minutos respecto al
+gol, robustecida con los estimadores modernos para tratamientos pulsados. La segunda es un
 cuasi-experimento de \textit{near-miss}: dentro de los disparos con
 \textit{pre-shot}~$xG$ comparable, el hecho de que el balón entre o no
 se aproxima a azar \parencite{GauriotPage2019}; el contraste entre la
@@ -257,9 +275,9 @@ que lo configuran ---\textit{Win Probability} bayesiana, valoración
 \emph{on-ball}, valoración defensiva individualizada, valoración
 \emph{off-ball}, métricas físicas en torneo, identificación causal con
 diferencias-en-diferencias modernas, cuasi-experimentos \emph{near-miss},
-modelos CATE bayesianos jerárquicos y antecedentes de \textit{clutch} en
-fútbol--- y cierra identificando el \emph{gap} específico que el \CCV
-cubre.
+modelos del \textit{Conditional Average Treatment Effect} (CATE)
+bayesianos jerárquicos y antecedentes de \textit{clutch} en fútbol---
+y cierra identificando el \emph{gap} específico que el \CCV cubre.
 
 El capítulo~4 formaliza la metodología del marco: notación de los deltas
 individual y colectivo, especificación del estimador DiD y del
