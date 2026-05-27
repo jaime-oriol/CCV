@@ -149,6 +149,30 @@ tabla \textit{scout-facing} canónica con un jugador por fila, tres
 \section{Marco teórico}
 \label{sec:marco-teorico}
 
+La identificación causal del \CCV a nivel individual descansa sobre
+cinco capas que operan conjuntamente y que ninguna de ellas, por
+separado, aislaría el efecto del \textit{shock} sobre el jugador del
+movimiento colectivo de su equipo. La primera es el contraste temporal
+pre/post del mismo jugador en el mismo partido, que cancela su nivel
+basal de rendimiento como sujeto. La segunda son los efectos fijos por
+par jugador-\textit{shock} en el DiD, que absorben rasgos invariantes
+del jugador en ese contexto concreto. La tercera es la residualización
+\textit{leave-one-out} contra el bloque del propio equipo en el
+instante del \textit{shock}, que sustrae el empuje colectivo del
+equipo y deja solo la desviación idiosincrásica del jugador respecto
+a sus compañeros. La cuarta es el cuasi-experimento \textit{near-miss}
+sobre el corpus de disparos con $xG$ pre-disparo comparable, que aporta
+variación cuasi-aleatoria en la ocurrencia del \textit{shock} y rompe
+la endogeneidad asociada a que los goles los marquen los equipos que
+ya iban dominando el partido. La quinta es el AIPW con
+\textit{cross-fitting}, que controla los \textit{confounders}
+observables ---minuto de partido, diferencia de marcador, fuerza del
+rival y fase del torneo--- bajo doble robustez. Sin la composición de
+las cinco capas, el efecto agregado del equipo se confundiría con el
+efecto individual del jugador; con ellas, lo que el estimador recupera
+es la respuesta propia del jugador al \textit{shock}, neta del patrón
+colectivo del bloque.
+
 \subsection{Notación de los deltas individual, colectivo y relativo}
 
 Sea $i$ un jugador, $s$ un \textit{shock} ocurrido en el minuto $t_s$

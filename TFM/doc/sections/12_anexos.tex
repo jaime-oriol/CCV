@@ -2,23 +2,291 @@
 % ANEXOS (\appendix activado en main.tex)
 % =============================================================================
 
+\chapter{Visualizaciones complementarias}
+\label{anexo:radares}
+
+Este anexo recoge las visualizaciones complementarias del cuerpo
+principal: las fichas \textit{scout-facing} por jugador para tres
+casos paradigmáticos del torneo distintos al de Mbappé reportado en
+la figura~\ref{fig:radar-mbappe}, los \textit{scatter} de la selección
+de Francia sobre las dos combinaciones de índices del \CCV, la figura
+\textit{event-study} de la verificación de robustez en
+diferencias-en-diferencias y las cotas \textit{HonestDiD} de
+sensibilidad a violaciones de paralelismo.
+
+\section{Fichas \textit{scout-facing} adicionales}
+\label{anexo:fichas}
+
+Las figuras \ref{fig:radar-messi}, \ref{fig:radar-hakimi} y
+\ref{fig:radar-brozovic} reportan la ficha equivalente para tres
+jugadores con perfiles contextuales distintos al de Mbappé. La
+lectura aplica el mismo criterio que la figura~\ref{fig:radar-mbappe}
+del cuerpo principal: el percentil que muestra cada eje es la
+posición relativa del jugador dentro de su \textit{bucket} posicional
+sobre el corpus del torneo, no una medida de significatividad
+estadística del efecto causal sobre el jugador. La probabilidad
+posterior por jugador y celda, base de los \textit{tiers} de
+significatividad, se reporta por separado en la tabla canónica del
+\CCV.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.95\textwidth]{radar_report_1531}
+  \caption{Ficha \textit{scout-facing} de Lionel Messi. Radar de
+    doce ejes que cruzan los cuatro canales con los tres contextos
+    del \textit{shock}; cada eje reporta el percentil del jugador
+    dentro de su \textit{bucket} posicional sobre el corpus del
+    Mundial Qatar 2022.}
+  \label{fig:radar-messi}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.95\textwidth]{radar_report_1681}
+  \caption{Ficha \textit{scout-facing} de Achraf Hakimi. Mismo
+    formato que la figura~\ref{fig:radar-messi}.}
+  \label{fig:radar-hakimi}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.95\textwidth]{radar_report_8129}
+  \caption{Ficha \textit{scout-facing} de Marcelo Brozović. Mismo
+    formato que la figura~\ref{fig:radar-messi}.}
+  \label{fig:radar-brozovic}
+\end{figure}
+
+\section{Vista por equipo: Francia}
+\label{anexo:france-scatters}
+
+Las figuras \ref{fig:scatter-france-remontador-cerrojo} y
+\ref{fig:scatter-france-ataque} reproducen los dos \textit{scatter}
+del cuerpo principal restringidos a los jugadores de la selección
+campeona, con la nube del resto del torneo como contexto de fondo.
+La lectura por equipo permite identificar la posición relativa de
+cada jugador del bloque francés sobre el panorama agregado.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{scatter_france_remontador_cerrojo}
+  \caption{Vista por equipo (Francia) sobre los dos índices agregados
+    del \CCV. Mismo formato que la
+    figura~\ref{fig:scatter-remontador-cerrojo} del cuerpo principal,
+    con los jugadores de Francia destacados sobre la nube del resto
+    del torneo.}
+  \label{fig:scatter-france-remontador-cerrojo}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{scatter_france_ataque_marcar_encajar}
+  \caption{Vista por equipo (Francia) sobre las dos celdas
+    ofensivas. Mismo formato que la
+    figura~\ref{fig:scatter-ataque-marcar-encajar} del cuerpo
+    principal.}
+  \label{fig:scatter-france-ataque}
+\end{figure}
+
+\section{Verificación causal por \textit{event-study}}
+\label{anexo:event-study}
+
+La figura~\ref{fig:event-study} reporta los coeficientes del estudio
+de eventos por minuto relativo al \textit{shock}, estimados mediante
+el estimador robusto a heterogeneidad de \textcite{SunAbraham2021}.
+La ausencia de tendencia sistemática en los minutos pre-\textit{shock}
+es consistente con el test $F$ de pre-tendencias agregadas
+\parencite{Roth2022Pretest} reportado en el capítulo~\ref{ch:resultados}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{event_study}
+  \caption{Estudio de eventos por minuto relativo al \textit{shock},
+    estimado con el estimador robusto a heterogeneidad de
+    \textcite{SunAbraham2021}. La línea vertical en $t = 0$ marca el
+    instante del gol; los coeficientes pre-\textit{shock} no
+    presentan tendencia sistemática, consistente con la asunción de
+    paralelismo del DiD.}
+  \label{fig:event-study}
+\end{figure}
+
+\section{Sensibilidad \textit{HonestDiD} a violaciones de paralelismo}
+\label{anexo:honestdid}
+
+La figura~\ref{fig:honestdid} reporta las cotas de sensibilidad de
+\textcite{RambachanRoth2023} sobre el ATE poblacional para tres
+niveles de relajación de la asunción de tendencias paralelas. Los
+intervalos contienen el cero en todos los casos, lo que es
+consistente con la indistinguibilidad de cero reportada para el ATE
+en el capítulo~\ref{ch:resultados}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_anexo_honestdid}
+  \caption{Cotas \textit{HonestDiD} de \textcite{RambachanRoth2023}
+    sobre el ATE poblacional para tres niveles de relajación de la
+    asunción de tendencias paralelas. Los intervalos contienen el
+    cero en todos los casos, consistente con la indistinguibilidad
+    del ATE reportado en el capítulo~\ref{ch:resultados}.}
+  \label{fig:honestdid}
+\end{figure}
+
+
 \chapter{Limitaciones metodológicas en detalle}
 \label{anexo:limitaciones}
 
-\textit{[Pendiente. Contenido detallado de docs/limitations.md.]}
+Este anexo amplía las cautelas declaradas en la
+sección~\ref{sec:disc-no-demuestran} del capítulo~\ref{ch:discusion}
+con tres familias de limitaciones que el lector debe considerar para
+no sobre-interpretar los resultados.
+
+\section{Implementación propia frente a librerías de referencia}
+\label{anexo:lim-implementacion}
+
+Los \textit{building blocks} del \CCV combinan dos modos de
+implementación. Por un lado, el canal ofensivo utiliza
+\textit{atomic}-VAEP a través de la librería \texttt{socceraction}
+1.5.3 \parencite{Decroos2019VAEP}, que es la implementación oficial
+mantenida por los autores originales, ampliamente validada en la
+literatura aplicada y reproducible \textit{bit a bit} sobre el corpus
+de StatsBomb \textit{open data}. Por otro lado, las implementaciones
+de los demás \textit{building blocks} ---PPCF de
+\textcite{Spearman2018OBSO}, C-OBSO de \textcite{Teranishi2022COBSO},
+VDEP estricto de \textcite{Toda2022VDEP}, \textit{exPress} de Lee y
+colaboradores (2025) y la atribución \textit{frame-level} al defensor
+más cercano de Maejima y colaboradores (2024)--- son reimplementaciones
+propias derivadas de la lectura directa de los \textit{papers}
+originales y, en los casos en los que el código fuente público existe,
+contrastadas contra el repositorio de los autores. No son librerías
+oficiales mantenidas como \texttt{socceraction}. La validación
+disponible para estas reimplementaciones es triple: (i) reproducción
+numérica de los ejemplos y de las cifras agregadas reportadas en los
+\textit{papers} originales sobre los corpus que estos utilizan;
+(ii) comparación de los outputs sobre corpus solapados con cifras
+agregadas publicadas por los proveedores comerciales (PFF FC y
+StatsBomb) cuando existe solapamiento;
+(iii) verificación de la consistencia interna entre canales sobre
+los mismos jugadores y partidos (correlaciones esperadas entre
+métricas ofensivas y defensivas, signos esperados de los efectos
+sobre situaciones tipo). El nivel de validación es por tanto razonable
+para un trabajo individual de máster, pero el lector debe asumir que
+las reimplementaciones propias no tienen el mismo grado de madurez
+ni de adopción comunitaria que una librería oficial; cualquier
+hallazgo numérico que dependa de manera crítica de la implementación
+exacta de uno de estos \textit{building blocks} debería contrastarse
+con una segunda implementación si y cuando estuviera disponible
+públicamente.
+
+\section{Cobertura limitada al Mundial Qatar 2022}
+\label{anexo:lim-cobertura}
+
+La aplicación del \CCV se restringe al Mundial Qatar 2022 porque es el
+único corpus público que combina los cuatro ingredientes que el marco
+exige simultáneamente: \textit{eventing} sincronizado con tracking a
+25\,Hz, cobertura completa de fase eliminatoria, \textit{grades}
+humanos por evento y rosters oficiales. La limitación operativa es
+doble. Primero, las propiedades individuales identificadas
+---incluidos los cuatro jugadores con efecto significativo
+\textit{pressure-clutch}--- corresponden a su comportamiento en este
+torneo concreto y no son una predicción de su comportamiento en
+otros contextos competitivos. Segundo, los 172 \textit{shocks} de
+gol del corpus, repartidos en 64 partidos, sitúan el tamaño de
+muestra efectivo en el extremo bajo de lo que la identificación
+causal a nivel individual admite incluso bajo la composición de las
+cinco capas formalizadas en el capítulo~\ref{ch:metodologia}. La
+generalización requeriría replicar el \textit{pipeline} sobre corpus
+adicionales con la misma estructura ---algo factible con futuras
+liberaciones abiertas de \textit{eventing} más tracking pero fuera
+del alcance del presente trabajo.
+
+\section{Sub-corpus de \textit{near-miss} reducido}
+\label{anexo:lim-nearmiss}
+
+El brazo causal complementario al DiD ---el cuasi-experimento de
+\textit{near-miss} apoyado en la cuasi-aleatoriedad del gol
+condicional al $xG$ pre-disparo--- depende del corpus de
+\textit{near-misses} construido sobre las cinco tipologías
+pre-registradas. El corpus efectivo del torneo es reducido, lo que
+limita la potencia del estimador AIPW para detectar efectos a nivel
+individual y restringe la triangulación con el DiD al nivel agregado.
+La estrategia conservadora del trabajo es priorizar el DiD
+\textit{within-player} como brazo principal y reportar el AIPW como
+verificación complementaria, dejando la triangulación rigurosa por
+jugador como una línea futura cuando los corpus disponibles permitan
+ejecutarla con poder estadístico suficiente.
 
 
 \chapter{Validaciones empíricas adicionales}
 \label{anexo:validaciones}
 
-\textit{[Pendiente. Contenido detallado de docs/validations.md: T1 (correlacion
-con grades PFF), T2.4-T2.8 (placebo + power + window + stage), T4.12 (PSxG
-calibration diagnostics).]}
+\textit{[Pendiente. Contenido detallado de docs/validations.md: T1
+(correlación con \textit{grades} PFF), T2.4-T2.8 (placebo, potencia
+ex-ante, sensibilidad de ventana, estratificación por fase del
+torneo), T4.12 (diagnósticos de calibración del PSxG).]}
 
 
 \chapter{Nota técnica: espejo del tracking en prórroga}
 \label{anexo:espejo-prorroga}
 
-\textit{[Pendiente. Contenido de docs/TFM.md sobre la inconsistencia de
-coordenadas tracking $\leftrightarrow$ eventos en P3/P4 de algunos partidos
-y la correccion via M03.scan\_tracking\_corrected.]}
+\textit{[Pendiente. Contenido de docs/TFM.md sobre la inconsistencia
+de coordenadas tracking $\leftrightarrow$ eventos en P3/P4 de algunos
+partidos del Mundial y la corrección automática aplicada en el
+preprocesado.]}
+
+
+\chapter{Uso de asistencia de IA generativa en la elaboración del trabajo}
+\label{anexo:uso-ia}
+
+En cumplimiento de las buenas prácticas académicas sobre transparencia
+en el uso de herramientas de IA generativa, este anexo declara
+explícitamente el alcance con el que estas herramientas se han
+utilizado durante la elaboración del presente trabajo.
+
+\section{Alcance del uso}
+\label{anexo:uso-ia-alcance}
+
+La asistencia de IA generativa se ha limitado a dos roles operativos
+acotados durante la elaboración del trabajo. El primero es la
+asistencia en aspectos formales de la redacción de la memoria
+---sintaxis castellana, claridad expositiva sobre formulaciones
+matemáticas, consistencia terminológica entre capítulos, formato
+\LaTeX, depuración de errores de compilación y verificación de
+referencias bibliográficas. El segundo es el apoyo al desarrollo del
+\textit{pipeline} de código del proyecto ---revisión de
+implementaciones contra los \textit{papers} de referencia, generación
+de comentarios explicativos sobre bloques de cálculo, identificación
+de fallos lógicos y propuesta de \textit{snippets} de validación
+empírica.
+
+\section{Lo que no ha hecho la IA}
+\label{anexo:uso-ia-noha}
+
+Se declara explícitamente que la asistencia de IA generativa no ha
+intervenido en los siguientes aspectos sustantivos del trabajo. La
+formulación de la pregunta de investigación, la definición conceptual
+del marco \CCV, el diseño de la estrategia de identificación causal
+(las cinco capas formalizadas en el capítulo~\ref{ch:metodologia}) y
+la selección de los \textit{building blocks} del estado del arte son
+contribución intelectual exclusiva del autor. La narrativa de cada
+capítulo, la estructura argumental, la interpretación de los
+resultados y las conclusiones sustantivas son de redacción original
+del autor; la asistencia en sintaxis no ha llegado en ningún caso a
+ser redacción autónoma de párrafos completos sobre ideas no
+articuladas previamente por el autor.
+
+\section{Validación de los outputs asistidos}
+\label{anexo:uso-ia-validacion}
+
+Todos los outputs sobre los que la IA ha asistido han sido verificados
+contra fuentes primarias antes de incorporarse al trabajo. Las cifras
+numéricas reportadas en el cuerpo del trabajo se han validado
+ejecutando el código sobre los datos reales del Mundial Qatar 2022 y
+contrastando contra los \textit{parquet} de \texttt{outputs/} y
+\texttt{data/parquet/derived/}; las citas bibliográficas se han
+verificado individualmente contra el DOI o el repositorio original;
+las fórmulas matemáticas se han contrastado contra los \textit{papers}
+de referencia citados en el capítulo~\ref{ch:estado-arte}; las
+implementaciones de código que la IA ha contribuido a revisar se han
+validado mediante \textit{tests} de consistencia interna y mediante
+reproducción de cifras agregadas publicadas por los autores de los
+\textit{papers} originales. La responsabilidad última sobre la
+corrección de cada afirmación del trabajo es exclusivamente del autor.

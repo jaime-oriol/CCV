@@ -284,7 +284,29 @@ trabajo individual. La extensión contrafactual C-OBSO
 OBSO observado y el OBSO que habría obtenido el jugador si en lugar
 de moverse se hubiera quedado quieto en su posición previa; la
 diferencia atribuye al jugador el valor añadido por su movimiento
-sin balón.
+sin balón. La figura~\ref{fig:ppcf-mbappe} ilustra el output
+\textit{frame-level} del PPCF sobre un instante de juego concreto del
+torneo: el 2-2 que iguala la final Argentina-Francia, con Mbappé
+disparando desde el área. La gradación cromática refleja el control
+de espacio del equipo atacante (rojo) frente al defensor (azul) en
+cada celda del campo; es sobre superficies de este tipo, agregadas a
+lo largo de los frames de la ventana del \textit{shock}, donde el
+canal \textit{off-ball} cuantifica el valor del movimiento sin balón.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{ppcf_mbappe_2_2_final}
+  \caption{Superficie de \textit{Potential Pitch Control Field} (PPCF)
+    en el instante del 2-2 que iguala la final Argentina-Francia
+    (Mundial Qatar 2022). Cada celda del campo está coloreada según
+    qué equipo tiene mayor probabilidad de controlar el balón si éste
+    apareciera en ese punto: rojo para Francia, azul para Argentina.
+    El balón aparece en la posición de disparo de Mbappé; los puntos
+    representan jugadores con su vector de velocidad. Esta superficie
+    es el factor PPCF($r, t$) del OBSO de \textcite{Spearman2018OBSO}
+    en el \textit{frame} de tracking PFF a 25\,Hz.}
+  \label{fig:ppcf-mbappe}
+\end{figure}
 
 \paragraph{Canal físico.}
 El canal físico residualiza la respuesta del jugador contra una línea

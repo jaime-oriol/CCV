@@ -215,6 +215,31 @@ trabajo.
 \section{Jugadores con respuesta significativa por contexto}
 \label{sec:res-scout-facing}
 
+Antes de entrar en los nombres concretos, la figura~\ref{fig:scatter-remontador-cerrojo}
+ofrece el panorama del torneo sobre los dos índices agregados que el
+\CCV reporta: el Remontador (eje horizontal, respuesta tras encajar)
+y el Cerrojo (eje vertical, respuesta tras marcar). Cada punto es un
+jugador del Mundial Qatar 2022 con muestra suficiente, coloreado por
+su \textit{bucket} posicional. El gráfico permite leer perfiles
+extremos en cada cuadrante ---el doble-clutch arriba a la derecha, el
+doble-choke abajo a la izquierda--- y comprobar visualmente que la
+mayoría de jugadores se concentra alrededor del origen, en la zona
+donde el efecto individual está dentro del ruido del estimador.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{scatter_remontador_cerrojo}
+  \caption{Mapa del torneo sobre los dos índices agregados del \CCV:
+    eje horizontal, Remontador (respuesta tras encajar); eje vertical,
+    Cerrojo (respuesta tras marcar). Cada punto es un jugador con
+    muestra suficiente. Los nombres etiquetados corresponden a los
+    jugadores con valores extremos en al menos uno de los dos ejes.
+    La densidad de la nube central refleja que la mayoría de
+    jugadores se concentran cerca del origen, donde el efecto
+    individual está dentro del ruido del estimador.}
+  \label{fig:scatter-remontador-cerrojo}
+\end{figure}
+
 Los jugadores con efecto significativo en el contexto de proximidad
 de eliminación alta ---el indicador \textit{pressure-clutch} del
 \CCV--- se reportan en la tabla~\ref{tab:pressure-clutch}. La
@@ -244,6 +269,38 @@ negativo.
   \end{tabular}
 \end{table}
 
+La figura~\ref{fig:radar-mbappe} reporta la ficha
+\textit{scout-facing} de Mbappé como ilustración del formato por
+jugador del \CCV: doce ejes que cruzan los cuatro canales con los
+tres contextos del \textit{shock}, expresados como percentil dentro
+de su posición sobre el corpus del torneo. La lectura del radar
+requiere una precisión metodológica relevante: el percentil que
+muestra cada eje no es una medida de significatividad del efecto
+causal sobre ese jugador, sino su \textit{ranking} relativo dentro
+de su \textit{bucket} posicional. Un percentil alto indica que el
+jugador está entre los más altos de su posición en esa celda, pero
+la magnitud absoluta del efecto puede seguir siendo indistinguible
+de cero si la probabilidad posterior por jugador no cruza el umbral
+de significatividad. Las dos lecturas ---percentil posicional y
+probabilidad posterior por jugador--- son complementarias y se
+reportan conjuntamente en la tabla canónica del \CCV; el anexo
+\ref{anexo:radares} reproduce las fichas equivalentes para Messi,
+Hakimi y Brozović.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.95\textwidth]{radar_report_3870}
+  \caption{Ficha \textit{scout-facing} de Kylian Mbappé. Radar de
+    doce ejes que cruzan los cuatro canales (ofensivo, defensivo,
+    \textit{off-ball}, físico) con los tres contextos del
+    \textit{shock} (tras encajar, tras marcar y bajo proximidad de
+    eliminación alta). Cada eje reporta el percentil del jugador
+    dentro de su \textit{bucket} posicional sobre el corpus del
+    Mundial. La tabla inferior reporta los percentiles agregados por
+    canal e índice.}
+  \label{fig:radar-mbappe}
+\end{figure}
+
 Los tres jugadores con efecto positivo significativo están liderados
 por Kylian Mbappé, con un coeficiente de $+0{,}110$ desviaciones
 estándar y probabilidad posterior $0{,}97$. La identificación es
@@ -261,7 +318,23 @@ A nivel canal-específico, la celda ofensivo-tras-marcar concentra la
 mayor cantidad de efectos individuales significativos: veintidós
 jugadores presentan respuesta significativa al \textit{shock} de
 marcar sobre su producción ofensiva inmediata, cinco con coeficiente
-positivo y diecisiete con coeficiente negativo. Los cinco con efecto
+positivo y diecisiete con coeficiente negativo. La
+figura~\ref{fig:scatter-ataque-marcar-encajar} reporta el panorama
+del torneo sobre las dos celdas ofensivas: ataque tras marcar (eje
+horizontal) y ataque tras encajar (eje vertical), con un punto por
+jugador.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{scatter_ataque_marcar_encajar}
+  \caption{Distribución de los jugadores del torneo sobre las dos
+    celdas ofensivas del \CCV. Eje horizontal: respuesta del canal
+    ofensivo tras marcar. Eje vertical: respuesta del canal ofensivo
+    tras encajar. Cada punto es un jugador con muestra suficiente.
+    La cantidad de jugadores con efecto significativo positivo o
+    negativo en cualquiera de las dos celdas se reporta en el texto.}
+  \label{fig:scatter-ataque-marcar-encajar}
+\end{figure} Los cinco con efecto
 positivo son Eric Maxim Choupo-Moting, Dušan Vlahović, Raheem
 Sterling, Harry Kane y Cristiano Ronaldo, en orden decreciente de
 probabilidad posterior. La narrativa de cada caso ---celebración
