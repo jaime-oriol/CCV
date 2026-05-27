@@ -43,7 +43,14 @@
 
 % --- Caption ---
 \usepackage{caption}
-\captionsetup{font=footnotesize,labelfont=bf,format=plain,labelsep=period,justification=raggedright,singlelinecheck=false}
+\captionsetup{font=footnotesize,labelfont=bf,format=plain,labelsep=period,justification=centering}
+
+% --- Indices de figuras / tablas en tamaño normal (no heredan footnotesize) ---
+\usepackage{tocloft}
+\renewcommand{\cftfigfont}{\normalsize}
+\renewcommand{\cftfigpagefont}{\normalsize}
+\renewcommand{\cfttabfont}{\normalsize}
+\renewcommand{\cfttabpagefont}{\normalsize}
 
 % --- Listings de codigo ---
 \usepackage{xcolor}
