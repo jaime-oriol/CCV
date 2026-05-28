@@ -5,7 +5,7 @@
 \label{ch:metodologia}
 
 Este capítulo formaliza la metodología del \CCV en seis bloques: el
-\textit{pipeline} en cinco fases (§\ref{sec:marco-metodologico}), la
+\textit{pipeline} en seis fases (§\ref{sec:marco-metodologico}), la
 notación de los deltas individual y colectivo y las especificaciones
 formales de los dos estimadores causales y del modelo CATE jerárquico
 bayesiano \textit{multivariate} (§\ref{sec:marco-teorico}), los tres
@@ -20,18 +20,18 @@ que rige la producción de los resultados del capítulo siguiente
 \section{Marco metodológico}
 \label{sec:marco-metodologico}
 
-El \textit{pipeline} se ejecuta como un grafo dirigido acíclico de cinco
+El \textit{pipeline} se ejecuta como un grafo dirigido acíclico de seis
 fases. Cada fase consume el cache de la anterior y deposita un cache
 intermedio que las fases posteriores reutilizan, lo que permite
 recomputar cualquier capa sin reejecutar las anteriores y garantiza la
 reproducibilidad de los resultados. La figura~\ref{fig:pipeline-dag}
-sintetiza la composición de las cinco fases y las anotaciones
+sintetiza la composición de las seis fases y las anotaciones
 metodológicas que conectan unas con otras.
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=\textwidth]{fig_cap4_pipeline_dag}
-  \caption{\textit{Pipeline} del \CCV en cinco fases.}
+  \caption{\textit{Pipeline} del \CCV en seis fases.}
   \label{fig:pipeline-dag}
 \end{figure}
 
@@ -113,7 +113,7 @@ produce dos agregaciones: por jugador-minuto (panel para DiD) y por
 jugador-\textit{shock}-ventana con cálculo \textit{leave-one-out} del
 bloque colectivo del propio equipo (panel para AIPW y CATE).
 
-\paragraph{Fase 5. Identificación causal, CATE y ensamblaje.}
+\paragraph{Fase 5. Identificación causal y CATE jerárquico.}
 El efecto causal del \textit{shock} se estima mediante dos estrategias
 independientes. La primera es una diferencias-en-diferencias
 \textit{within-player} con efectos fijos por jugador-\textit{shock} y
@@ -128,12 +128,20 @@ discontinuidad en $xG$. El efecto heterogéneo por jugador se condensa
 en un CATE jerárquico bayesiano \textit{multivariate} sobre los cuatro
 canales conjuntamente, con correlaciones \textit{cross}-canal por
 dirección del \textit{shock} y \textit{priors} informados por los
-\textit{grades} humanos PFF pre-torneo. La capa final ensambla la
-tabla \textit{scout-facing} canónica con un jugador por fila, tres
-índices agregados (Remontador post-GA, Cerrojo post-GF y
-\textit{Pressure Response} continuo), vector resumen por canal,
-\textit{rankings} por posición y \textit{bucket} posicional, y
-\textit{flags} de incertidumbre.
+\textit{grades} humanos PFF pre-torneo.
+
+\paragraph{Fase 6. Ensamblaje \textit{scout-facing}.}
+La capa final ensambla la tabla canónica del \CCV con un jugador por
+fila a partir de la posterior del CATE: tres índices agregados
+(Remontador post-GA, Cerrojo post-GF y \textit{Pressure Response}
+continuo), vector resumen por canal, ocho celdas canal-por-contexto
+con media posterior, intervalo de credibilidad y probabilidad
+posterior, \textit{rankings} por posición granular y por
+\textit{bucket} posicional, y \textit{flags} de incertidumbre. Sobre
+esta tabla se construyen los rankings \textit{scout-facing} y las
+tablas auxiliares (\textit{top}-10 por posición, \textit{dual-clutch
+top}, agregación por selección) que constituyen el \textit{output}
+final del trabajo.
 
 
 \section{Marco teórico}
