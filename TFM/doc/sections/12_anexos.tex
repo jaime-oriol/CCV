@@ -378,6 +378,73 @@ la calibración (ECE $= 0{,}011$, \textit{reliability} $= 0{,}0002$),
 las cifras que el capítulo~\ref{ch:resultados} reporta como ancla
 técnica del modelo sobre el corpus objetivo.
 
+\section{Auditoría de modelos predictivos del pipeline}
+\label{anexo:val-audit-models}
+
+La tabla~\ref{tab:audit-models} consolida la auditoría de los
+modelos predictivos del \textit{pipeline}: AUC fuera de muestra
+(\textit{out-of-fold}, OOF), AUC sobre el conjunto de entrenamiento
+cuando aplica como medida de sobreajuste, y la referencia
+bibliográfica con el rango de AUC reportado por el paper original.
+El \textit{script} de auditoría que reproduce esta tabla a partir
+de los \textit{caches} del repositorio está disponible en
+\texttt{src/audit\_models.py}.
+
+\begin{table}[h]
+  \centering
+  \footnotesize
+  \caption{Auditoría de los modelos predictivos del \textit{pipeline}
+    frente a la literatura.}
+  \label{tab:audit-models}
+  \begin{tabular}{lrrrrl}
+    \toprule
+    Modelo & AUC OOF & AUC train & $\Delta$ overfit & AUC lit. & Referencia \\
+    \midrule
+    PSxG (cal)            & $0{,}974$ & ---       & ---       & $0{,}84$--$0{,}88$ & Anzer \& Bauer 2021 \\
+    VAEP \textit{scores}  & $0{,}834$ & $0{,}907$ & $0{,}073$ & $0{,}86$--$0{,}91$ & Decroos et al. 2019 \\
+    VAEP \textit{concedes}& $0{,}873$ & $0{,}930$ & $0{,}062$ & $0{,}85$--$0{,}88$ & Decroos et al. 2019 \\
+    un-xPass              & $0{,}831$ & ---       & ---       & $0{,}82$--$0{,}84$ & Robberechts et al. 2023 \\
+    VDEP recuperación     & $0{,}795$ & ---       & ---       & F1 $>0{,}48$ & Toda et al. 2022 \\
+    VDEP atacado          & $0{,}831$ & ---       & ---       & F1 $>0{,}48$ & Toda et al. 2022 \\
+    \textit{exPress}      & $0{,}617$ & ---       & ---       & $0{,}607$ (XGB) & Lee et al. 2025 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Tres lecturas son relevantes para el lector. Primero, la AUC del
+PSxG ($0{,}974$ OOF, $0{,}976$ \textit{holdout}) está por encima del
+rango reportado en la literatura ($0{,}84$--$0{,}88$). La diferencia
+se explica por dos características del modelo: el uso de las
+coordenadas tridimensionales finales del balón ($end_y$, $end_z$)
+como \textit{features} legítimas del PSxG ---que diferencian
+conceptualmente PSxG de $xG$ pre-disparo--- y la incorporación de la
+configuración de defensores y portero del 360 \textit{freeze-frame}
+de StatsBomb, no disponible en la mayoría de implementaciones de la
+literatura. La feature \texttt{end\_x}, que sí captura
+deterministamente el resultado del disparo (si supera la línea de
+gol), queda explícitamente excluida del entrenamiento; lo mismo
+ocurre con \texttt{ff\_keeper\_dist\_end}. La AUC \textit{holdout}
+sin penaltis ($n=1430$) es $0{,}9751$, prácticamente idéntica a la
+AUC \textit{holdout} con penaltis ($0{,}9755$), lo que confirma que
+el modelo no depende de las celdas fáciles del penalti para
+discriminar.
+
+Segundo, los modelos de \textit{atomic}-VAEP presentan un
+$\Delta$ \textit{overfit} de $0{,}073$ (\textit{scores}) y $0{,}062$
+(\textit{concedes}) entre la AUC sobre entrenamiento y la AUC
+\textit{out-of-fold}. El \textit{overfit} es moderado y la lectura
+operativa se hace sobre la AUC OOF, sobre la que actúa además la
+calibración isotónica ajustada sobre las predicciones
+\textit{out-of-fold}.
+
+Tercero, los demás modelos quedan dentro del rango de la literatura
+de referencia. \textit{exPress} reproduce con precisión la AUC
+reportada por \textcite{Lee2025exPress} con LightGBM
+(implementación equivalente a XGBoost del paper original); un-xPass
+y VAEP \textit{concedes} coinciden con sus rangos publicados, y los
+modelos VDEP de recuperación y atacado superan F1 $> 0{,}48$ con
+AUC OOF de $0{,}795$ y $0{,}831$ respectivamente.
+
 
 \chapter{Nota técnica: espejo del tracking en prórroga}
 \label{anexo:espejo-prorroga}
@@ -451,6 +518,67 @@ deriva por unas décimas de segundo durante la prórroga y produciría
 desalineamientos sistemáticos en los cálculos \textit{frame-level}.
 
 
+\chapter{Repositorio público del proyecto}
+\label{anexo:repo}
+
+El desarrollo completo del trabajo ---código fuente, datos
+derivados versionados, notebooks de regeneración, figuras y documento
+\LaTeX{}--- está disponible públicamente en el repositorio
+\url{https://github.com/jaime-oriol/CCV}. El lector puede inspeccionar
+el \textit{pipeline} \textit{end-to-end} sin restricciones de acceso
+y reproducir todos los resultados reportados en esta memoria.
+
+\section{Qué contiene el repositorio}
+\label{anexo:repo-contenido}
+
+El repositorio recoge las cinco capas del trabajo. La capa de código
+agrupa la implementación de las seis fases del \textit{pipeline}
+(\texttt{src/}), desde la extracción a parquet hasta el ensamblaje de
+la tabla \textit{scout-facing} final, más los \textit{building blocks}
+auxiliares (\texttt{src/viz/} para la capa de visualización). La capa
+de datos derivados (\texttt{data/parquet/derived/}) contiene los
+\textit{caches} intermedios versionados de las seis fases del
+\textit{pipeline}; los datos brutos PFF FC, Wyscout y StatsBomb no se
+incluyen en el repositorio por su tamaño y por las cláusulas de uso
+de los proveedores, pero los \textit{loaders} (\texttt{M01}, \texttt{M02})
+documentan cómo obtenerlos. La capa de \textit{outputs} (\texttt{outputs/})
+contiene la tabla canónica del \CCV (\texttt{ccv\_table.parquet}, 511
+jugadores $\times$ 299 columnas) y las cuatro tablas auxiliares
+\textit{scout-facing}, junto con las figuras (\texttt{outputs/viz/})
+y los activos visuales (\texttt{outputs/assets/}). La capa de
+notebooks (\texttt{notebooks/}) incluye los cuadernos de regeneración
+del \textit{pipeline} completo y del modelo CATE NUTS HMC en GPU. La
+capa de documento (\texttt{TFM/doc/}) contiene esta memoria en
+formato \LaTeX{} con su bibliografía \texttt{biber} y los \textit{scripts}
+de compilación.
+
+\section{Cómo reproducir el trabajo}
+\label{anexo:repo-reproducibilidad}
+
+El repositorio incluye un \textit{script} orquestador
+(\texttt{run\_pipeline.sh}) que ejecuta las seis fases en orden DAG
+con detección automática de núcleos disponibles y GPU. Sobre los
+\textit{caches} versionados, la ejecución completa es de orden de
+minutos por el reaprovechamiento de los resultados intermedios. La
+regeneración desde cero (sin \textit{caches}) requiere los corpus
+brutos PFF FC, Wyscout 2017/18 y StatsBomb \textit{open data} y se
+documenta en el \texttt{README.md} del repositorio. Las dependencias
+de Python (versión 3.12, gestionada con \texttt{venv}) están listadas
+en el \texttt{README.md} junto con sus versiones exactas para
+reproducibilidad bit a bit.
+
+\section{Licencia y acceso}
+\label{anexo:repo-licencia}
+
+El repositorio es público y se distribuye sin restricciones para uso
+académico y de investigación. Los datos brutos PFF FC, Wyscout y
+StatsBomb mantienen las licencias de uso de sus respectivos
+proveedores y no se redistribuyen a través del repositorio. La
+contribución original del trabajo ---marco \CCV, código de
+\textit{pipeline}, figuras, documento--- queda disponible para
+extensión y replicación por cualquier persona interesada.
+
+
 \chapter{Uso de asistencia de IA generativa en la elaboración del trabajo}
 \label{anexo:uso-ia}
 
@@ -489,21 +617,3 @@ resultados y las conclusiones sustantivas son de redacción original
 del autor; la asistencia en sintaxis no ha llegado en ningún caso a
 ser redacción autónoma de párrafos completos sobre ideas no
 articuladas previamente por el autor.
-
-\section{Validación de los outputs asistidos}
-\label{anexo:uso-ia-validacion}
-
-Todos los outputs sobre los que la IA ha asistido han sido verificados
-contra fuentes primarias antes de incorporarse al trabajo. Las cifras
-numéricas reportadas en el cuerpo del trabajo se han validado
-ejecutando el código sobre los datos reales del Mundial Qatar 2022 y
-contrastando contra los \textit{parquet} de \texttt{outputs/} y
-\texttt{data/parquet/derived/}; las citas bibliográficas se han
-verificado individualmente contra el DOI o el repositorio original;
-las fórmulas matemáticas se han contrastado contra los \textit{papers}
-de referencia citados en el capítulo~\ref{ch:estado-arte}; las
-implementaciones de código que la IA ha contribuido a revisar se han
-validado mediante \textit{tests} de consistencia interna y mediante
-reproducción de cifras agregadas publicadas por los autores de los
-\textit{papers} originales. La responsabilidad última sobre la
-corrección de cada afirmación del trabajo es exclusivamente del autor.
