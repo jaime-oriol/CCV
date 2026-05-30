@@ -148,26 +148,46 @@ la que entra al corpus de \textit{near-miss}.
 
 El corpus se construye sobre cinco tipologías con umbrales
 pre-registrados que aproximan la cuasi-aleatoriedad del resultado
-del disparo condicional a su calidad técnica. La primera es palo o
-travesaño, con $xG$ pre-disparo en el rango $[0{,}15,\, 0{,}85]$
-para asegurar comparabilidad con goles marcados de calidad
-equivalente. La segunda es fuera de juego milimétrico, definido como
-una infracción de offside con margen inferior a 1{,}5 unidades
-StatsBomb sobre el \textit{freeze-frame} (aproximadamente 1{,}37\,m
-en el campo real); cuando no hay \textit{freeze-frame} disponible
-se utiliza una aproximación basada en la coordenada $x$ del atacante.
-La tercera es parada del portero sobre un disparo de PSxG alto,
-definido como un disparo con $\text{PSxG} \geq 0{,}6$ o, alternativamente,
-$xG$ baseline $\geq 0{,}4$ que termina en parada. La cuarta es
-despeje en línea de gol, identificado por el \textit{marker} explícito
-de StatsBomb \textit{Saved Off Target}. La quinta es no-gol confirmado por la tecnología de gol, detectado
-cruzando la coordenada $z$ del balón en el tracking PFF a 25\,Hz
-contra la línea de gol; este caso es raro en el corpus pero está
-documentado en el partido entre Japón y España. El corpus final
-contiene 70 \textit{near-misses} efectivos repartidos entre las
-cinco tipologías: 42 paradas del portero sobre disparo de PSxG alto,
-12 palos o travesaños, 9 no-goles confirmados por la tecnología de
-gol, 5 fueras de juego milimétricos y 2 despejes en línea de gol.
+del disparo condicional a su calidad técnica. La
+tabla~\ref{tab:nearmiss-tipos} reporta el criterio de detección, el
+$xG$ \textit{baseline} medio del disparo y el conteo final por
+tipología sobre el torneo. Las paradas de PSxG alto y los palos
+operan sobre el rango $xG \in [0{,}15,\, 0{,}85]$ para asegurar
+comparabilidad técnica con los goles marcados; los offsides
+milimétricos, despejes en línea de gol y no-goles confirmados por
+tecnología activan por geometría o por \textit{marker} explícito y
+no usan umbral de $xG$.
+
+\begin{table}[h]
+  \centering
+  \footnotesize
+  \caption{Tipologías del corpus de \textit{near-miss}.}
+  \label{tab:nearmiss-tipos}
+  \begin{tabular}{@{}lp{6.0cm}rr@{}}
+    \toprule
+    Tipología & Criterio de detección & $xG$ medio & $n$ \\
+    \midrule
+    Parada PSxG alto         & $\text{PSxG} \geq 0{,}6$ o $xG \geq 0{,}4$ que termina en parada & $0{,}47$ & 42 \\
+    Palo o travesaño         & \textit{Marker} \textit{Off Target} con $xG \in [0{,}15,\, 0{,}85]$ & $0{,}45$ & 12 \\
+    No-gol por tecnología    & Cruce de coordenada $z$ del balón sobre línea de gol en tracking PFF a 25\,Hz & $0{,}07$ & 9 \\
+    Fuera de juego milimétrico & Offside con margen $< 1{,}5$ unidades StatsBomb ($\approx 1{,}37$\,m) sobre 360 \textit{freeze-frame}; \textit{fallback}: coordenada $x$ del atacante & --- & 5 \\
+    Despeje en línea de gol  & \textit{Marker} explícito \textit{Saved Off Target} & $0{,}09$ & 2 \\
+    \midrule
+    \textbf{Total}           &                                       &          & \textbf{70} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La distribución temporal de los 70 \textit{near-misses} a lo largo
+del partido es ligeramente sesgada hacia la fase de prórroga: 25 en
+la primera parte de regulación (P1), 26 en la segunda (P2) y 19 en
+tiempo extra. El sobre-peso relativo de la prórroga ---que solo
+ocupa el 6\% del tiempo del torneo--- es consistente con la mayor
+intensidad ofensiva característica de las fases eliminatorias
+abiertas, y refuerza la cobertura del corpus en el régimen de
+máxima carga emocional. El no-gol confirmado por la tecnología de
+gol es la tipología más rara del corpus pero está documentada
+explícitamente en el partido entre Japón y España.
 
 
 \section{Identificación de \textit{shocks} y ventanas pre/post}
@@ -227,7 +247,25 @@ estado del arte, y produce dos agregaciones que las capas causales
 consumen: una a nivel jugador-minuto (panel para el DiD
 \textit{within-player}) y otra a nivel jugador-\textit{shock}-ventana
 con el delta colectivo \textit{leave-one-out} ya calculado (panel
-para el AIPW y para el CATE).
+para el AIPW y para el CATE). La tabla~\ref{tab:canales-resumen}
+sintetiza los cuatro canales.
+
+\begin{table}[h]
+  \centering
+  \footnotesize
+  \caption{Resumen de los cuatro canales del rendimiento.}
+  \label{tab:canales-resumen}
+  \begin{tabular}{@{}lp{4.4cm}p{3.4cm}l@{}}
+    \toprule
+    Canal & \textit{Building blocks} & Entrenamiento & AUC OOF \\
+    \midrule
+    Ofensivo  & \textit{atomic}-VAEP + \textit{un-xPass} & 456\,k acciones + 137\,k pases & $0{,}83$ / $0{,}87$ + $0{,}83$ \\
+    Defensivo & VDEP + \textit{exPress} + atribución \textit{frame-nearest} & 36\,k acciones + 88\,k presiones & $0{,}80$ / $0{,}83$ + $0{,}62$ \\
+    Off-ball  & OBSO + C-OBSO & 64 partidos a 25\,Hz & --- \\
+    Físico    & Bradley + residual bayesiano jerárquico & 64 partidos a 25\,Hz & --- \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \paragraph{Canal ofensivo.}
 La valoración ofensiva combina dos métricas con interpretación
