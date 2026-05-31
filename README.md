@@ -57,15 +57,16 @@ Paquete `src/viz/` genera las figuras a `outputs/viz/`:
 Datos raw originales (PFF tracking 5 GB, StatsBomb, Wyscout) y documentacion interna del proyecto estan fuera del repositorio (`.gitignore`).
 
 ```text
-TFM/
+CCV/
 ├── README.md                                      # este fichero
+├── TFM_CCV.pdf                                    # PDF compilado del TFM (~85 pp, ~12 MB)
 ├── run_pipeline.sh                                # E2E orquestador (auto detect cores + GPU)
 ├── data/parquet/
 │   ├── pff/                                       # versionado: events (64) + metadata + rosters
 │   └── derived/                                   # versionado: caches M03 a M14
 │       ├── preprocess/, wp/, psxg/, nearmiss/, shocks/
 │       ├── ataque/, defensa/, offball/, fisico/
-│       ├── did/, did_validation/, aipw/
+│       ├── did/, did_validation/, aipw/, audit/
 │       └── cate/                                  # M14 outputs (cate_nuts.pkl ignorado, 409 MB regenerable)
 ├── cache/vaep/                                    # versionado: features + labels VAEP por partido
 ├── src/
@@ -92,6 +93,7 @@ TFM/
 │   ├── M13_aipw.py                                # AIPW DoubleMLIRM + DML PLR + DR learner + RDD + spec curve
 │   ├── M14_cate.py                                # CATE bayesiano NUTS HMC 4 chains + 5 etas + LKJ
 │   ├── M15_ccv.py                                 # tabla scout final + 16 cells contextualizados + buckets
+│   ├── audit_models.py                            # auditoria 100% modelos predictivos (PSxG/VAEP/VDEP/exPress/unxPass)
 │   ├── render_ficha.py                            # ficha visual scout facing por jugador
 │   ├── Z01_vaep.py                                # atomic VAEP wrapper
 │   ├── Z02_pitch_control.py                       # PPCF Spearman 2018 vectorizado
@@ -111,25 +113,19 @@ TFM/
 ├── notebooks/
 │   ├── regen_all.ipynb                            # regen E2E completa M03-M15 + Z03-Z06 en orden DAG
 │   └── regen_m14_kaggle.ipynb                     # regen M14 NUTS HMC en Kaggle GPU
-├── outputs/
-│   ├── ccv_table.parquet                          # tabla scout final (511 jug x 299 cols)
-│   ├── viz/                                       # figuras PNG (PPCF, radar, radar_report, scatter, scatter_team, event-study)
-│   └── ccv_aux/
-│       ├── top10_chasing_per_position.parquet     # 16 position_group granulares
-│       ├── top10_protecting_per_position.parquet
-│       ├── top10_pressure_per_position.parquet
-│       ├── top10_chasing_per_bucket.parquet       # 4 buckets (DEF/MED/ATA, GK aparte)
-│       ├── top10_protecting_per_bucket.parquet
-│       ├── top10_pressure_per_bucket.parquet
-│       ├── dual_clutch_top.parquet
-│       └── by_team.parquet
-└── TFM/doc/                                       # documento TFM en LaTeX (paper EPV style, estructura RITMO)
-    ├── main.tex                                   # entry point (babel ES + biblatex APA 7 + biber)
-    ├── portada.tex                                # titulo ES + EN + autor + tutor + master
-    ├── refs.bib                                   # BibLaTeX (citas verificadas 1 a 1 vs DOI)
-    ├── Makefile                                   # make pdf | watch | clean
-    ├── figures/  -> ../../outputs/viz/            # symlink
-    └── sections/00..12_*.tex                      # 13 ficheros: Resumen, Abstract, Agradec., 8 caps, Refs, Anexos
+└── outputs/
+    ├── ccv_table.parquet                          # tabla scout final (511 jug x 299 cols)
+    ├── viz/                                       # figuras PNG (PPCF, radar, radar_report, scatter, scatter_team, event-study, mapa conceptual, capas causales, pipeline DAG)
+    ├── assets/                                    # logos selecciones (33) + caras jugadores FotMob + logo JO + logo SDC
+    └── ccv_aux/
+        ├── top10_chasing_per_position.parquet     # 16 position_group granulares
+        ├── top10_protecting_per_position.parquet
+        ├── top10_pressure_per_position.parquet
+        ├── top10_chasing_per_bucket.parquet       # 4 buckets (DEF/MED/ATA, GK aparte)
+        ├── top10_protecting_per_bucket.parquet
+        ├── top10_pressure_per_bucket.parquet
+        ├── dual_clutch_top.parquet
+        └── by_team.parquet
 ```
 
 ## Estado del pipeline
