@@ -54,12 +54,12 @@ Paquete `src/viz/` genera las figuras a `outputs/viz/`:
 
 ## Estructura del repositorio
 
-Datos raw originales (PFF tracking 5 GB, StatsBomb, Wyscout) y documentacion interna del proyecto estan fuera del repositorio (`.gitignore`).
+Datos raw originales (PFF tracking, StatsBomb, Wyscout) y documentacion interna del proyecto estan fuera del repositorio (`.gitignore`).
 
 ```text
 CCV/
 ├── README.md                                      # este fichero
-├── TFM_CCV.pdf                                    # PDF compilado del TFM (~85 pp, ~12 MB)
+├── TFM_CCV.pdf                                    # PDF compilado del TFM
 ├── run_pipeline.sh                                # E2E orquestador (auto detect cores + GPU)
 ├── data/parquet/
 │   ├── pff/                                       # versionado: events (64) + metadata + rosters
