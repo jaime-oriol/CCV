@@ -48,6 +48,10 @@ Paquete `src/viz/` genera las figuras a `outputs/viz/`:
 
 `python -m src.viz` renderiza la BARAJA COMPLETA de una: PPCF + 2 scatter globales + 2 scatter France + 4 radar reports (Messi, Hakimi, Mbappe, Brozovic).
 
+<p align="center">
+  <img src="outputs/viz/radar_report_3870.png" alt="Radar ficha Mbappe" width="780"/>
+</p>
+
 ## Estructura del repo
 
 ```text
