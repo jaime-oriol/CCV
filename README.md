@@ -141,6 +141,24 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 
 Datos raw originales (PFF tracking 5 GB, StatsBomb, Wyscout) y documentacion interna del proyecto estan fuera del repo (`.gitignore`).
 
+## Pipeline conceptual y arquitectura causal
+
+El CCV se compone de dos mapas: el **mapa conceptual** describe qué descompone (tipo de shock × ruptura del bloque × signo de la reaccion sobre 4 canales) y el **stack de 5 capas causales** describe como aisla el efecto del jugador del empuje colectivo del equipo.
+
+<p align="center">
+  <img src="outputs/viz/fig_cap4_mapa_conceptual.png" alt="Mapa conceptual CCV" width="780"/>
+</p>
+
+<p align="center">
+  <img src="outputs/viz/fig_cap4_capas_causales.png" alt="5 capas causales CCV" width="780"/>
+</p>
+
+El pipeline tecnico se ejecuta como un DAG de 6 fases: extraccion -> WP backbone -> shocks/near-miss -> 4 canales en paralelo -> CATE jerarquico -> ensamblaje scout-facing.
+
+<p align="center">
+  <img src="outputs/viz/fig_cap4_pipeline_dag.jpg" alt="Pipeline DAG CCV" width="780"/>
+</p>
+
 ## Visualizaciones
 
 Paquete `src/viz/` con identidad LIGHT OPTA: fondo blanco, tipografia Chakra Petch
@@ -157,6 +175,12 @@ logo JO como firma. Genera las figuras a `outputs/viz/`:
 | Event-study   | `python -m src.viz.figures`            | Efecto causal del shock minuto a minuto (M12)        |
 
 `python -m src.viz` renderiza la BARAJA COMPLETA de una: PPCF + 2 scatter globales + 2 scatter France + 4 radar reports (Messi, Hakimi, Mbappe, Brozovic).
+
+Ejemplo de output scout-facing — ficha radar de Kylian Mbappe (pressure-clutch leader del torneo, CATE +0.110 con P(beta>0)=0.97):
+
+<p align="center">
+  <img src="outputs/viz/radar_report_3870.png" alt="Radar ficha Mbappe" width="780"/>
+</p>
 
 ## Reproducibilidad
 
