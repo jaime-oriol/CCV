@@ -15,6 +15,47 @@ Estimación causal del efecto del shock emocional (gol a favor / gol en contra /
 
 Output: ranking tridimensional de jugadores clutch (Indice Remontador post GA + Indice Cerrojo post GF + Pressure Response continuo en elim_prox) con intervalos de credibilidad bayesianos, agregado por bucket posicional (DEF/MED/ATA) y posicion granular (16 PFF labels).
 
+## Pipeline conceptual y arquitectura causal
+
+El CCV se compone de dos mapas: el **mapa conceptual** describe qué descompone (tipo de shock × ruptura del bloque × signo de la reaccion sobre 4 canales) y el **stack de 5 capas causales** describe como aisla el efecto del jugador del empuje colectivo del equipo.
+
+<p align="center">
+  <img src="outputs/viz/fig_cap4_mapa_conceptual.png" alt="Mapa conceptual CCV" width="780"/>
+</p>
+
+<p align="center">
+  <img src="outputs/viz/fig_cap4_capas_causales.png" alt="5 capas causales CCV" width="780"/>
+</p>
+
+El pipeline tecnico se ejecuta como un DAG de 6 fases: extraccion -> WP backbone -> shocks/near-miss -> 4 canales en paralelo -> CATE jerarquico -> ensamblaje scout-facing.
+
+<p align="center">
+  <img src="outputs/viz/fig_cap4_pipeline_dag.jpg" alt="Pipeline DAG CCV" width="780"/>
+</p>
+
+## Visualizaciones
+
+Paquete `src/viz/` con identidad LIGHT OPTA: fondo blanco, tipografia Chakra Petch
+(cortes angulares), paleta azul/rojo light, cmap morado→fuchsia→rosa pa percentiles,
+logo JO como firma. Genera las figuras a `outputs/viz/`:
+
+| Figura        | Comando                                | Que muestra                                          |
+|---------------|----------------------------------------|------------------------------------------------------|
+| PPCF          | `python -m src.viz.ppcf`               | Pitch Control: 2-2 de Mbappe (Final, Spearman 2018)  |
+| Scatter       | `python -m src.viz.scatter`            | 2 scatter globales: Remontador x Cerrojo + atk       |
+| Scatter equipo| `python -m src.viz.scatter_team France`| 2 scatter de la seleccion con caras + nube torneo    |
+| Radar         | `python -m src.viz radar "Messi"`      | Radar geometrico standalone (8 ejes)                 |
+| Radar report  | `python -m src.viz report "Messi"`     | Radar 12 ejes + tabla percentiles (ficha scout)      |
+| Event-study   | `python -m src.viz.figures`            | Efecto causal del shock minuto a minuto (M12)        |
+
+`python -m src.viz` renderiza la BARAJA COMPLETA de una: PPCF + 2 scatter globales + 2 scatter France + 4 radar reports (Messi, Hakimi, Mbappe, Brozovic).
+
+Ejemplo de output scout-facing — ficha radar de Kylian Mbappe (pressure-clutch leader del torneo, CATE +0.110 con P(beta>0)=0.97):
+
+<p align="center">
+  <img src="outputs/viz/radar_report_3870.png" alt="Radar ficha Mbappe" width="780"/>
+</p>
+
 ## Estructura del repo
 
 ```text
@@ -141,47 +182,6 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 
 Datos raw originales (PFF tracking 5 GB, StatsBomb, Wyscout) y documentacion interna del proyecto estan fuera del repo (`.gitignore`).
 
-## Pipeline conceptual y arquitectura causal
-
-El CCV se compone de dos mapas: el **mapa conceptual** describe qué descompone (tipo de shock × ruptura del bloque × signo de la reaccion sobre 4 canales) y el **stack de 5 capas causales** describe como aisla el efecto del jugador del empuje colectivo del equipo.
-
-<p align="center">
-  <img src="outputs/viz/fig_cap4_mapa_conceptual.png" alt="Mapa conceptual CCV" width="780"/>
-</p>
-
-<p align="center">
-  <img src="outputs/viz/fig_cap4_capas_causales.png" alt="5 capas causales CCV" width="780"/>
-</p>
-
-El pipeline tecnico se ejecuta como un DAG de 6 fases: extraccion -> WP backbone -> shocks/near-miss -> 4 canales en paralelo -> CATE jerarquico -> ensamblaje scout-facing.
-
-<p align="center">
-  <img src="outputs/viz/fig_cap4_pipeline_dag.jpg" alt="Pipeline DAG CCV" width="780"/>
-</p>
-
-## Visualizaciones
-
-Paquete `src/viz/` con identidad LIGHT OPTA: fondo blanco, tipografia Chakra Petch
-(cortes angulares), paleta azul/rojo light, cmap morado→fuchsia→rosa pa percentiles,
-logo JO como firma. Genera las figuras a `outputs/viz/`:
-
-| Figura        | Comando                                | Que muestra                                          |
-|---------------|----------------------------------------|------------------------------------------------------|
-| PPCF          | `python -m src.viz.ppcf`               | Pitch Control: 2-2 de Mbappe (Final, Spearman 2018)  |
-| Scatter       | `python -m src.viz.scatter`            | 2 scatter globales: Remontador x Cerrojo + atk       |
-| Scatter equipo| `python -m src.viz.scatter_team France`| 2 scatter de la seleccion con caras + nube torneo    |
-| Radar         | `python -m src.viz radar "Messi"`      | Radar geometrico standalone (8 ejes)                 |
-| Radar report  | `python -m src.viz report "Messi"`     | Radar 12 ejes + tabla percentiles (ficha scout)      |
-| Event-study   | `python -m src.viz.figures`            | Efecto causal del shock minuto a minuto (M12)        |
-
-`python -m src.viz` renderiza la BARAJA COMPLETA de una: PPCF + 2 scatter globales + 2 scatter France + 4 radar reports (Messi, Hakimi, Mbappe, Brozovic).
-
-Ejemplo de output scout-facing — ficha radar de Kylian Mbappe (pressure-clutch leader del torneo, CATE +0.110 con P(beta>0)=0.97):
-
-<p align="center">
-  <img src="outputs/viz/radar_report_3870.png" alt="Radar ficha Mbappe" width="780"/>
-</p>
-
 ## Reproducibilidad
 
 ```bash
@@ -197,31 +197,3 @@ Para regenerar desde cero (sin cache hit, requiere raw PFF + StatsBomb + Wyscout
 ```bash
 FORCE_CLEAN=1 ./run_pipeline.sh
 ```
-
-## Documento TFM
-
-El documento final del TFM se redacta en LaTeX en `TFM/doc/`. Estilo paper EPV
-(Fernandez, Bornn & Cervone 2021) en castellano, estructura tipo RITMO (Resumen +
-Abstract + 8 capitulos + Refs + Anexos), citas APA 7a edicion via BibLaTeX +
-biber. ~85 paginas; figuras enlazadas a `outputs/viz/` via symlink, tipografia
-estandarizada (captions `footnotesize`, indices `normalsize`, links clickables).
-Compilar a PDF:
-
-```bash
-cd TFM/doc && make pdf            # genera build/main.pdf
-cd TFM/doc && make watch          # recompila al guardar (latexmk -pvc)
-cd TFM/doc && make clean          # borra build/
-```
-
-Toolchain requerido: TeX Live 2023+ con `latexmk` y `biber`. En Ubuntu/Debian:
-`sudo apt install texlive-full latexmk biber`.
-
-## Stack
-
-Python (polars, pyarrow, pandas<2.3) +
-modelos (catboost, lightgbm, numpyro/jax cuda12, scikit-learn>=1.6) +
-hyperparam tuning (optuna) + acciones (socceraction atomic VAEP) +
-DiD moderno (pyfixest fixed effects + Sun Abraham event study) +
-DoubleML cross fitted (doubleml IRM/PLR para AIPW Chernozhukov 2018) +
-CATE bayesiano jerarquico via NUTS HMC + LKJCholesky cross canal (numpyro) +
-visualizacion (matplotlib, mplsoccer, adjustText, Pillow).
