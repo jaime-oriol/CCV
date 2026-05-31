@@ -158,6 +158,10 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 | M14    | cate/{panel_delta,posterior_player,indices,rankings,diag}   | NUTS 4x1000+1000 GPU; 0 div; 108/144 R-hat<1.05; PPC 8/8       |
 | M15    | outputs/ccv_table.parquet + ccv_aux/                        | 511 jug x 299 cols + 4 buckets posicionales (GK/DEF/MED/ATA)   |
 
+## Documento TFM
+
+PDF completo del trabajo en el root del repo: [TFM_CCV.pdf](TFM_CCV.pdf) (~85 paginas, ~12 MB).
+
 ## Reproducibilidad
 
 ```bash

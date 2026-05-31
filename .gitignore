@@ -17,6 +17,13 @@ data/parquet/pff/tracking/
 docs/
 CLAUDE.md
 
+# Carpeta TFM/ (LaTeX doc + presentacion + templates privados).
+# La version final del PDF compilado se expone en root como TFM_CCV.pdf.
+TFM/
+
+# Build script del PPT (intermedio personal)
+src/build_pptx.py
+
 # Outputs (xcv_table.parquet final + xcv_aux/) -> SI versionar (output canonico
 # del pipeline para que cualquiera pueda inspeccionar resultados sin recomputar)
 
