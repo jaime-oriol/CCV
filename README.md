@@ -52,7 +52,9 @@ Paquete `src/viz/` genera las figuras a `outputs/viz/`:
   <img src="outputs/viz/radar_report_3870.png" alt="Radar ficha Mbappe" width="780"/>
 </p>
 
-## Estructura del repo
+## Estructura del repositorio
+
+Datos raw originales (PFF tracking 5 GB, StatsBomb, Wyscout) y documentacion interna del proyecto estan fuera del repositorio (`.gitignore`).
 
 ```text
 TFM/
@@ -155,8 +157,6 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 | M13    | aipw/{panel_master,att_aipw,att_dml_plr,att_dr_learner}     | 163 shots con jug en campo; 12,416 filas panel; AIPW+DML+DR    |
 | M14    | cate/{panel_delta,posterior_player,indices,rankings,diag}   | NUTS 4x1000+1000 GPU; 0 div; 108/144 R-hat<1.05; PPC 8/8       |
 | M15    | outputs/ccv_table.parquet + ccv_aux/                        | 511 jug x 299 cols + 4 buckets posicionales (GK/DEF/MED/ATA)   |
-
-Datos raw originales (PFF tracking 5 GB, StatsBomb, Wyscout) y documentacion interna del proyecto estan fuera del repo (`.gitignore`).
 
 ## Reproducibilidad
 
