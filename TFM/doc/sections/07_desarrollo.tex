@@ -44,7 +44,7 @@ del equipo en posesión, condición necesaria para que cualquier métrica
 basada en distancia al gol sea consistente entre partes y entre
 partidos. La segunda es la línea temporal de goles válidos, que
 excluye explícitamente los goles anulados y los tantos de la tanda de
-penaltis (estos últimos no son shocks emocionales en el sentido del
+penaltis (estos últimos no son \textit{shocks} emocionales en el sentido del
 marco, dado que se producen fuera del flujo continuo de juego). La
 tercera son los minutos jugados por jugador y partido, derivados de
 las alineaciones iniciales más las sustituciones registradas en el
@@ -259,15 +259,18 @@ sintetiza los cuatro canales.
     \toprule
     Canal & \textit{Building blocks} & Entrenamiento & AUC OOF \\
     \midrule
-    Ofensivo  & \textit{atomic}-VAEP + \textit{un-xPass} & 456\,k acciones + 137\,k pases & $0{,}83$ / $0{,}87$ + $0{,}83$ \\
-    Defensivo & VDEP + \textit{exPress} + atribución \textit{frame-nearest} & 36\,k acciones + 88\,k presiones & $0{,}80$ / $0{,}83$ + $0{,}62$ \\
+    Ofensivo  & \textit{atomic}-VAEP + \textit{un-xPass} & 456\,k acciones + 137\,k pases & VAEP $0{,}83$/$0{,}87$ + unxP $0{,}83$ \\
+    Defensivo & VDEP + \textit{exPress} + atribución \textit{frame-nearest} & 36\,k acciones + 88\,k presiones & VDEP $0{,}80$/$0{,}83$ + exP $0{,}62$ \\
     Off-ball  & OBSO + C-OBSO & 64 partidos a 25\,Hz & --- \\
     Físico    & Bradley + residual bayesiano jerárquico & 64 partidos a 25\,Hz & --- \\
     \bottomrule
   \end{tabular}
 
   \vspace{0.3em}
-  \footnotesize Cifras redondeadas a dos decimales. La auditoría
+  \footnotesize Cifras redondeadas a dos decimales. Notación VAEP y
+  VDEP: $0{,}83$/$0{,}87$ corresponde a las dos cabezas
+  \textit{scores}/\textit{concedes} del modelo VAEP, y $0{,}80$/$0{,}83$
+  a \textit{recovery}/\textit{attacked} en VDEP. La auditoría
   completa de los modelos con tres decimales y comparación contra
   literatura está en el anexo~\ref{anexo:val-audit-models}.
 \end{table}
@@ -423,7 +426,7 @@ controlado por arriba.
 \label{sec:cate}
 
 La estimación del efecto heterogéneo por jugador captura la varianza
-individual que el ATE poblacional, indistinguible de cero, esconde. El modelo CATE jerárquico bayesiano
+individual que el ATE poblacional, indistinguible de cero, no captura. El modelo CATE jerárquico bayesiano
 \textit{multivariate} formalizado en la sección~\ref{sec:marco-teorico}
 se implementa en \texttt{numpyro} sobre JAX y se muestrea por NUTS
 HMC sobre cuatro cadenas independientes. La parametrización es

@@ -172,7 +172,22 @@ final del trabajo.
 La identificación causal del \CCV a nivel individual descansa sobre
 cinco capas que operan conjuntamente y que ninguna de ellas, por
 separado, aislaría el efecto del \textit{shock} sobre el jugador del
-movimiento colectivo de su equipo. La primera es el contraste temporal
+movimiento colectivo de su equipo. La figura~\ref{fig:capas-causales}
+resume la composición: cada capa retira un confusor distinto y el
+estimador del \CCV emerge únicamente cuando las cinco operan en
+secuencia.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_cap4_capas_causales}
+  \caption{Las cinco capas de identificación causal del \CCV.
+  Cada capa retira un tipo distinto de confusor ---contraste pre/post,
+  efectos fijos jugador-\textit{shock}, residualización
+  \textit{leave-one-out} contra el bloque, cuasi-experimento
+  \textit{near-miss} y AIPW con \textit{cross-fitting}--- y la
+  composición de las cinco produce el estimador causal del \CCV.}
+  \label{fig:capas-causales}
+\end{figure} La primera es el contraste temporal
 pre/post del mismo jugador en el mismo partido, que cancela su nivel
 basal de rendimiento como sujeto. La segunda son los efectos fijos por
 par jugador-\textit{shock} en el DiD, que absorben rasgos invariantes
