@@ -35,9 +35,7 @@ El pipeline tecnico se ejecuta como un DAG de 6 fases: extraccion -> WP backbone
 
 ## Visualizaciones
 
-Paquete `src/viz/` con identidad LIGHT OPTA: fondo blanco, tipografia Chakra Petch
-(cortes angulares), paleta azul/rojo light, cmap morado→fuchsia→rosa pa percentiles,
-logo JO como firma. Genera las figuras a `outputs/viz/`:
+Paquete `src/viz/` genera las figuras a `outputs/viz/`:
 
 | Figura        | Comando                                | Que muestra                                          |
 |---------------|----------------------------------------|------------------------------------------------------|
@@ -49,12 +47,6 @@ logo JO como firma. Genera las figuras a `outputs/viz/`:
 | Event-study   | `python -m src.viz.figures`            | Efecto causal del shock minuto a minuto (M12)        |
 
 `python -m src.viz` renderiza la BARAJA COMPLETA de una: PPCF + 2 scatter globales + 2 scatter France + 4 radar reports (Messi, Hakimi, Mbappe, Brozovic).
-
-Ejemplo de output scout-facing — ficha radar de Kylian Mbappe (pressure-clutch leader del torneo, CATE +0.110 con P(beta>0)=0.97):
-
-<p align="center">
-  <img src="outputs/viz/radar_report_3870.png" alt="Radar ficha Mbappe" width="780"/>
-</p>
 
 ## Estructura del repo
 
@@ -159,26 +151,6 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 | M13    | aipw/{panel_master,att_aipw,att_dml_plr,att_dr_learner}     | 163 shots con jug en campo; 12,416 filas panel; AIPW+DML+DR    |
 | M14    | cate/{panel_delta,posterior_player,indices,rankings,diag}   | NUTS 4x1000+1000 GPU; 0 div; 108/144 R-hat<1.05; PPC 8/8       |
 | M15    | outputs/ccv_table.parquet + ccv_aux/                        | 511 jug x 299 cols + 4 buckets posicionales (GK/DEF/MED/ATA)   |
-
-## Validaciones empiricas
-
-* **M10 c_obso vs PFF grade global**: Pearson r=+0.29 (n=673, p<10^-14);
-  raw OBSO r=-0.37 confirma que el counterfactual (C-OBSO) es la metrica
-  correcta (el OBSO crudo correlaciona al reves con la calidad del jugador)
-* **PSxG WC22 holdout**: AUC 0.976 vs SB xG 0.844 (+13pp), Brier 0.037 vs
-  0.083 (-55%), ECE 0.011 (calibracion casi perfecta)
-* **DiD FE vs BJS**: max |ATE_FE - ATE_BJS| / SE = 4.2% (estimadores
-  convergentes para tratamiento pulsado instantaneo)
-* **Window sensitivity ±3/5/7/10/15**: efecto AGUDO en fisico-GA, ATE w3=-0.30
-  decae a -0.035 en w10 (~8x), el shock es de respuesta inmediata
-* **Placebo test 1000 perm + BH FDR**: sobre los ATE poblacionales relativos
-  (leave-one-out) ningun canal sale del null placebo (z<0.85, p_FDR=0.98); el
-  efecto MEDIO poblacional es ~0 y la senal clutch vive en la heterogeneidad
-  individual (M14 CATE + flags por canal de M15), no en la media
-* **M14 NUTS HMC**: 4 chains x 1000+1000 (15,152 obs) GPU; 0 divergencias;
-  accept_prob 0.951; 108/144 hyperparams con R-hat<1.05 (los 2 bloques
-  eta_x_td quedan infra-identificados por diseño con N=172 shocks);
-  PPC 8/8 channels calibrados (KS p>0.05)
 
 Datos raw originales (PFF tracking 5 GB, StatsBomb, Wyscout) y documentacion interna del proyecto estan fuera del repo (`.gitignore`).
 
