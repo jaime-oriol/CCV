@@ -45,7 +45,7 @@ El \textit{pipeline} se ejecuta como un grafo dirigido acíclico de seis
 fases. Cada fase consume el cache de la anterior y deposita un cache
 intermedio que las fases posteriores reutilizan, lo que permite
 recomputar cualquier capa sin reejecutar las anteriores y facilita la
-reproducibilidad bit a bit cuando se preserva el entorno de cómputo
+reproducibilidad numérica cuando se preserva el entorno de cómputo
 (versiones de librerías, semillas y \textit{backend} JAX/CUDA). La figura~\ref{fig:pipeline-dag}
 sintetiza la composición de las seis fases y las anotaciones
 metodológicas que conectan unas con otras.
@@ -542,8 +542,9 @@ discontinuidad en $xG$. La sensibilidad a \textit{confounding} no
 observado se evalúa con las cotas de \textcite{CinelliHazlett2020} sobre
 el \textit{robustness value} y los \textit{impact parameters}.
 
-La convergencia bayesiana del modelo CATE se diagnostica con cuatro
-indicadores complementarios. El estadístico potencial-scale-reduction
+La convergencia bayesiana del modelo CATE se diagnostica con dos
+estadísticos de convergencia y dos condiciones de aceptación del
+\textit{sampler}. El estadístico potencial-scale-reduction
 de Gelman-Rubin, $\hat{R} = \sqrt{\hat{V}/W}$ ---donde $W$ es la
 varianza media intra-cadena y $\hat{V}$ es una estimación combinada
 de la varianza marginal---, debe ser inferior a $1{,}05$ en todos los
@@ -564,8 +565,9 @@ se definen en dos umbrales: \textit{Sig} a partir de 0{,}85 y
 
 La correlación entre los canales algorítmicos del \CCV y los
 \textit{grades} humanos PFF se reporta como validación externa
-cualitativa, a nivel jugador-evento, con coeficiente de correlación
-de Spearman e intervalo de confianza por \textit{bootstrap}.
+cualitativa, agregada por jugador sobre los jugadores con muestra
+fiable, mediante el coeficiente de correlación de Spearman con su
+$p$-valor asociado bajo la hipótesis nula de independencia.
 
 
 \section{Protocolo experimental}
