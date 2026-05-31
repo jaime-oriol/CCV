@@ -134,7 +134,7 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 
 ## Documento TFM
 
-PDF completo del trabajo en el root del repo: [TFM_CCV.pdf](TFM_CCV.pdf) (~85 paginas, ~12 MB).
+PDF completo del trabajo en el root del repo: [TFM_CCV.pdf](TFM_CCV.pdf).
 
 ## Reproducibilidad
 
