@@ -24,6 +24,9 @@ TFM/
 # Build script del PPT (intermedio personal)
 src/build_pptx.py
 
+# Modulo de visualizacion (privado, evita copia)
+src/viz/
+
 # Outputs (xcv_table.parquet final + xcv_aux/) -> SI versionar (output canonico
 # del pipeline para que cualquiera pueda inspeccionar resultados sin recomputar)
 

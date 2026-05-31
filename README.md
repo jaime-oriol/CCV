@@ -33,20 +33,7 @@ El pipeline tecnico se ejecuta como un DAG de 6 fases: extraccion -> WP backbone
   <img src="outputs/viz/fig_cap4_pipeline_dag.jpg" alt="Pipeline DAG CCV" width="780"/>
 </p>
 
-## Visualizaciones
-
-Paquete `src/viz/` genera las figuras a `outputs/viz/`:
-
-| Figura        | Comando                                | Que muestra                                          |
-|---------------|----------------------------------------|------------------------------------------------------|
-| PPCF          | `python -m src.viz.ppcf`               | Pitch Control: 2-2 de Mbappe (Final, Spearman 2018)  |
-| Scatter       | `python -m src.viz.scatter`            | 2 scatter globales: Remontador x Cerrojo + atk       |
-| Scatter equipo| `python -m src.viz.scatter_team France`| 2 scatter de la seleccion con caras + nube torneo    |
-| Radar         | `python -m src.viz radar "Messi"`      | Radar geometrico standalone (8 ejes)                 |
-| Radar report  | `python -m src.viz report "Messi"`     | Radar 12 ejes + tabla percentiles (ficha scout)      |
-| Event-study   | `python -m src.viz.figures`            | Efecto causal del shock minuto a minuto (M12)        |
-
-`python -m src.viz` renderiza la BARAJA COMPLETA de una: PPCF + 2 scatter globales + 2 scatter France + 4 radar reports (Messi, Hakimi, Mbappe, Brozovic).
+## Ficha scout-facing (ejemplo)
 
 <p align="center">
   <img src="outputs/viz/radar_report_3870.png" alt="Radar ficha Mbappe" width="780"/>
@@ -100,16 +87,7 @@ CCV/
 │   ├── Z03_xpress.py                              # exPress Lee 2025 P(recovery<5s|press)
 │   ├── Z04_vdep.py                                # VDEP strict Toda 2022 (recovery + attacked)
 │   ├── Z05_maejima.py                             # Atribución frame-level al defensor más cercano
-│   ├── Z06_unxpass.py                             # un xPass Robberechts 2023 creative decision
-│   └── viz/                                       # capa de visualizacion LIGHT OPTA (BG blanco, Chakra Petch)
-│       ├── common.py                              # paleta, cmaps, draw_pitch, draw_header, add_logo
-│       ├── ppcf.py                                # superficie Pitch Control + balon Telstar (Z02 + tracking PFF)
-│       ├── scatter.py                             # 2 scatter globales: Remontador x Cerrojo + ataque tras marcar / bajo presion
-│       ├── scatter_team.py                        # 2 scatter por seleccion con caras FotMob + nube del torneo
-│       ├── radar.py                               # radar geometrico 8 o 12 ejes (CATEs canal x contexto)
-│       ├── radar_report.py                        # radar + tabla percentiles por posicion (ficha scout)
-│       ├── figures.py                             # event-study causal Sun-Abraham (M12, figura de metodo)
-│       └── __main__.py                            # runner: PPCF + 4 scatter (2 global + 2 France) + 4 radar reports
+│   └── Z06_unxpass.py                             # un xPass Robberechts 2023 creative decision
 ├── notebooks/
 │   ├── regen_all.ipynb                            # regen E2E completa M03-M15 + Z03-Z06 en orden DAG
 │   └── regen_m14_kaggle.ipynb                     # regen M14 NUTS HMC en Kaggle GPU
