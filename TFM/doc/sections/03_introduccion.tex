@@ -40,9 +40,9 @@ motiva el trabajo.
 
 Cada uno de esos seis goles es un \textit{shock} emocional con respuesta
 colectiva propia y no derivable del marcador. El 1-0 apenas movió el
-partido; el 2-0 lo movió mucho menos de lo razonable contra una Francia
-campeona; el 2-1 de Mbappé condensó en menos de dos minutos un cambio
-de tono del partido. El equipo ganador no siempre se cerró ni el
+partido; el 2-0 no provocó la reacción esperable del campeón vigente;
+el 2-1 de Mbappé condensó en menos de dos minutos un cambio de tono
+del partido. El equipo ganador no siempre se cerró ni el
 perdedor siempre apretó: cada bloque respondió a cada gol de forma
 distinta, en función del minuto, de la cercanía de eliminación, del tono
 del partido hasta ese instante y de su tipología táctica. La respuesta
@@ -217,11 +217,20 @@ En septiembre de 2024, PFF FC publicó en abierto los sesenta y cuatro
 partidos del torneo con \textit{eventing}, tracking a 25\,Hz
 sincronizado con los eventos, presión individual etiquetada y
 \textit{grades} humanos por evento. Es el único corpus público que
-combina los cuatro ingredientes que la pregunta exige simultáneamente:
-tracking de alta frecuencia, sincronización con el \textit{eventing},
-cobertura completa de fase eliminatoria con prórroga incluida y
-\textit{grades} humanos por evento utilizables como \textit{prior}
-informativo para los modelos jerárquicos.
+combina los tres ingredientes estructurales que la pregunta exige
+simultáneamente: tracking continuo \textit{full-pitch} de los 22
+jugadores a 25\,Hz, sincronización con el \textit{eventing} y
+cobertura completa de fase eliminatoria con prórroga incluida.
+StatsBomb 360 cubre los \textit{freeze-frames} en eventos puntuales
+sobre Eurocopas y \textit{Bundesliga}, pero no aporta tracking
+continuo de los 22 jugadores entre eventos, que es lo que el cálculo
+del \textit{pitch control} y el atributo \textit{off-ball} exigen. PFF añade además \textit{grades} humanos por evento,
+que el marco aprovecha como \textit{prior} informativo del CATE
+jerárquico cuando están disponibles; este ingrediente enriquece la
+regularización y habilita una validación externa cualitativa, pero
+no es estructural: el marco corre sobre corpus sin \textit{grades}
+sustituyendo el \textit{prior} informativo por uno débil, sin afectar
+la identificación causal.
 
 Más allá de la disponibilidad de datos, el Mundial es además el
 escenario con la mayor exigencia emocional posible en el fútbol. La
@@ -262,12 +271,15 @@ encadena estos elementos y entrega una métrica \textit{scout-facing}
 por jugador, por canal y por contexto, con cuantificación de la
 incertidumbre vía intervalos de credibilidad bayesianos. La contribución
 central es metodológica: el marco es portable a cualquier dataset con la
-misma estructura (\textit{events} + tracking + \textit{grades} +
-cobertura KO completa), y la aplicación al Mundial Qatar 2022 funciona
-como prueba técnica de concepto, no como objetivo en sí. Cualquier
-liberación abierta futura de \textit{eventing} + tracking sobre un
-torneo de fase eliminatoria permitirá recalibrar el \textit{pipeline}
-\CCV sin cambios estructurales.
+misma estructura mínima (\textit{events} + tracking + cobertura KO
+completa); los \textit{grades} humanos por evento son un ingrediente
+deseable cuando están disponibles ---aportan \textit{prior} informativo
+al CATE y validación externa--- pero no son condición necesaria. La
+aplicación al Mundial Qatar 2022 funciona como prueba técnica de
+concepto, no como objetivo en sí. Cualquier liberación abierta futura
+de \textit{eventing} + tracking sobre un torneo de fase eliminatoria
+permitirá recalibrar el \textit{pipeline} \CCV sin cambios
+estructurales.
 
 
 \section{Organización de la memoria}

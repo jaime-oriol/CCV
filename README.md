@@ -179,7 +179,9 @@ FORCE_CLEAN=1 ./run_pipeline.sh
 El documento final del TFM se redacta en LaTeX en `TFM/doc/`. Estilo paper EPV
 (Fernandez, Bornn & Cervone 2021) en castellano, estructura tipo RITMO (Resumen +
 Abstract + 8 capitulos + Refs + Anexos), citas APA 7a edicion via BibLaTeX +
-biber. Compilar a PDF:
+biber. ~85 paginas; figuras enlazadas a `outputs/viz/` via symlink, tipografia
+estandarizada (captions `footnotesize`, indices `normalsize`, links clickables).
+Compilar a PDF:
 
 ```bash
 cd TFM/doc && make pdf            # genera build/main.pdf

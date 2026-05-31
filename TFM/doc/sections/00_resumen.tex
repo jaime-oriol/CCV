@@ -6,8 +6,8 @@
 \markboth{Resumen}{}
 
 El rendimiento \textit{clutch} es un concepto central del \textit{scouting}
-moderno cuya cuantificación con rigor causal sigue siendo un problema
-abierto.
+moderno cuya cuantificación con rigor causal sigue sin resolverse en
+la literatura abierta.
 Los \textit{rankings} públicos del jugador que aparece cuando importa
 parten de \textit{eventing} puro, sin tracking sincronizado ni separación
 entre la contribución individual y el patrón colectivo del equipo. Este
@@ -27,7 +27,8 @@ bayesiano \textit{multivariate} con
 correlaciones \textit{cross}-canal y \textit{priors} informados por
 \textit{grades} humanos. El marco se aplica al Mundial Qatar 2022 con
 datos PFF FC como prueba técnica, único corpus público con tracking
-sincronizado a 25\,Hz y cobertura completa de fase eliminatoria.
+continuo de los 22 jugadores a 25\,Hz sincronizado con el
+\textit{eventing} y cobertura completa de fase eliminatoria.
 
 El efecto poblacional medio es estadísticamente indistinguible de cero
 en los cuatro canales: el \textit{shock} no mueve al jugador promedio.
@@ -38,11 +39,12 @@ desviaciones estándar, probabilidad posterior $0{,}97$). A nivel
 canal-específico, veintidós jugadores muestran efecto significativo en
 la celda ataque-tras-marcar ---cinco al alza y diecisiete a la baja---,
 mientras que los agregados Remontador y Cerrojo quedan infra-identificados
-con $N=172$ \textit{shocks}. El \CCV constituye el primer marco que
-triangula DiD \textit{within-player} con cuasi-experimento
-\textit{near-miss} a nivel jugador sobre un torneo eliminatorio, sobre
-cuatro canales y residualizado contra el bloque del equipo, con
-cuantificación de la incertidumbre por jugador.
+con $N=172$ \textit{shocks}. Hasta donde se ha podido verificar en la
+literatura abierta, el \CCV es el primer marco que combina DiD
+\textit{within-player} con cuasi-experimento \textit{near-miss} a
+nivel jugador sobre un torneo eliminatorio, sobre cuatro canales y
+residualizado contra el bloque del equipo, con cuantificación de la
+incertidumbre por jugador.
 
 \vspace{1em}
 \noindent\textbf{Palabras clave:} Fútbol $\cdot$ Inferencia causal $\cdot$

@@ -25,8 +25,8 @@ hierarchical multivariate Bayesian Conditional Average Treatment Effect
 (CATE) with cross-channel correlations and priors informed by human
 grades. The framework is applied to the 2022 FIFA World
 Cup with PFF FC data as a technical proof of concept ---the only public
-corpus with synchronized 25\,Hz tracking and complete knockout-stage
-coverage.
+corpus with continuous 25\,Hz tracking of all 22 players synchronized
+to the event stream and full knockout-stage coverage.
 
 The population-average effect is statistically indistinguishable from
 zero across the four channels: the shock does not move the average
@@ -36,11 +36,12 @@ led by Kylian Mbappé (coefficient $+0.11$ standard deviations, posterior
 probability $0.97$). At the channel-specific level, twenty-two players
 show a significant effect in the post-scoring offense cell ---five rising
 and seventeen declining---, while the Chasing and Protecting aggregates
-are under-identified at $N=172$ shocks. \CCV stands as the first framework
-triangulating within-player DiD with a \textit{near-miss}
-quasi-experiment at the player level over a knockout tournament, across
-four channels and residualized against the team block, with per-player
-uncertainty quantification.
+are under-identified at $N=172$ shocks. To the best of our knowledge
+in the open literature, \CCV is the first framework combining
+within-player DiD with a \textit{near-miss} quasi-experiment at the
+player level over a knockout tournament, across four channels and
+residualized against the team block, with per-player uncertainty
+quantification.
 
 \vspace{1em}
 \noindent\textbf{Keywords:} Football $\cdot$ Causal inference $\cdot$

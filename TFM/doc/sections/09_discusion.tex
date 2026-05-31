@@ -34,37 +34,30 @@ alinea con la observación pública de su irrupción concentrada en los
 ese caso como una propiedad medida del jugador, no como una
 intuición \textit{post hoc} del observador.
 
-El segundo hallazgo es que la heterogeneidad individual del CATE es
-sustantivamente distinta de cero, incluso cuando el promedio
-poblacional lo es. La distribución del CATE individual sobre los 598
-jugadores presenta desviación estándar de $0{,}086$ en el canal
-ofensivo tras marcar, con efectos individuales que se extienden desde
-$-0{,}49$ hasta $+0{,}37$ desviaciones estándar del canal
-residualizado. El contraste con el ATE poblacional ---ocho celdas
-canal-por-contexto, todas indistinguibles de cero al cinco por
-ciento--- no contradice esa lectura: el efecto medio es cero porque
-los efectos individuales se cancelan al agregarlos, no porque esos
-efectos no existan. Es la intuición clásica del \textit{clutch} en
-deporte \parencite{Otten2009Clutch}: el mismo \textit{shock} produce
-respuestas opuestas en jugadores distintos, y el promedio borra la
-variabilidad que la pregunta investiga.
+El segundo hallazgo invierte la lectura habitual del ATE. La
+distribución del CATE individual reportada en
+§\ref{sec:res-cate} ---$\sigma = 0{,}086$ en ofensivo tras marcar,
+rango $[-0{,}49,\, +0{,}37]$ desviaciones estándar--- es
+sustantivamente distinta de cero, mientras que las ocho celdas
+canal-por-contexto del ATE poblacional son indistinguibles de cero.
+La consecuencia operativa para el scouting es directa: un ATE nulo
+no implica ausencia de efecto, implica que los efectos individuales
+de signo opuesto se cancelan al agregarlos. La firma corresponde a
+la concepción clásica del \textit{clutch} en deporte
+\parencite{Otten2009Clutch}: el mismo \textit{shock} produce
+respuestas opuestas en jugadores distintos, y el promedio cancela
+esa variabilidad.
 
-El tercer hallazgo es la coherencia parcial entre los algoritmos y la
-valoración humana experta. La correlación de Spearman entre las
-puntuaciones del \CCV y el \textit{grade} humano PFF agregado por
-jugador, sobre los 166 jugadores con muestra fiable, es modesta y
-heterogénea por canal. Significativa al uno por ciento en el canal
-\textit{off-ball} ($\rho = +0{,}211$) y al cinco por ciento en el
-índice Remontador ($\rho = +0{,}177$); no se distingue de cero en los
-canales ofensivo, defensivo y físico ni en los índices Cerrojo y
-\textit{Pressure Response}. Que la correlación cambie tanto entre
-canales no sorprende dada la asimetría entre las dos medidas: el
-\textit{grade} humano PFF es un valor único agregado por partido,
-mientras que los canales del \CCV son métricas residualizadas
-contra el bloque por minuto y por \textit{shock}. La validación direccional sobre los dos
-coeficientes significativos sostiene que el marco recoge una
-propiedad reconocible por evaluadores humanos, sin pretender que los
-CATE y los \textit{grades} sean medidas intercambiables.
+El tercer hallazgo es la coherencia parcial con la valoración humana
+experta. De los cinco canales-índice contrastados contra el
+\textit{grade} PFF agregado, dos resultan significativos
+(\textit{off-ball} $\rho = +0{,}211$ y Remontador $\rho = +0{,}177$,
+detalle en §\ref{sec:res-validacion-pff}) y tres no. La lectura es
+que el marco recoge una dimensión reconocible por evaluadores
+humanos en parte de los canales, pero CATE y \textit{grades} no son
+medidas intercambiables: el \textit{grade} agrega el partido en un
+único valor por jugador, mientras el CATE residualiza por minuto y
+por \textit{shock}.
 
 El cuarto hallazgo es metodológico. La identificación causal a nivel
 individual se sostiene sobre la composición de las cinco capas
@@ -108,10 +101,13 @@ cero en lugar de afirmar la nulidad.
 
 El segundo punto es la generalización fuera del torneo. La aplicación
 del \CCV se restringe al Mundial Qatar 2022 porque es el único corpus
-público que combina los cuatro ingredientes que el marco exige
-simultáneamente: \textit{eventing} sincronizado, tracking a alta
-frecuencia, cobertura completa de fase eliminatoria y
-\textit{grades} humanos por evento. Las propiedades individuales
+público que combina los tres ingredientes estructurales que el marco
+exige simultáneamente: \textit{eventing} sincronizado con tracking
+continuo \textit{full-pitch} de los 22 jugadores a 25\,Hz y cobertura
+completa de fase eliminatoria. PFF añade además
+\textit{grades} humanos por evento, que el marco aprovecha como
+\textit{prior} informativo y validación externa pero no exige como
+condición de aplicabilidad. Las propiedades individuales
 identificadas para los cuatro jugadores con efecto significativo
 \textit{pressure-clutch} corresponden a su comportamiento en este
 torneo concreto; no son una predicción de su comportamiento en otros
@@ -156,20 +152,15 @@ o ventanas en torno a sustituciones tácticas---, el alcance operativo
 del marco podría extenderse a momentos hoy fuera del umbral
 identificable.
 
-El quinto punto es la correlación con los \textit{grades} humanos
-PFF. Los dos coeficientes significativos ---$\rho = +0{,}177$ en el
-índice Remontador y $\rho = +0{,}211$ en el canal \textit{off-ball}---
-son estadísticamente significativos y direccionalmente correctos,
-pero están lejos de la unidad y se calculan sobre 166 jugadores,
-un tercio del corpus total del torneo. La interpretación adecuada no es que los
-CATE del \CCV midan ``lo mismo'' que el ojo humano experto: miden una
-propiedad parcialmente relacionada pero distinta. Los CATE son
-estimaciones causales del efecto del \textit{shock} sobre la
-trayectoria del rendimiento de cada jugador residualizada contra el
-bloque; los \textit{grades} son evaluaciones globales del partido del
-jugador. Que la correlación sea positiva valida el alineamiento
-direccional; que sea modesta es esperable y deseable, porque ambas
-medidas capturan dimensiones distintas del rendimiento.
+El quinto punto matiza el alcance de la correlación con los
+\textit{grades} humanos PFF. Los dos coeficientes significativos
+(reportados arriba en §\ref{sec:disc-demuestran}) se calculan sobre
+166 jugadores con muestra fiable, un tercio del corpus total. La
+interpretación adecuada no es que los CATE midan ``lo mismo'' que el
+ojo humano experto: el CATE estima el efecto del \textit{shock}
+residualizado contra el bloque, y el \textit{grade} agrega el
+rendimiento completo del partido. El alineamiento es direccional,
+no de magnitud.
 
 
 \section{Dónde funciona y dónde no funciona el \CCV}
@@ -206,18 +197,15 @@ La identificación condicional al contexto de eliminación
 inminente, en cambio, opera sobre un eje único de modulación y
 permite que el efecto individual emerja sobre el ruido.
 
-El marco tampoco funciona, sobre este corpus, en el canal físico a
-nivel de ventana $\pm 10$\,minutos. Los coeficientes son
-indistinguibles de cero a ese horizonte, pero aparecen como
-estadísticamente significativos al ampliar la ventana a
-$\pm 15$\,minutos: $+0{,}053$ desviaciones estándar tras marcar con
-$p = 0{,}0002$, y $+0{,}032$ tras encajar con $p = 0{,}047$. El
-patrón apunta a una respuesta física diferida que no se manifiesta
-en la ventana inmediata posterior al gol pero sí en un horizonte más
-amplio. El trabajo mantiene $\pm 10$\,minutos como horizonte de
-referencia por su correspondencia con la duración del \textit{shock}
-emocional en la psicología del deporte; la lectura del canal físico
-a ventana extendida queda como línea futura.
+El marco tampoco funciona, sobre este corpus, en el canal físico a la
+ventana de referencia $\pm 10$\,minutos. El análisis de sensibilidad
+reportado en §\ref{sec:res-identificacion} sí detecta efectos
+significativos al ampliar a $\pm 15$\,minutos, lo que sugiere una
+respuesta física diferida fuera de la ventana inmediata posterior al
+\textit{shock}. La ventana $\pm 10$ se mantiene como referencia por
+su correspondencia con la duración del \textit{shock} emocional en la
+psicología del deporte; el canal físico a horizonte ampliado queda
+como línea futura.
 
 \section{Implicaciones operativas}
 \label{sec:disc-implicaciones}

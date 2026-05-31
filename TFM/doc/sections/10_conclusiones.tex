@@ -25,39 +25,30 @@ cuando descansa sobre la composición de cinco capas: contraste
 temporal pre/post del mismo jugador, efectos fijos jugador-\textit{shock}
 en el DiD, residualización \textit{leave-one-out} contra el bloque,
 cuasi-experimento \textit{near-miss} como triangulación independiente
-y AIPW con \textit{cross-fitting} para confounders observables. Sin
-la combinación, el efecto agregado del equipo se confunde con el
-efecto individual del jugador; con ella, el estimador recupera la
-respuesta propia del jugador neta del empuje colectivo del bloque.
+y AIPW con \textit{cross-fitting} para confounders observables.
+La composición es necesaria por construcción
+(§\ref{sec:marco-teorico}): omitir cualquiera de las cinco capas
+reintroduce un confusor estructural distinto.
 
 La segunda es que la pregunta de investigación tiene respuesta
-empírica diferenciada según la dimensión sobre la que se proyecta.
-En la dimensión de proximidad de eliminación, cuatro jugadores cruzan
-el umbral de significatividad ---Mbappé, Rashford y Saka con efecto
-positivo, Muntari con efecto negativo--- y la identificación es
-estable con el corpus disponible. En la celda canal-específica
-ofensivo-tras-marcar, veintidós jugadores presentan respuesta
-significativa, repartidos entre cinco con efecto positivo y diecisiete
-con efecto negativo. Las seis celdas canal-por-contexto restantes son
-indistinguibles de cero a nivel individual con el tamaño de muestra
-disponible. El ATE poblacional sobre las ocho celdas es indistinguible
-de cero al cinco por ciento, y eso no contradice la heterogeneidad
-individual reportada en el CATE: el efecto promedio es cero porque
-los efectos individuales de signos opuestos se cancelan al agregarlos,
-no porque esos efectos no existan.
+empírica diferenciada según la dimensión. En proximidad de
+eliminación, cuatro jugadores cruzan el umbral de significatividad
+(Mbappé, Rashford y Saka con efecto positivo; Muntari con efecto
+negativo); en ofensivo-tras-marcar, veintidós (cinco al alza,
+diecisiete a la baja). Las seis celdas canal-por-contexto restantes
+son indistinguibles de cero con el tamaño de muestra disponible. El
+ATE poblacional indistinguible de cero coexiste con esa
+heterogeneidad porque los efectos individuales de signos opuestos se
+cancelan al agregarlos: ATE nulo no implica ausencia de efecto.
 
 La tercera es que el marco recoge una propiedad parcialmente alineada
-con la valoración humana experta. La correlación de Spearman entre
-las puntuaciones del \CCV y el \textit{grade} humano PFF agregado por
-jugador, sobre los 166 jugadores con muestra fiable, es positiva y
-estadísticamente significativa en el canal \textit{off-ball}
-($\rho = +0{,}211$, sig. al uno por ciento) y en el índice Remontador
-($\rho = +0{,}177$, sig. al cinco por ciento), y no se distingue de
-cero en el resto. Esta variabilidad por canal no sorprende dada la
-asimetría entre las dos medidas: el \textit{grade} humano es una
-evaluación global del partido, mientras que los canales del \CCV son
-métricas residualizadas contra el bloque por minuto y por
-\textit{shock}.
+con la valoración humana experta: dos de cinco canales-índice
+correlacionan positivamente con el \textit{grade} PFF agregado
+(\textit{off-ball} $\rho = +0{,}211$ y Remontador $\rho = +0{,}177$).
+La asimetría entre ambas medidas ---el \textit{grade} agrega el
+partido en un único valor por jugador, el CATE residualiza por
+minuto y por \textit{shock}--- explica que el alineamiento sea
+direccional sin ser intercambiable.
 
 La cuarta es metodológica. El \CCV{} integra nueve bloques que la
 literatura aplicada había desarrollado por separado ---WP bayesiana,
@@ -65,10 +56,15 @@ literatura aplicada había desarrollado por separado ---WP bayesiana,
 \textit{exPress}, atribución al defensor más cercano
 \textit{frame-level}, OBSO, C-OBSO y protocolo físico Bradley---
 sobre una identificación causal dual con cinco capas conjuntas. El marco es portable a cualquier corpus que reúna
-la combinación de \textit{eventing} sincronizado con tracking a alta
-frecuencia, cobertura completa de fase eliminatoria y \textit{grades}
-humanos por evento; la aplicación al Mundial Qatar 2022 funciona
-como prueba técnica de concepto, no como objetivo en sí. La
+la combinación estructural de \textit{eventing} sincronizado con
+tracking a alta frecuencia y cobertura completa de fase eliminatoria;
+los \textit{grades} humanos por evento son un ingrediente deseable
+---aportan \textit{prior} informativo al CATE y validación externa
+cualitativa--- pero no son condición de aplicabilidad, y el marco
+corre sobre corpus sin ellos sustituyendo el \textit{prior} informativo
+por uno débil sin afectar la identificación causal. La aplicación al
+Mundial Qatar 2022 funciona como prueba técnica de concepto, no como
+objetivo en sí. La
 contribución sustantiva del trabajo no son los nombres concretos de
 los jugadores identificados ---que son una propiedad del torneo,
 no del jugador como rasgo estable--- sino la composición metodológica
@@ -84,10 +80,13 @@ el anexo~\ref{anexo:limitaciones} y discutidas en el
 capítulo~\ref{ch:discusion}.
 
 La primera es la cobertura limitada al Mundial Qatar 2022, único
-corpus público que combina los cuatro ingredientes que el marco
-exige simultáneamente. Replicar sobre Eurocopa, eliminatorias de
-\textit{Champions League} o el siguiente Mundial requiere futuras
-liberaciones abiertas con la misma estructura.
+corpus público que combina los tres ingredientes estructurales que
+el marco exige simultáneamente (\textit{eventing}, tracking sincronizado
+a alta frecuencia y cobertura completa de fase eliminatoria). Replicar
+sobre Eurocopa, eliminatorias de \textit{Champions League} o el
+siguiente Mundial requiere futuras liberaciones abiertas con esa misma
+estructura mínima; los \textit{grades} humanos por evento son
+deseables pero no condición necesaria.
 
 La segunda es la implementación propia de los \textit{building blocks}
 distintos a \textit{atomic}-VAEP. El canal ofensivo utiliza la
@@ -121,11 +120,12 @@ estructura equivalente al Mundial Qatar 2022 permitiría obtener
 estimaciones más representativas de la naturaleza de cada jugador.
 Con más \textit{shocks} por jugador la posterior del CATE se estrecha
 y las celdas hoy inconclusivas pueden empezar a separar señal del
-ruido. La condición técnica es la disponibilidad de
-\textit{eventing} sincronizado con tracking a alta frecuencia y
-\textit{grades} humanos; cualquier proveedor que abra esa
-combinación permite recalibrar el \textit{pipeline} sin cambios
-estructurales.
+ruido. La condición técnica estructural es la disponibilidad de
+\textit{eventing} sincronizado con tracking a alta frecuencia; los
+\textit{grades} humanos son un ingrediente deseable cuando están
+disponibles ---enriquecen el \textit{prior} del CATE y habilitan
+validación externa--- pero no son necesarios para recalibrar el
+\textit{pipeline} sin cambios estructurales.
 
 \paragraph{Otras competiciones.}
 La replicación sobre escenarios distintos al Mundial añade dimensiones

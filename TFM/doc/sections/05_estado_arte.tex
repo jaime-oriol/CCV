@@ -430,11 +430,15 @@ El \CCV ocupa el espacio definido por seis requisitos simultáneos:
 \end{enumerate}
 
 Para que esta composición sea aplicable hace falta un corpus público
-con \textit{eventing} y tracking sincronizados a alta frecuencia,
-cobertura completa de fase eliminatoria y \textit{grades} humanos
-por evento. El Mundial Qatar
+con \textit{eventing} sincronizado a tracking continuo \textit{full-pitch}
+de los 22 jugadores a alta frecuencia (25\,Hz como referencia) y
+cobertura completa de fase eliminatoria. El Mundial Qatar
 2022 con datos PFF FC \parencite{PFFFC2024Release} es el primer corpus
 público que reúne esa combinación, y el motivo por el que el banco de
-pruebas del trabajo es ese torneo y no otro. La contribución
-metodológica del \CCV es portable a cualquier futuro corpus con la
-misma estructura.
+pruebas del trabajo es ese torneo y no otro. PFF añade además
+\textit{grades} humanos por evento, que el marco aprovecha como
+\textit{prior} informativo del CATE jerárquico y como validación
+externa cualitativa; este ingrediente es deseable pero no estructural,
+y el marco es portable a cualquier futuro corpus con la misma
+estructura mínima ---con o sin \textit{grades}---, sustituyendo en su
+ausencia el \textit{prior} informativo por uno débil.

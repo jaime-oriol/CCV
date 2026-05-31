@@ -265,6 +265,11 @@ sintetiza los cuatro canales.
     Físico    & Bradley + residual bayesiano jerárquico & 64 partidos a 25\,Hz & --- \\
     \bottomrule
   \end{tabular}
+
+  \vspace{0.3em}
+  \footnotesize Cifras redondeadas a dos decimales. La auditoría
+  completa de los modelos con tres decimales y comparación contra
+  literatura está en el anexo~\ref{anexo:val-audit-models}.
 \end{table}
 
 \paragraph{Canal ofensivo.}
@@ -385,9 +390,11 @@ niveles de relajación de la asunción de tendencias paralelas, junto
 con el test $F$ de pre-tendencias agregadas \parencite{Roth2022Pretest}.
 Para el tratamiento pulsado-instantáneo del gol, sin tratamientos
 escalonados y sin unidades \textit{never-treated}, los tres
-estimadores convergen al mismo coeficiente bajo los supuestos
-correctos; la desviación entre ellos cuantifica la fragilidad del
-ATE estimado.
+estimadores deberían coincidir en el coeficiente estimado bajo
+tendencias paralelas y no-anticipación; la verificación empírica
+de que efectivamente lo hacen se reporta en el
+capítulo~\ref{ch:resultados}, y la desviación entre ellos se interpreta
+como cuantificador de la fragilidad del ATE.
 
 El segundo brazo es el cuasi-experimento de \textit{near-miss} sobre
 el corpus construido en la sección~\ref{sec:psxg-nearmiss}. La
@@ -430,7 +437,10 @@ dirección de \textit{shock} (post-GOAL\_AGAINST, post-GOAL\_FOR y
 respuesta a presión modulada por la proximidad de eliminación). Los
 \textit{priors} sobre la media del efecto individual están informados
 por los \textit{grades} humanos PFF pre-torneo a través de un factor
-de escala $\gamma_k$ por canal aprendido en el ajuste.
+de escala $\gamma_k$ por canal aprendido en el ajuste; sobre corpus
+sin \textit{grades} esta capa de regularización se sustituye por un
+\textit{prior} débil sin alterar la identificación causal, solo
+ensanchando los intervalos de credibilidad individuales.
 
 El modelo se sintoniza con \texttt{target\_accept\_prob} de 0{,}95
 para acomodar la curvatura de la previa LKJ y la jerarquía. Antes

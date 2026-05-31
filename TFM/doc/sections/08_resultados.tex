@@ -33,29 +33,34 @@ Las dos curvas se mantienen sobre la diagonal de calibración perfecta
 en todo el rango, con desviaciones inferiores a un punto porcentual
 en cada uno de los cuatro \textit{bins} de la regresión isotónica.
 La AUC \textit{out-of-fold} (OOF) es 0{,}968 y la AUC sobre el
-\textit{holdout} del Mundial es 0{,}976 ---ligeramente superior a la
-del entrenamiento, lo que es consistente con un torneo de selecciones
-de élite con disparos más limpios que la media de liga. El
+\textit{holdout} del Mundial es 0{,}976. La AUC alta del modelo
+respecto al rango clásico de los $xG$ pre-disparo es consistente con
+la ventaja informativa del PSxG, que incorpora \textit{end\_y} y
+\textit{end\_z} del disparo y la configuración 360 \textit{freeze-frame}
+en el instante del lanzamiento; el detalle del análisis y la
+comparación contra la literatura PSxG están en el
+anexo~\ref{anexo:val-audit-models}. El
 \textit{Expected Calibration Error} (ECE) sobre el \textit{holdout}
 es 0{,}011, y el componente de \textit{reliability} en la
-descomposición de Brier es 0{,}0002, dos órdenes de magnitud por
-debajo del baseline equivalente de StatsBomb~$xG$. La componente de
-\textit{resolution} ---que mide cuánto separa el modelo eventos con
-distinta tasa de gol--- es 0{,}0713 sobre el \textit{holdout},
-aproximadamente tres veces y media superior al baseline. La
-combinación de reliability bajo y resolution alto certifica que el
-modelo puede usarse como ancla técnica del corpus de
-\textit{near-miss} sin sesgar la asignación entre tratamiento y
-control.
+descomposición de Brier es 0{,}0002 ---dos órdenes de magnitud por
+debajo del baseline $xG$ pre-disparo de StatsBomb tomado como
+referencia, con la salvedad de que ambos modelos operan sobre tareas
+distintas (PSxG post-disparo frente a $xG$ pre-disparo). La componente
+de \textit{resolution} es 0{,}0713 sobre el \textit{holdout},
+aproximadamente tres veces y media superior al mismo baseline. La
+combinación de reliability bajo y resolution alto respalda el uso del
+modelo como ancla técnica del corpus de \textit{near-miss} sin sesgar
+la asignación entre tratamiento y control.
 
 La capa de \textit{Win Probability} (WP) sigue el mismo protocolo:
 ajuste sobre Wyscout 2017/18 más StatsBomb fuera del Mundial y
 recalibración por \textit{temperature scaling} sobre la fase de
 grupos. La curva de calibración resultante sobre la fase de
-grupos del Mundial es indistinguible de la diagonal, con un parámetro
-de temperatura aprendido ligeramente inferior a la unidad
-($T \approx 0{,}95$), consistente con un shift de distribución
-modesto desde la liga europea al torneo de selecciones. La fase
+grupos del Mundial se mantiene próxima a la diagonal de calibración
+perfecta, con un parámetro de temperatura aprendido ligeramente
+inferior a la unidad ($T \approx 0{,}95$), consistente con un
+desplazamiento de distribución modesto desde la liga europea al
+torneo de selecciones. La fase
 eliminatoria queda como \textit{holdout} final donde no se ajusta
 ningún parámetro.
 
@@ -70,9 +75,11 @@ primera es el test $F$ de pre-tendencias agregadas
 paralelismo pre-tratamiento en ninguno de los ocho contrastes canal
 $\times$ contexto al nivel del cinco por ciento. Los coeficientes
 pre-shock son indistinguibles de cero en los diez minutos previos al
-gol en los cuatro canales, lo que es condición necesaria para la
-identificación del efecto del \textit{shock} bajo la asunción de
-tendencias paralelas.
+gol en los cuatro canales, lo que es consistente con la asunción de
+tendencias paralelas necesaria para la identificación del efecto del
+\textit{shock} ---reconociendo que la potencia del test es limitada
+con el tamaño de muestra disponible, motivo por el que las cotas
+\textit{HonestDiD} se reportan como verificación complementaria.
 
 La segunda comprobación es la sensibilidad temporal de los
 coeficientes a la elección de la ventana pre/post. La figura
@@ -214,8 +221,8 @@ la señal \textit{clutch}.
 
 El ATE poblacional indistinguible de cero no implica ausencia de
 efecto. La estimación del efecto heterogéneo por jugador mediante el
-CATE jerárquico bayesiano \textit{multivariate} sobre los 598
-jugadores con muestra suficiente reporta un panorama muy distinto.
+CATE jerárquico bayesiano \textit{multivariate} sobre los 511
+jugadores con minutos en campo reporta un panorama muy distinto.
 La figura \ref{fig:cate-heterogeneity} muestra la distribución del
 CATE individual por canal y dirección del \textit{shock}.
 

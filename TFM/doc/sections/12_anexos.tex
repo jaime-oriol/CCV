@@ -145,10 +145,13 @@ esté disponible.
 
 El \CCV se aplica al Mundial Qatar 2022 por ser el único corpus
 público que combina simultáneamente \textit{eventing} sincronizado,
-tracking a 25\,Hz, cobertura completa de fase eliminatoria,
-\textit{grades} humanos por evento y rosters oficiales. Las
-propiedades individuales identificadas corresponden a este torneo
-concreto, no son una predicción para otros contextos. Los 172
+tracking continuo \textit{full-pitch} de los 22 jugadores a 25\,Hz,
+cobertura completa de fase eliminatoria y rosters oficiales. PFF
+añade además \textit{grades} humanos por evento, que el marco utiliza
+como \textit{prior} informativo y validación externa pero no como
+condición estructural. Las propiedades individuales identificadas
+corresponden a este torneo concreto, no son una predicción para otros
+contextos. Los 172
 \textit{shocks} sobre 64 partidos sitúan el tamaño de muestra
 efectivo en el extremo bajo de lo que la identificación causal a
 nivel individual admite.
@@ -400,7 +403,7 @@ de los \textit{caches} del repositorio está disponible en
     \toprule
     Modelo & AUC OOF & AUC train & $\Delta$ overfit & AUC lit. & Referencia \\
     \midrule
-    PSxG (cal)            & $0{,}974$ & ---       & ---       & $0{,}84$--$0{,}88$ & Anzer \& Bauer 2021 \\
+    PSxG (cal)            & $0{,}968$ & ---       & ---       & $0{,}84$--$0{,}88$ & Anzer \& Bauer 2021 \\
     VAEP \textit{scores}  & $0{,}834$ & $0{,}907$ & $0{,}073$ & $0{,}86$--$0{,}91$ & Decroos et al. 2019 \\
     VAEP \textit{concedes}& $0{,}873$ & $0{,}930$ & $0{,}062$ & $0{,}85$--$0{,}88$ & Decroos et al. 2019 \\
     un-xPass              & $0{,}831$ & ---       & ---       & $0{,}82$--$0{,}84$ & Robberechts et al. 2023 \\
@@ -412,7 +415,7 @@ de los \textit{caches} del repositorio está disponible en
 \end{table}
 
 Tres lecturas son relevantes para el lector. Primero, la AUC del
-PSxG ($0{,}974$ OOF, $0{,}976$ \textit{holdout}) está por encima del
+PSxG ($0{,}968$ OOF, $0{,}976$ \textit{holdout}) está por encima del
 rango reportado en la literatura ($0{,}84$--$0{,}88$). La diferencia
 se explica por dos características del modelo: el uso de las
 coordenadas tridimensionales finales del balón ($end_y$, $end_z$)

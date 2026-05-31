@@ -20,11 +20,33 @@ que rige la producción de los resultados del capítulo siguiente
 \section{Marco metodológico}
 \label{sec:marco-metodologico}
 
+Antes del detalle técnico del \textit{pipeline}, esta sección fija la
+lógica conceptual sobre la que opera el \CCV. La
+figura~\ref{fig:mapa-conceptual} la resume en tres ejes
+encadenados: el tipo de \textit{shock} emocional (gol a favor, gol en
+contra o proximidad de eliminación), si el jugador rompe del bloque o
+se mueve con él, y si la reacción es positiva o negativa. La
+descomposición se proyecta finalmente sobre los cuatro canales del
+rendimiento (ofensivo, defensivo, \textit{off-ball} y físico). Este
+diagrama responde al \textbf{qué mide} el \CCV; el \textit{pipeline}
+de la figura~\ref{fig:pipeline-dag} responde al \textbf{cómo lo
+computa}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{fig_cap4_mapa_conceptual}
+  \caption{Mapa conceptual del \CCV: descomposición del \textit{shock}
+  emocional por tipo, por ruptura del bloque y por signo de la
+  reacción, proyectada sobre los cuatro canales del rendimiento.}
+  \label{fig:mapa-conceptual}
+\end{figure}
+
 El \textit{pipeline} se ejecuta como un grafo dirigido acíclico de seis
 fases. Cada fase consume el cache de la anterior y deposita un cache
 intermedio que las fases posteriores reutilizan, lo que permite
-recomputar cualquier capa sin reejecutar las anteriores y garantiza la
-reproducibilidad de los resultados. La figura~\ref{fig:pipeline-dag}
+recomputar cualquier capa sin reejecutar las anteriores y facilita la
+reproducibilidad bit a bit cuando se preserva el entorno de cómputo
+(versiones de librerías, semillas y \textit{backend} JAX/CUDA). La figura~\ref{fig:pipeline-dag}
 sintetiza la composición de las seis fases y las anotaciones
 metodológicas que conectan unas con otras.
 
@@ -274,9 +296,12 @@ es el \textit{propensity score}, ambos aprendidos como modelos
 \textit{nuisance} con LightGBM y validación cruzada en cinco pliegues
 estratificada por partido. La construcción sigue el esquema de
 \textit{Double/Debiased Machine Learning} (DML) de
-\textcite{Chernozhukov2018DML}, que garantiza la doble robustez del
-estimador siempre que al menos uno de los dos modelos
-\textit{nuisance} esté correctamente especificado.
+\textcite{Chernozhukov2018DML}, que proporciona doble robustez
+asintótica bajo tres condiciones: correcta especificación de al menos
+uno de los dos modelos \textit{nuisance}, solapamiento positivo
+($0 < \hat{e}(X) < 1$ con margen) y consistencia de los
+\textit{nuisance} a tasa $n^{-1/4}$. El cumplimiento del solapamiento
+se verifica empíricamente en la sección de resultados.
 
 Como comprobación complementaria, el efecto medio del tratamiento
 sobre los tratados (ATT, \textit{Average Treatment effect on the
@@ -333,6 +358,16 @@ $\gamma_k$:
 \mathbb{E}[\eta_{i,s,k}] \;=\; \gamma_k \cdot g^{\text{PFF}}_{i,k}.
 \]
 
+Sobre corpus sin \textit{grades} humanos, esta capa de regularización
+se sustituye por un \textit{prior} débil
+$\mathbb{E}[\eta_{i,s,k}] \sim \mathcal{N}(0, \sigma_0)$ con $\sigma_0$
+amplio; la identificación causal no se ve afectada y solo se
+ensanchan los intervalos de credibilidad individuales por la menor
+regularización, a costa de cierta pérdida de eficiencia muestral en
+corpus con tamaño limitado. El uso de los \textit{grades} responde a su
+disponibilidad en el corpus PFF FC, no a una exigencia estructural
+del marco.
+
 La parametrización está \textit{non-centered} en todos los efectos
 aleatorios para evitar la geometría de embudo
 \parencite{BetancourtGirolami2015}. El muestreo se realiza con \textit{Hamiltonian Monte Carlo}
@@ -346,9 +381,12 @@ para acomodar la geometría LKJ y la estructura jerárquica.
 
 El trabajo utiliza tres fuentes de datos, todas extraídas a parquet
 con tipos anidados y verificación \textit{round-trip lossless} antes
-de cualquier análisis. Ningún partido del Mundial Qatar 2022 entra
-en el entrenamiento de ningún modelo predictivo, sin excepciones a lo
-largo del \textit{pipeline}.
+de cualquier análisis. Ningún modelo predictivo del \textit{pipeline}
+ve un partido del Mundial Qatar 2022 durante el entrenamiento; la
+única exposición controlada al torneo objetivo es la recalibración
+por \textit{temperature scaling} de la WP sobre la fase de grupos,
+descrita más adelante en el protocolo experimental
+(§\ref{sec:protocolo}).
 
 El corpus objetivo es el Mundial Qatar 2022 con datos PFF FC
 \parencite{PFFFC2024Release}, liberado en abierto en septiembre de
