@@ -21,6 +21,9 @@ CLAUDE.md
 # La version final del PDF compilado se expone en root como TFM_CCV.pdf.
 TFM/
 
+# Paper en ingles (arXiv + JQAS builds): privado hasta publicar el preprint.
+paper/
+
 # Build script del PPT (intermedio personal)
 src/build_pptx.py
 
