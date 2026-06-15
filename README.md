@@ -46,7 +46,7 @@ Datos raw originales (PFF tracking, StatsBomb, Wyscout) y documentacion interna 
 ```text
 CCV/
 ├── README.md                                      # este fichero
-├── TFM_CCV.pdf                                    # documento compilado (PDF)
+├── CCV.pdf                                        # documento compilado (PDF)
 ├── run_pipeline.sh                                # E2E orquestador (auto detect cores + GPU)
 ├── data/parquet/
 │   ├── pff/                                       # versionado: events (64) + metadata + rosters
@@ -134,7 +134,7 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 
 ## Documento
 
-PDF completo del trabajo en el root del repo: [TFM_CCV.pdf](TFM_CCV.pdf).
+PDF completo del trabajo en el root del repo: [CCV.pdf](CCV.pdf).
 
 ## Reproducibilidad
 
