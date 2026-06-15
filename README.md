@@ -5,7 +5,7 @@
 <h1 align="center">CCV — Causal Clutch Value</h1>
 
 <p align="center">
-  <em>TFM · Máster en Big Data Aplicado al Scouting Deportivo · Sports Data Campus</em><br/>
+  <em>Inferencia causal del rendimiento clutch individual en fútbol</em><br/>
   <em>Jaime Oriol Goicoechea</em>
 </p>
 
@@ -46,7 +46,7 @@ Datos raw originales (PFF tracking, StatsBomb, Wyscout) y documentacion interna 
 ```text
 CCV/
 ├── README.md                                      # este fichero
-├── TFM_CCV.pdf                                    # PDF compilado del TFM
+├── TFM_CCV.pdf                                    # documento compilado (PDF)
 ├── run_pipeline.sh                                # E2E orquestador (auto detect cores + GPU)
 ├── data/parquet/
 │   ├── pff/                                       # versionado: events (64) + metadata + rosters
@@ -94,7 +94,7 @@ CCV/
 └── outputs/
     ├── ccv_table.parquet                          # tabla scout final (511 jug x 299 cols)
     ├── viz/                                       # figuras PNG (PPCF, radar, radar_report, scatter, scatter_team, event-study, mapa conceptual, capas causales, pipeline DAG)
-    ├── assets/                                    # logos selecciones (33) + caras jugadores FotMob + logo JO + logo SDC
+    ├── assets/                                    # logos selecciones (33) + caras jugadores FotMob + logo JO
     └── ccv_aux/
         ├── top10_chasing_per_position.parquet     # 16 position_group granulares
         ├── top10_protecting_per_position.parquet
@@ -132,7 +132,7 @@ E2E ejecutado al 100%. Outputs versionados en repo. Caches regenerables via `not
 | M14    | cate/{panel_delta,posterior_player,indices,rankings,diag}   | NUTS 4x1000+1000 GPU; 0 div; 108/144 R-hat<1.05; PPC 8/8       |
 | M15    | outputs/ccv_table.parquet + ccv_aux/                        | 511 jug x 299 cols + 4 buckets posicionales (GK/DEF/MED/ATA)   |
 
-## Documento TFM
+## Documento
 
 PDF completo del trabajo en el root del repo: [TFM_CCV.pdf](TFM_CCV.pdf).
 
