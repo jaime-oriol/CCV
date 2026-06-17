@@ -596,7 +596,7 @@ def build_raw_per_minute(cache: bool = True, overwrite: bool = False,
 #                                     jugador en target k)
 #      b1[k] * (t/90) + b2[k] * (t/90)^2   (curva temporal del partido,
 #                                     captura U-shape: warm-up + decline)
-#  El RESIDUAL del modelo es exactamente lo que el TFM busca: "se desvio
+#  El RESIDUAL del modelo es exactamente lo que este estudio busca: "se desvio
 #  del rendimiento esperado para EL en ESE momento del partido". Esto
 #  encierra implicitamente la fatigue media-esperada (via curva temporal)
 #  + capacidad personal (via mu_player). Los desvios son interpretables

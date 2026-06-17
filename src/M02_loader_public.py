@@ -48,7 +48,7 @@ WYSCOUT_COMPETITIONS: tuple[str, ...] = (
 )
 
 # StatsBomb: alias humano -> (competition_id, season_id).
-# Las 4 unicas competiciones que sobreviven al filtro de este TFM.
+# Las 4 unicas competiciones que sobreviven al filtro de este estudio.
 STATSBOMB_COMPETITIONS: dict[str, tuple[int, int]] = {
     "WC22":     (43, 106),
     "Euro20":   (55,  43),

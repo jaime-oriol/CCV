@@ -1,12 +1,11 @@
-<p align="center">
-  <img src="outputs/assets/logo.png" alt="JO" width="240"/>
-</p>
-
 <h1 align="center">CCV — Causal Clutch Value</h1>
 
 <p align="center">
-  <em>Causal inference of individual clutch performance in football</em><br/>
-  <em>Jaime Oriol Goicoechea</em>
+  <em>Causal inference of individual clutch performance in football</em>
+</p>
+
+<p align="center">
+  <img src="outputs/viz/en/scatter_remontador_cerrojo.png" alt="Chasing and Protecting" width="820"/>
 </p>
 
 ---
@@ -20,23 +19,19 @@ Output: a three-dimensional ranking of clutch players (Chasing index post-GA + P
 CCV rests on two maps: the **conceptual map** describes what it decomposes (shock type × breaking from the block × sign of the reaction over 4 channels) and the **5-layer causal stack** describes how it isolates the player's effect from the team's collective push.
 
 <p align="center">
-  <img src="outputs/viz/fig_cap4_mapa_conceptual.png" alt="CCV conceptual map" width="780"/>
+  <img src="outputs/viz/en/fig_conceptual_map.png" alt="CCV conceptual map" width="820"/>
 </p>
 
 <p align="center">
-  <img src="outputs/viz/fig_cap4_capas_causales.png" alt="CCV 5 causal layers" width="780"/>
+  <img src="outputs/viz/en/fig_causal_layers.png" alt="CCV 5 causal layers" width="820"/>
 </p>
 
 The technical pipeline runs as a 6-phase DAG: extraction -> WP backbone -> shocks/near-miss -> 4 channels in parallel -> hierarchical CATE -> scout-facing assembly.
 
-<p align="center">
-  <img src="outputs/viz/fig_cap4_pipeline_dag.jpg" alt="CCV pipeline DAG" width="780"/>
-</p>
-
 ## Scout-facing card (example)
 
 <p align="center">
-  <img src="outputs/viz/radar_report_3870.png" alt="Mbappe scout-facing radar" width="780"/>
+  <img src="outputs/viz/en/radar_report_3870.png" alt="Scout-facing radar" width="820"/>
 </p>
 
 ## Repository structure
@@ -46,7 +41,6 @@ Original raw data (PFF tracking, StatsBomb, Wyscout) and internal project docume
 ```text
 CCV/
 ├── README.md                                      # this file
-├── CCV.pdf                                        # compiled document (PDF)
 ├── run_pipeline.sh                                # E2E orchestrator (auto-detect cores + GPU)
 ├── data/parquet/
 │   ├── pff/                                       # versioned: events (64) + metadata + rosters
@@ -93,8 +87,8 @@ CCV/
 │   └── regen_m14_kaggle.ipynb                     # M14 NUTS HMC regen on Kaggle GPU
 └── outputs/
     ├── ccv_table.parquet                          # final scout table (511 players x 299 cols)
-    ├── viz/                                       # PNG figures (PPCF, radar, radar_report, scatter, scatter_team, event-study, conceptual map, causal layers, pipeline DAG)
-    ├── assets/                                    # national-team logos (33) + FotMob player faces + JO logo
+    ├── viz/                                       # PNG figures (PPCF, radar, radar_report, scatter, scatter_team, event-study, conceptual map, causal layers)
+    ├── assets/                                    # national-team logos (33) + FotMob player faces
     └── ccv_aux/
         ├── top10_chasing_per_position.parquet     # 16 granular position groups
         ├── top10_protecting_per_position.parquet
@@ -132,15 +126,11 @@ E2E executed at 100%. Outputs versioned in the repo. Caches regenerable via `not
 | M14    | cate/{panel_delta,posterior_player,indices,rankings,diag}   | NUTS 4x1000+1000 GPU; 0 div; 108/144 R-hat<1.05; PPC 8/8       |
 | M15    | outputs/ccv_table.parquet + ccv_aux/                        | 511 players x 299 cols + 4 positional buckets (GK/DEF/MED/ATA) |
 
-## Document
-
-Full PDF of the work at the repo root: [CCV.pdf](CCV.pdf).
-
 ## Reproducibility
 
 ```bash
-# Clone the repo and run the E2E pipeline (cache hit on M03-M14 is instant)
-git clone https://github.com/jaime-oriol/CCV.git
+# Clone the repository and run the E2E pipeline (cache hit on M03-M14 is instant)
+git clone <anonymized-repository-url>
 cd CCV
 ./run_pipeline.sh                # auto-detect cores + GPU
 # Outputs in outputs/ccv_table.parquet + ccv_aux/

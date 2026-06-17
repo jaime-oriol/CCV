@@ -13,15 +13,12 @@ data/parquet/pff/tracking/
 #   data/parquet/derived/    -> SI versionar
 #   cache/vaep/              -> SI versionar (compute_features/labels VAEP)
 
-# Documentacion interna del proyecto
+# Internal project documentation (private local folders).
 docs/
 CLAUDE.md
 
-# Carpeta TFM/ (LaTeX doc + presentacion + templates privados).
-# La version final del PDF compilado se expone en root como TFM_CCV.pdf.
+# Private local LaTeX/manuscript build folders (not part of the public artifact).
 TFM/
-
-# Paper en ingles (arXiv + JQAS builds): privado hasta publicar el preprint.
 paper/
 
 # Build script del PPT (intermedio personal)
